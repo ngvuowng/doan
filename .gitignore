@@ -44,3 +44,6 @@ next-env.d.ts
 prisma/dev.db
 prisma/dev.db-journal
 prisma/*.db
+
+# Giữ file mẫu để người khác chạy được dự án
+!.env.example

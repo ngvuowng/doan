@@ -1,3 +1,6 @@
+/** Địa chỉ gốc của site, đổi khi triển khai thật. */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+
 /** Thông tin site lấy nguyên từ bản lưu trữ của nongsan.maugiaodien.com. */
 export const SITE = {
   // "Fruist" là lỗi chính tả có sẵn trên site gốc — giữ nguyên cho đúng bản clone.

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Pattaya, Roboto, Roboto_Condensed } from 'next/font/google'
-import { SITE } from '@/lib/site'
+import { SITE, SITE_URL } from '@/lib/site'
 import { CartProvider } from '@/components/cart/CartProvider'
 import { SiteHeader } from '@/components/site/SiteHeader'
 import { Footer } from '@/components/site/Footer'
@@ -12,7 +12,7 @@ const robotoCondensed = Roboto_Condensed({ subsets: ['latin', 'vietnamese'], wei
 const pattaya = Pattaya({ subsets: ['latin', 'vietnamese'], weight: '400', variable: '--font-pattaya' })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE.name} - ${SITE.tagline}`,
     template: `%s | ${SITE.name}`,

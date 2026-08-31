@@ -41,6 +41,24 @@ function buildUrl(path: string, query?: Query): string {
   return url.toString()
 }
 
+/**
+ * Lấy thông báo lỗi từ thân phản hồi. FastAPI trả `detail` là chuỗi cho
+ * `HTTPException`, nhưng là *mảng* lỗi khi Pydantic tự kiểm tra dữ liệu ở biên
+ * API. Bỏ qua nhánh mảng thì mọi lỗi nhập liệu đều hiện thành "Lỗi API (HTTP 422)".
+ */
+function readDetail(data: unknown): string | null {
+  const detail = (data as { detail?: unknown } | null)?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((issue) => (issue as { msg?: unknown } | null)?.msg)
+      .filter((msg): msg is string => typeof msg === 'string')
+    // `msg` của Pydantic là tiếng Anh; thêm phần dẫn tiếng Việt cho khớp giao diện.
+    if (messages.length > 0) return `Dữ liệu không hợp lệ: ${messages.join('; ')}`
+  }
+  return null
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {}
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
@@ -72,7 +90,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (!response.ok) {
     const detail = await response
       .json()
-      .then((d) => (typeof d?.detail === 'string' ? d.detail : null))
+      .then(readDetail)
       .catch(() => null)
     throw new ApiError(response.status, detail ?? `Lỗi API (HTTP ${response.status})`)
   }

@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { api, ApiError } from '@/lib/api'
+import { collectIssues, type FormState } from '@/lib/validation'
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Vui lòng nhập họ tên'),
@@ -15,16 +16,10 @@ const schema = z.object({
   message: z.string().trim().min(10, 'Nội dung cần ít nhất 10 ký tự'),
 })
 
-export type ContactState = {
-  errors?: Record<string, string>
-  formError?: string
-  success?: boolean
-}
-
 export async function submitContact(
-  _prev: ContactState,
+  _prev: FormState,
   formData: FormData,
-): Promise<ContactState> {
+): Promise<FormState> {
   const parsed = schema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -33,14 +28,7 @@ export async function submitContact(
     message: formData.get('message'),
   })
 
-  if (!parsed.success) {
-    const errors: Record<string, string> = {}
-    for (const issue of parsed.error.issues) {
-      const key = String(issue.path[0])
-      errors[key] ??= issue.message
-    }
-    return { errors }
-  }
+  if (!parsed.success) return { errors: collectIssues(parsed.error) }
 
   const { name, email, phone, subject, message } = parsed.data
   try {

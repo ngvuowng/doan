@@ -1,10 +1,11 @@
 'use client'
 
 import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-import { updateProfile, type ProfileState } from '@/actions/auth'
+import { updateProfile } from '@/actions/auth'
+import { FieldError, FormError, FormSuccess, SubmitButton } from '@/components/form/controls'
+import type { FormState } from '@/lib/validation'
 
-const initial: ProfileState = {}
+const initial: FormState = {}
 
 export function ProfileForm({
   defaults,
@@ -15,14 +16,8 @@ export function ProfileForm({
 
   return (
     <form action={action} className="space-y-3">
-      {state.formError && (
-        <p className="rounded-md bg-sale/10 px-3 py-2 text-sm text-sale">{state.formError}</p>
-      )}
-      {state.success && (
-        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary-dark">
-          Đã cập nhật thông tin tài khoản.
-        </p>
-      )}
+      {state.formError && <FormError>{state.formError}</FormError>}
+      {state.success && <FormSuccess>Đã cập nhật thông tin tài khoản.</FormSuccess>}
 
       <div>
         <label className="label" htmlFor="profile-name">
@@ -59,20 +54,7 @@ export function ProfileForm({
         {state.errors?.address && <FieldError>{state.errors.address}</FieldError>}
       </div>
 
-      <SubmitButton />
+      <SubmitButton label="Cập nhật" pendingLabel="Đang lưu..." />
     </form>
   )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending} className="btn-primary">
-      {pending ? 'Đang lưu...' : 'Cập nhật'}
-    </button>
-  )
-}
-
-function FieldError({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-sale">{children}</p>
 }

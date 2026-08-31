@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-import { saveProduct, type AdminState } from '@/actions/admin'
+import { saveProduct } from '@/actions/admin'
+import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
+import type { FormState } from '@/lib/validation'
 
-const initial: AdminState = {}
+const initial: FormState = {}
 
 export type ProductFormValues = {
   id: string | null
@@ -31,9 +32,7 @@ export function ProductForm({ product, categories }: Props) {
 
   return (
     <form action={action} className="space-y-4">
-      {state.formError && (
-        <p className="rounded-md bg-sale/10 px-3 py-2 text-sm text-sale">{state.formError}</p>
-      )}
+      {state.formError && <FormError>{state.formError}</FormError>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tên sản phẩm *" error={state.errors?.name}>
@@ -110,21 +109,15 @@ export function ProductForm({ product, categories }: Props) {
       </fieldset>
 
       <div className="flex gap-3 border-t border-line pt-4">
-        <SubmitButton isEdit={Boolean(product.id)} />
+        <SubmitButton
+          label={product.id ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm'}
+          pendingLabel="Đang lưu..."
+        />
         <Link href="/admin/san-pham" className="btn-outline">
           Huỷ
         </Link>
       </div>
     </form>
-  )
-}
-
-function SubmitButton({ isEdit }: { isEdit: boolean }) {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending} className="btn-primary">
-      {pending ? 'Đang lưu...' : isEdit ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm'}
-    </button>
   )
 }
 
@@ -141,7 +134,7 @@ function Field({
     <div>
       <label className="label">{label}</label>
       {children}
-      {error && <p className="mt-1 text-xs text-sale">{error}</p>}
+      {error && <FieldError>{error}</FieldError>}
     </div>
   )
 }

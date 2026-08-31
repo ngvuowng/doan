@@ -3,12 +3,13 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
 import { useCart } from '@/components/cart/CartProvider'
-import { placeOrder, type CheckoutState } from '@/actions/order'
+import { placeOrder } from '@/actions/order'
+import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
+import type { FormState } from '@/lib/validation'
 import { formatPrice } from '@/lib/format'
 
-const initial: CheckoutState = {}
+const initial: FormState = {}
 
 type Props = {
   /** Điền sẵn thông tin nếu khách đã đăng nhập. */
@@ -45,9 +46,7 @@ export function CheckoutForm({ defaults }: Props) {
       <div>
         <h2 className="mb-4 font-heading text-lg font-bold uppercase">Thông tin giao hàng</h2>
 
-        {state.formError && (
-          <p className="mb-4 rounded-md bg-sale/10 px-3 py-2 text-sm text-sale">{state.formError}</p>
-        )}
+        {state.formError && <FormError className="mb-4">{state.formError}</FormError>}
 
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -179,21 +178,12 @@ export function CheckoutForm({ defaults }: Props) {
           </div>
         </dl>
 
-        <SubmitButton />
+        <SubmitButton
+        className="btn-primary mt-5 w-full"
+        label="Đặt hàng"
+        pendingLabel="Đang xử lý..."
+      />
       </aside>
     </form>
   )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending} className="btn-primary mt-5 w-full">
-      {pending ? 'Đang xử lý...' : 'Đặt hàng'}
-    </button>
-  )
-}
-
-function FieldError({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-sale">{children}</p>
 }

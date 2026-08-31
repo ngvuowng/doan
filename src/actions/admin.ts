@@ -6,8 +6,7 @@ import { z } from 'zod'
 import { api, ApiError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { ORDER_STATUSES } from '@/lib/orderStatus'
-
-export type AdminState = { errors?: Record<string, string>; formError?: string; success?: boolean }
+import { collectIssues, type FormState } from '@/lib/validation'
 
 /**
  * Chặn sớm ở frontend cho thông báo thân thiện. Backend vẫn tự kiểm tra quyền
@@ -17,15 +16,6 @@ async function assertAdmin() {
   const user = await getCurrentUser()
   if (!user || user.role !== 'ADMIN') return null
   return user
-}
-
-function collect(error: z.ZodError): Record<string, string> {
-  const errors: Record<string, string> = {}
-  for (const issue of error.issues) {
-    const key = String(issue.path[0])
-    errors[key] ??= issue.message
-  }
-  return errors
 }
 
 const productSchema = z
@@ -64,13 +54,13 @@ function readProductForm(formData: FormData) {
 
 export async function saveProduct(
   productId: string | null,
-  _prev: AdminState,
+  _prev: FormState,
   formData: FormData,
-): Promise<AdminState> {
+): Promise<FormState> {
   if (!(await assertAdmin())) return { formError: 'Bạn không có quyền thực hiện thao tác này.' }
 
   const parsed = readProductForm(formData)
-  if (!parsed.success) return { errors: collect(parsed.error) }
+  if (!parsed.success) return { errors: collectIssues(parsed.error) }
 
   const { salePrice, ...rest } = parsed.data
   const body = {

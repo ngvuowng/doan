@@ -5,8 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { api, ApiError } from '@/lib/api'
 import { createSession, destroySession, getCurrentUser } from '@/lib/auth'
-
-export type AuthState = { errors?: Record<string, string>; formError?: string }
+import { collectIssues, type FormState } from '@/lib/validation'
 
 const loginSchema = z.object({
   email: z.string().trim().email('Email không hợp lệ'),
@@ -25,21 +24,12 @@ const registerSchema = z
     path: ['confirmPassword'],
   })
 
-function collect(error: z.ZodError): Record<string, string> {
-  const errors: Record<string, string> = {}
-  for (const issue of error.issues) {
-    const key = String(issue.path[0])
-    errors[key] ??= issue.message
-  }
-  return errors
-}
-
-export async function login(_prev: AuthState, formData: FormData): Promise<AuthState> {
+export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
   })
-  if (!parsed.success) return { errors: collect(parsed.error) }
+  if (!parsed.success) return { errors: collectIssues(parsed.error) }
 
   let role: string
   try {
@@ -57,14 +47,14 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   redirect(role === 'ADMIN' ? '/admin' : '/tai-khoan')
 }
 
-export async function register(_prev: AuthState, formData: FormData): Promise<AuthState> {
+export async function register(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = registerSchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
     password: formData.get('password'),
     confirmPassword: formData.get('confirmPassword'),
   })
-  if (!parsed.success) return { errors: collect(parsed.error) }
+  if (!parsed.success) return { errors: collectIssues(parsed.error) }
 
   try {
     const { token } = await api.auth.register(
@@ -100,12 +90,10 @@ const profileSchema = z.object({
   address: z.string().trim().max(300),
 })
 
-export type ProfileState = AuthState & { success?: boolean }
-
 export async function updateProfile(
-  _prev: ProfileState,
+  _prev: FormState,
   formData: FormData,
-): Promise<ProfileState> {
+): Promise<FormState> {
   const user = await getCurrentUser()
   if (!user) return { formError: 'Bạn cần đăng nhập để cập nhật thông tin.' }
 
@@ -114,7 +102,7 @@ export async function updateProfile(
     phone: formData.get('phone') ?? '',
     address: formData.get('address') ?? '',
   })
-  if (!parsed.success) return { errors: collect(parsed.error) }
+  if (!parsed.success) return { errors: collectIssues(parsed.error) }
 
   try {
     await api.auth.updateProfile({

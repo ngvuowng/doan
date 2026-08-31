@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { api, ApiError } from '@/lib/api'
+import { collectIssues, type FormState } from '@/lib/validation'
 
 const lineSchema = z.object({
   productId: z.string().min(1),
@@ -21,15 +22,10 @@ const checkoutSchema = z.object({
   paymentMethod: z.enum(['COD', 'BANK']),
 })
 
-export type CheckoutState = {
-  errors?: Record<string, string>
-  formError?: string
-}
-
 export async function placeOrder(
-  _prev: CheckoutState,
+  _prev: FormState,
   formData: FormData,
-): Promise<CheckoutState> {
+): Promise<FormState> {
   const parsed = checkoutSchema.safeParse({
     customerName: formData.get('customerName'),
     email: formData.get('email'),
@@ -39,14 +35,7 @@ export async function placeOrder(
     paymentMethod: formData.get('paymentMethod') ?? 'COD',
   })
 
-  if (!parsed.success) {
-    const errors: Record<string, string> = {}
-    for (const issue of parsed.error.issues) {
-      const key = String(issue.path[0])
-      errors[key] ??= issue.message
-    }
-    return { errors }
-  }
+  if (!parsed.success) return { errors: collectIssues(parsed.error) }
 
   // Giỏ hàng nằm ở localStorage nên client gửi kèm; backend tự tính lại tiền
   // từ CSDL nên không cần tin số liệu do client gửi lên.

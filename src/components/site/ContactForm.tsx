@@ -1,10 +1,11 @@
 'use client'
 
 import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-import { submitContact, type ContactState } from '@/actions/contact'
+import { submitContact } from '@/actions/contact'
+import { FieldError, FormError, FormSuccess, SubmitButton } from '@/components/form/controls'
+import type { FormState } from '@/lib/validation'
 
-const initial: ContactState = {}
+const initial: FormState = {}
 
 export function ContactForm() {
   const [state, action] = useActionState(submitContact, initial)
@@ -51,30 +52,17 @@ export function ContactForm() {
         {state.errors?.message && <FieldError>{state.errors.message}</FieldError>}
       </div>
 
-      {state.formError && (
-        <p className="rounded-md bg-sale/10 px-3 py-2 text-sm text-sale">{state.formError}</p>
-      )}
+      {state.formError && <FormError>{state.formError}</FormError>}
 
       {state.success && (
-        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary-dark">
-          Cảm ơn bạn! Chúng tôi sẽ liên hệ lại trong thời gian sớm nhất.
-        </p>
+        <FormSuccess>Cảm ơn bạn! Chúng tôi sẽ liên hệ lại trong thời gian sớm nhất.</FormSuccess>
       )}
 
-      <SubmitButton />
+      <SubmitButton
+        className="btn-primary w-full sm:w-auto"
+        label="Gửi liên hệ"
+        pendingLabel="Đang gửi..."
+      />
     </form>
   )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending} className="btn-primary w-full sm:w-auto">
-      {pending ? 'Đang gửi...' : 'Gửi liên hệ'}
-    </button>
-  )
-}
-
-function FieldError({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-sale">{children}</p>
 }

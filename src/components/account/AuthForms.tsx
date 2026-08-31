@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-import { login, register, type AuthState } from '@/actions/auth'
+import { login, register } from '@/actions/auth'
+import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
+import type { FormState } from '@/lib/validation'
 
-const initial: AuthState = {}
+const initial: FormState = {}
 
 export function LoginForm() {
   const [state, action] = useActionState(login, initial)
@@ -30,7 +31,7 @@ export function LoginForm() {
         {state.errors?.password && <FieldError>{state.errors.password}</FieldError>}
       </div>
 
-      <SubmitButton label="Đăng nhập" pendingLabel="Đang đăng nhập..." />
+      <SubmitButton className="btn-primary w-full" label="Đăng nhập" pendingLabel="Đang đăng nhập..." />
 
       <p className="text-sm text-muted">
         Chưa có tài khoản?{' '}
@@ -81,7 +82,7 @@ export function RegisterForm() {
         {state.errors?.confirmPassword && <FieldError>{state.errors.confirmPassword}</FieldError>}
       </div>
 
-      <SubmitButton label="Đăng ký" pendingLabel="Đang tạo tài khoản..." />
+      <SubmitButton className="btn-primary w-full" label="Đăng ký" pendingLabel="Đang tạo tài khoản..." />
 
       <p className="text-sm text-muted">
         Đã có tài khoản?{' '}
@@ -91,21 +92,4 @@ export function RegisterForm() {
       </p>
     </form>
   )
-}
-
-function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending} className="btn-primary w-full">
-      {pending ? pendingLabel : label}
-    </button>
-  )
-}
-
-function FormError({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-md bg-sale/10 px-3 py-2 text-sm text-sale">{children}</p>
-}
-
-function FieldError({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-sale">{children}</p>
 }

@@ -100,8 +100,12 @@ const PRODUCTS = [
   },
 ]
 
-/** Ảnh dùng chung khi rê chuột lên card sản phẩm, đúng như bản gốc. */
-const HOVER_IMAGE = '/images/product-ca-chua-da-lat.png'
+/**
+ * Bản gốc dùng CHUNG một ảnh cắt vuông (Screenshot_4-300x300) làm ảnh hover cho cả 4
+ * sản phẩm, nên rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo. Đó là lỗi cấu hình của
+ * site demo; ở đây bỏ ảnh hover và dùng hiệu ứng phóng to nhẹ thay thế.
+ */
+const HOVER_IMAGE = null
 
 /** Ảnh trong nội dung bài viết trỏ về domain gốc — đổi sang ảnh đã tải về máy. */
 const IMAGE_REWRITES: Record<string, string> = {

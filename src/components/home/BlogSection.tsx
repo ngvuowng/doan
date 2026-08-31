@@ -7,7 +7,7 @@ export type BlogCardData = {
   title: string
   excerpt: string
   image: string
-  publishedAt: Date
+  publishedAt: string
 }
 
 /** Khối "CÓ THỂ BẠN CẦN" ở trang chủ: 4 bài viết mới nhất. */
@@ -33,7 +33,7 @@ export function BlogSection({ posts }: { posts: BlogCardData[] }) {
               </Link>
 
               <div className="flex flex-1 flex-col p-4">
-                <time dateTime={post.publishedAt.toISOString()} className="text-xs text-muted">
+                <time dateTime={post.publishedAt} className="text-xs text-muted">
                   {formatDate(post.publishedAt)}
                 </time>
                 <h3 className="mt-1.5 font-heading text-base leading-snug">

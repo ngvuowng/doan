@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
-import { POST_CARD_SELECT, getSidebarData } from '@/lib/blog'
+import { api } from '@/lib/api'
+import { getSidebarData } from '@/lib/blog'
 import { PageHeader } from '@/components/site/PageHeader'
 import { PostCard } from '@/components/blog/PostCard'
 import { PostSidebar } from '@/components/blog/PostSidebar'
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function BlogPage() {
   const [posts, [categories, recent]] = await Promise.all([
-    prisma.post.findMany({ orderBy: { publishedAt: 'desc' }, select: POST_CARD_SELECT }),
+    api.posts.list(),
     getSidebarData(),
   ])
 

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { ABOUT_LINKS, SITE } from '@/lib/site'
 import { FacebookIcon, MailIcon, MapPinIcon, PhoneIcon } from '@/components/site/icons'
 
@@ -9,11 +9,7 @@ import { FacebookIcon, MailIcon, MapPinIcon, PhoneIcon } from '@/components/site
  * lưu trữ nên thay bằng gradient tối cùng tông.
  */
 export async function Footer() {
-  const posts = await prisma.post.findMany({
-    orderBy: { publishedAt: 'desc' },
-    take: 4,
-    select: { slug: true, title: true },
-  })
+  const posts = await api.posts.list({ limit: 4 })
 
   return (
     <footer className="mt-auto bg-[linear-gradient(160deg,#1d2b12,#0f1a08)] text-neutral-300">

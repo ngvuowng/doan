@@ -1,20 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { StatusBadge } from '@/components/account/StatusBadge'
 
 export const metadata: Metadata = { title: 'Quản trị' }
 
 export default async function AdminDashboard() {
-  const [productCount, orderCount, postCount, unread, revenue, recentOrders] = await Promise.all([
-    prisma.product.count(),
-    prisma.order.count(),
-    prisma.post.count(),
-    prisma.contactMessage.count({ where: { handled: false } }),
-    prisma.order.aggregate({ where: { status: { not: 'CANCELLED' } }, _sum: { total: true } }),
-    prisma.order.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }),
-  ])
+  const { productCount, orderCount, postCount, pendingContactCount, revenue, recentOrders } =
+    await api.admin.stats()
 
   return (
     <div className="space-y-8">
@@ -24,8 +18,8 @@ export default async function AdminDashboard() {
           <Stat label="Sản phẩm" value={String(productCount)} href="/admin/san-pham" />
           <Stat label="Đơn hàng" value={String(orderCount)} href="/admin/don-hang" />
           <Stat label="Bài viết" value={String(postCount)} href="/admin/bai-viet" />
-          <Stat label="Liên hệ chưa xử lý" value={String(unread)} href="/admin/lien-he" />
-          <Stat label="Doanh thu" value={formatPrice(revenue._sum.total ?? 0)} />
+          <Stat label="Liên hệ chưa xử lý" value={String(pendingContactCount)} href="/admin/lien-he" />
+          <Stat label="Doanh thu" value={formatPrice(revenue)} />
         </div>
       </section>
 

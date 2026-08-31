@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { PAGE_SIZE, PRODUCT_CARD_SELECT, parsePage, sortToOrderBy } from '@/lib/catalog'
+import { api } from '@/lib/api'
+import { PAGE_SIZE, parsePage } from '@/lib/catalog'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ProductGrid } from '@/components/shop/ProductGrid'
 import { SortSelect } from '@/components/shop/SortSelect'
@@ -9,10 +9,7 @@ import { Pagination } from '@/components/shop/Pagination'
 import { CategorySidebar } from '@/components/shop/CategorySidebar'
 
 export async function generateStaticParams() {
-  const categories = await prisma.category.findMany({
-    where: { kind: 'product' },
-    select: { slug: true },
-  })
+  const categories = await api.categories.list('product')
   return categories.map((c) => ({ slug: c.slug }))
 }
 
@@ -20,7 +17,7 @@ export async function generateMetadata({
   params,
 }: PageProps<'/danh-muc-san-pham/[slug]'>): Promise<Metadata> {
   const { slug } = await params
-  const category = await prisma.category.findFirst({ where: { slug, kind: 'product' } })
+  const category = await api.categories.get(slug, 'product')
   if (!category) return {}
   return { title: category.name, description: category.subtitle ?? undefined }
 }
@@ -34,23 +31,12 @@ export default async function CategoryPage({
   const sort = typeof sp['sap-xep'] === 'string' ? sp['sap-xep'] : undefined
   const page = parsePage(typeof sp.trang === 'string' ? sp.trang : undefined)
 
-  const category = await prisma.category.findFirst({ where: { slug, kind: 'product' } })
+  const category = await api.categories.get(slug, 'product')
   if (!category) notFound()
 
-  const [categories, total, products] = await Promise.all([
-    prisma.category.findMany({
-      where: { kind: 'product' },
-      orderBy: { position: 'asc' },
-      select: { slug: true, name: true, _count: { select: { products: true } } },
-    }),
-    prisma.product.count({ where: { categories: { some: { id: category.id } } } }),
-    prisma.product.findMany({
-      where: { categories: { some: { id: category.id } } },
-      select: PRODUCT_CARD_SELECT,
-      orderBy: sortToOrderBy(sort),
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
+  const [categories, { items: products, total }] = await Promise.all([
+    api.categories.list('product'),
+    api.products.list({ category: slug, sort, page, page_size: PAGE_SIZE }),
   ])
 
   return (

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
-import { PAGE_SIZE, PRODUCT_CARD_SELECT, parsePage, sortToOrderBy } from '@/lib/catalog'
+import { api } from '@/lib/api'
+import { PAGE_SIZE, parsePage } from '@/lib/catalog'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ProductGrid } from '@/components/shop/ProductGrid'
 import { SortSelect } from '@/components/shop/SortSelect'
@@ -17,19 +17,9 @@ export default async function ShopPage({ searchParams }: PageProps<'/cua-hang'>)
   const sort = typeof sp['sap-xep'] === 'string' ? sp['sap-xep'] : undefined
   const page = parsePage(typeof sp.trang === 'string' ? sp.trang : undefined)
 
-  const [categories, total, products] = await Promise.all([
-    prisma.category.findMany({
-      where: { kind: 'product' },
-      orderBy: { position: 'asc' },
-      select: { slug: true, name: true, _count: { select: { products: true } } },
-    }),
-    prisma.product.count(),
-    prisma.product.findMany({
-      select: PRODUCT_CARD_SELECT,
-      orderBy: sortToOrderBy(sort),
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
+  const [categories, { items: products, total }] = await Promise.all([
+    api.categories.list('product'),
+    api.products.list({ sort, page, page_size: PAGE_SIZE }),
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)

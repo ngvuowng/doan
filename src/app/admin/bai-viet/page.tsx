@@ -1,16 +1,13 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 
 export const metadata: Metadata = { title: 'Quản lý bài viết' }
 
 export default async function AdminPostsPage() {
-  const posts = await prisma.post.findMany({
-    orderBy: { publishedAt: 'desc' },
-    include: { categories: { select: { name: true } } },
-  })
+  const posts = await api.admin.posts()
 
   return (
     <>

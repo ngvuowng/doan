@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-type Category = { slug: string; name: string; _count: { products: number } }
+type Category = { slug: string; name: string; productCount: number }
 
 /** Cột danh mục bên trái ở trang cửa hàng. */
 export function CategorySidebar({
@@ -34,7 +34,7 @@ export function CategorySidebar({
             >
               <span>{c.name}</span>
               <span className={activeSlug === c.slug ? 'text-white/80' : 'text-muted'}>
-                ({c._count.products})
+                ({c.productCount})
               </span>
             </Link>
           </li>

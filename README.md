@@ -1,19 +1,67 @@
 # Halona Fruist — Website bán nông sản sạch
 
-Bản dựng lại (clone) của website **nongsan.maugiaodien.com** bằng Next.js, kèm đầy đủ
-chức năng thương mại điện tử: giỏ hàng, đặt hàng, tài khoản và trang quản trị.
+Bản dựng lại (clone) của website **nongsan.maugiaodien.com**, kiến trúc ba lớp:
+**TypeScript (Next.js) cho giao diện — Python (FastAPI) cho backend — MySQL cho CSDL**.
+
+## Kiến trúc
+
+```
+                Trình duyệt
+                     │
+                     ▼
+      Next.js 16 (TypeScript)  :3000        ← giao diện, SSR, SEO
+        • Server Component  →  gọi API
+        • Server Action     →  gọi API   (zod kiểm tra form, JWT trong cookie httpOnly)
+                     │  HTTP/JSON + Authorization: Bearer <JWT>
+                     ▼
+      FastAPI (Python)         :8000        ← nghiệp vụ, 26 endpoint, Swagger ở /docs
+        • SQLAlchemy 2.0 + Alembic
+        • Pydantic v2 · JWT HS256 · bcrypt
+                     │  PyMySQL
+                     ▼
+      MySQL 8.4 (Docker)       :3307        ← dữ liệu
+      phpMyAdmin (Docker)      :8080
+```
+
+Frontend **không bao giờ nói chuyện trực tiếp với CSDL** — mọi truy vấn đều đi qua API.
+Token cũng chỉ nằm ở phía máy chủ Next.js (cookie `httpOnly`), không lộ ra trình duyệt.
 
 ## Chạy dự án
 
-Yêu cầu: **Node.js 20 trở lên** (khuyến nghị 22+). Không cần cài MySQL/PostgreSQL.
+Yêu cầu: **Docker**, **Python 3.12+**, **Node.js 20+**.
 
 ```bash
-cp .env.example .env       # tạo file cấu hình môi trường
-npm install                # tự chạy `prisma generate` sau khi cài
-npx prisma migrate deploy  # tạo CSDL SQLite tại prisma/dev.db
-npm run db:seed            # nạp dữ liệu mẫu
-npm run dev                # http://localhost:3000
+# 1. CSDL
+docker compose up -d                       # MySQL + phpMyAdmin
+
+# 2. Backend  (cửa sổ 1)
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+alembic upgrade head                       # tạo bảng
+python seed.py                             # nạp dữ liệu mẫu
+uvicorn app.main:app --reload --port 8000
+
+# 3. Frontend (cửa sổ 2)
+cd ..
+cp .env.example .env
+npm install
+npm run dev                                # http://localhost:3000
 ```
+
+| Địa chỉ | Nội dung |
+| --- | --- |
+| http://localhost:3000 | Website |
+| http://localhost:8000/docs | Tài liệu API (Swagger, tự sinh) |
+| http://localhost:8080 | phpMyAdmin — xem trực tiếp dữ liệu trong MySQL |
+
+> **Cổng MySQL là 3307, không phải 3306.** Máy dev đã có sẵn một MySQL khác chiếm cổng
+> 3306 nên container ánh xạ ra 3307 để hai bên chạy song song. Muốn đổi lại thì sửa
+> `docker-compose.yml` và `backend/.env`.
+
+> `npm run build` cần backend đang chạy vì `generateStaticParams` và `sitemap.xml`
+> đọc dữ liệu thật lúc build.
 
 ### Tài khoản demo
 
@@ -24,18 +72,20 @@ npm run dev                # http://localhost:3000
 
 ## Công nghệ
 
-| Thành phần | Lựa chọn                                   |
-| ---------- | ------------------------------------------ |
-| Framework  | Next.js 16 (App Router) + React 19          |
-| Ngôn ngữ   | TypeScript                                  |
-| Giao diện  | Tailwind CSS 4                              |
-| CSDL       | SQLite qua Prisma 7 (`better-sqlite3`)      |
-| Xác thực   | JWT ký bằng `jose`, lưu trong cookie httpOnly |
-| Kiểm tra   | `zod` cho toàn bộ dữ liệu vào từ form       |
+| Lớp | Lựa chọn |
+| --- | --- |
+| Giao diện | Next.js 16 (App Router) + React 19 + TypeScript |
+| CSS | Tailwind CSS 4 |
+| Backend | FastAPI + SQLAlchemy 2.0 + Alembic |
+| CSDL | MySQL 8.4 (Docker), driver PyMySQL |
+| Xác thực | JWT HS256 (`python-jose`) + bcrypt, lưu trong cookie httpOnly |
+| Kiểm tra dữ liệu | `zod` ở form frontend, `pydantic` ở biên API |
 
-Chọn SQLite để dự án chạy được ngay sau `npm install` mà không phải dựng server CSDL.
-Muốn chuyển sang PostgreSQL chỉ cần đổi `provider` trong `prisma/schema.prisma` và
-`DATABASE_URL` trong `.env`.
+**Vì sao kiểm tra dữ liệu hai lần:** `zod` sinh thông báo lỗi tiếng Việt theo từng ô nhập
+cho `useActionState`; `pydantic` là lớp bảo vệ ở biên API, chặn cả những request không đi
+qua giao diện. Đây là trùng lặp có chủ đích.
+
+**Vì sao PyMySQL:** thuần Python, không cần trình biên dịch C — `pip install` là chạy được.
 
 ## Chức năng
 
@@ -58,30 +108,55 @@ Muốn chuyển sang PostgreSQL chỉ cần đổi `provider` trong `prisma/sche
 - Đơn hàng: xem chi tiết và đổi trạng thái
 - Bài viết và tin nhắn liên hệ
 
+Quyền quản trị được kiểm ở **cả hai phía**: frontend chặn sớm để báo lỗi thân thiện,
+backend kiểm lại trên từng endpoint `/api/admin/*` (thiếu token → 401, sai quyền → 403).
+
+**Giá đơn hàng luôn được backend tính lại từ CSDL.** Client chỉ gửi
+`{productId, quantity}`; có sửa giá trong payload cũng không ảnh hưởng tổng tiền.
+
 ## Lệnh thường dùng
 
 ```bash
-npm run dev           # chạy môi trường phát triển
-npm run build         # build production
-npm run lint          # kiểm tra ESLint
-npm run db:seed       # nạp lại dữ liệu mẫu (xoá dữ liệu cũ)
-npm run db:reset      # tạo lại CSDL từ đầu rồi seed
-npm run db:studio     # mở Prisma Studio để xem CSDL
-npm run fetch:assets  # tải lại ảnh gốc từ Wayback Machine
-node scripts/e2e.mjs  # chạy 38 kiểm thử đầu-cuối (cần `npm run dev` chạy song song)
+# Frontend
+npm run dev           # môi trường phát triển
+npm run build         # build production (cần backend đang chạy)
+npm run lint          # ESLint
+npx tsc --noEmit      # kiểm tra kiểu
+node scripts/e2e.mjs  # 38 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+
+# Backend (trong backend/, đã kích hoạt .venv)
+uvicorn app.main:app --reload --port 8000
+alembic upgrade head                      # áp dụng migration
+alembic revision --autogenerate -m "..."  # sinh migration sau khi sửa models.py
+python seed.py                            # nạp lại dữ liệu mẫu (xoá dữ liệu cũ)
+
+# CSDL
+docker compose up -d      # bật MySQL + phpMyAdmin
+docker compose down       # tắt (giữ dữ liệu)
+docker compose down -v    # tắt và XOÁ toàn bộ dữ liệu
 ```
 
 ## Cấu trúc thư mục
 
 ```
-prisma/          schema, migration và script seed
-scripts/         tải ảnh từ Wayback, kiểm thử đầu-cuối
-_reference/      bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
-public/images/   ảnh gốc đã tải về
-src/app/         các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
-src/components/  component giao diện, chia theo khu vực
-src/actions/     server action (đặt hàng, xác thực, quản trị, liên hệ)
-src/lib/         Prisma client, xác thực, định dạng, hằng số của site
+docker-compose.yml   MySQL 8.4 + phpMyAdmin
+backend/
+  app/models.py      7 bảng + 2 bảng nối (SQLAlchemy)
+  app/schemas.py     Pydantic; đổi snake_case ↔ camelCase ở biên API
+  app/routers/       products · categories · posts · auth · orders · contact · admin
+  app/security.py    băm mật khẩu, ký/đọc JWT
+  app/deps.py        dependency lấy người dùng từ header Authorization
+  alembic/           migration
+  seed.py            nạp dữ liệu gốc
+src/
+  lib/api.ts         lớp gọi backend — thay cho Prisma ở bản trước
+  lib/auth.ts        phiên đăng nhập; lib/session.ts giữ cookie
+  app/               các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
+  components/        component giao diện, chia theo khu vực
+  actions/           server action (đặt hàng, xác thực, quản trị, liên hệ)
+scripts/             tải ảnh từ Wayback, kiểm thử đầu-cuối
+_reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
+public/images/       ảnh gốc đã tải về
 ```
 
 ## Ghi chú về việc clone
@@ -104,17 +179,26 @@ Header      35px (top) + 90px (chính), thu còn 50px khi cuộn
 
 ### Những chỗ khác bản gốc (và lý do)
 
-| Nội dung                                                                 | Xử lý                                                                                                          |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Trang Cửa hàng, Chi tiết SP, Giới thiệu, Liên hệ, Giỏ hàng, Thanh toán, Tài khoản | Không có trong kho lưu trữ → tự thiết kế theo đúng design token và cấu trúc của trang chủ                        |
-| Ảnh `banner-home-1.png` (slide 1)                                        | Không được lưu trữ → dựng lại bằng HTML/CSS, tự co giãn theo màn hình                                           |
-| Ảnh nền footer `bgff-404.jpg`                                            | Không được lưu trữ → dùng gradient tối (bản gốc vốn phủ lớp đen 60% nên gần như không thấy ảnh)                  |
-| Thumbnail bài "Eat Clean"                                                | Không được lưu trữ → dùng ảnh SVG trang trí cùng tông màu                                                       |
-| Ảnh hover trên card sản phẩm                                             | Bản gốc dùng chung **một** ảnh cho cả 4 sản phẩm (rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo) → thay bằng hiệu ứng phóng to nhẹ |
-| Iframe Facebook Page                                                     | Cần App ID còn hiệu lực của chủ site gốc → bỏ, giữ lại video YouTube                                            |
+| Nội dung | Xử lý |
+| --- | --- |
+| Trang Cửa hàng, Chi tiết SP, Giới thiệu, Liên hệ, Giỏ hàng, Thanh toán, Tài khoản | Không có trong kho lưu trữ → tự thiết kế theo đúng design token và cấu trúc của trang chủ |
+| Ảnh `banner-home-1.png` (slide 1) | Không được lưu trữ → dựng lại bằng HTML/CSS, tự co giãn theo màn hình |
+| Ảnh nền footer `bgff-404.jpg` | Không được lưu trữ → dùng gradient tối (bản gốc vốn phủ lớp đen 60% nên gần như không thấy ảnh) |
+| Thumbnail bài "Eat Clean" | Không được lưu trữ → dùng ảnh SVG trang trí cùng tông màu |
+| Ảnh hover trên card sản phẩm | Bản gốc dùng chung **một** ảnh cho cả 4 sản phẩm (rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo) → thay bằng hiệu ứng phóng to nhẹ |
+| Iframe Facebook Page | Cần App ID còn hiệu lực của chủ site gốc → bỏ, giữ lại video YouTube |
 
 Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng tinh thần bản clone:
 "Halona Fru**i**st" (tên site) và "Or**a**gnic" (tên danh mục).
+
+### Khác biệt do đổi từ SQLite sang MySQL
+
+| Nội dung | Ghi chú |
+| --- | --- |
+| Tìm kiếm | Đối chiếu `utf8mb4_unicode_ci` bỏ qua cả hoa/thường lẫn **dấu**, nên gõ "tao" cũng ra "Táo nhập khẩu". Bản SQLite trước đây chỉ bỏ qua hoa/thường với ký tự ASCII |
+| Cột thời gian | Dùng `DATETIME(6)`. `DATETIME` thường làm tròn xuống giây, khiến các bản ghi tạo trong cùng một giây mất thứ tự khi `ORDER BY` |
+| Khoá chính | `CHAR(36)` chứa UUID, thay cho `cuid()` của Prisma. Giữ kiểu chuỗi để giỏ hàng và các route `/admin/san-pham/[id]` không phải đổi |
+| Tên cột | snake_case cho đúng quy ước MySQL; Pydantic đổi sang camelCase khi trả JSON |
 
 ## Kiểm thử
 
@@ -124,6 +208,11 @@ giỏ hàng, đặt hàng cho khách vãng lai và cho thành viên, đăng nh�
 liên hệ, toàn bộ luồng quản trị, responsive ở 375px và trang 404.
 
 ```bash
-npm run dev            # cửa sổ 1
-node scripts/e2e.mjs   # cửa sổ 2
+docker compose up -d                                    # cửa sổ 1
+cd backend && uvicorn app.main:app --port 8000          # cửa sổ 2
+npm run dev                                             # cửa sổ 3
+node scripts/e2e.mjs                                    # cửa sổ 4
 ```
+
+Bộ kiểm thử này **không bị sửa** khi chuyển stack — nó chạy qua giao diện thật nên là
+bằng chứng cho thấy việc đổi backend không làm thay đổi hành vi của website.

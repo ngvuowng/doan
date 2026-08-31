@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { ORDER_STATUSES, PAYMENT_LABEL } from '@/lib/orderStatus'
 import { updateOrderStatus } from '@/actions/admin'
@@ -9,10 +9,7 @@ import { StatusBadge } from '@/components/account/StatusBadge'
 export const metadata: Metadata = { title: 'Quản lý đơn hàng' }
 
 export default async function AdminOrdersPage() {
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { items: true },
-  })
+  const orders = await api.admin.orders()
 
   if (orders.length === 0) {
     return (

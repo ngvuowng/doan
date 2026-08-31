@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 type Props = {
-  categories: { slug: string; name: string; _count: { posts: number } }[]
+  categories: { slug: string; name: string; postCount: number }[]
   recent: { slug: string; title: string }[]
   activeSlug?: string
 }
@@ -32,7 +32,7 @@ export function PostSidebar({ categories, recent, activeSlug }: Props) {
               >
                 <span>{c.name}</span>
                 <span className={activeSlug === c.slug ? 'text-white/80' : 'text-muted'}>
-                  ({c._count.posts})
+                  ({c.postCount})
                 </span>
               </Link>
             </li>

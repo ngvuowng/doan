@@ -1,15 +1,11 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { ProductForm } from '@/components/admin/ProductForm'
 
 export const metadata: Metadata = { title: 'Thêm sản phẩm' }
 
 export default async function NewProductPage() {
-  const categories = await prisma.category.findMany({
-    where: { kind: 'product' },
-    orderBy: { position: 'asc' },
-    select: { id: true, name: true },
-  })
+  const categories = await api.categories.list('product')
 
   return (
     <>

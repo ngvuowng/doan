@@ -1,7 +1,7 @@
 'use server'
 
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { api, ApiError } from '@/lib/api'
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Vui lòng nhập họ tên'),
@@ -43,9 +43,18 @@ export async function submitContact(
   }
 
   const { name, email, phone, subject, message } = parsed.data
-  await prisma.contactMessage.create({
-    data: { name, email, phone: phone || null, subject: subject || null, message },
-  })
+  try {
+    await api.contact.create({
+      name,
+      email,
+      phone: phone || null,
+      subject: subject || null,
+      message,
+    })
+  } catch (error) {
+    if (error instanceof ApiError) return { ok: false, message: error.detail }
+    throw error
+  }
 
   return { ok: true, message: 'Cảm ơn bạn! Chúng tôi sẽ liên hệ lại trong thời gian sớm nhất.' }
 }

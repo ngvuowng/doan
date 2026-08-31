@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ClearCartOnMount } from '@/components/cart/ClearCartOnMount'
@@ -19,7 +19,7 @@ export default async function OrderSuccessPage({
   params,
 }: PageProps<'/dat-hang-thanh-cong/[code]'>) {
   const { code } = await params
-  const order = await prisma.order.findUnique({ where: { code }, include: { items: true } })
+  const order = await api.orders.get(code)
   if (!order) notFound()
 
   return (

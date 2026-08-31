@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { PAYMENT_LABEL } from '@/lib/orderStatus'
@@ -17,7 +17,7 @@ export default async function MyOrderDetailPage({
   if (!session) redirect('/tai-khoan/dang-nhap')
 
   const { code } = await params
-  const order = await prisma.order.findUnique({ where: { code }, include: { items: true } })
+  const order = await api.orders.get(code)
 
   // Chỉ chủ đơn (hoặc quản trị viên) mới xem được chi tiết.
   if (!order || (order.userId !== session.id && session.role !== 'ADMIN')) notFound()

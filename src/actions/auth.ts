@@ -2,9 +2,8 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { api, ApiError } from '@/lib/api'
 import { createSession, destroySession, getCurrentUser } from '@/lib/auth'
 
 export type AuthState = { errors?: Record<string, string>; formError?: string }
@@ -42,14 +41,20 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   })
   if (!parsed.success) return { errors: collect(parsed.error) }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } })
-  // Thông báo chung cho cả hai trường hợp để không lộ email nào đã đăng ký.
-  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
-    return { formError: 'Email hoặc mật khẩu không đúng.' }
+  let role: string
+  try {
+    // Backend trả cùng một thông báo cho email sai lẫn mật khẩu sai, nên không
+    // lộ được email nào đã đăng ký.
+    const { token, user } = await api.auth.login(parsed.data.email, parsed.data.password)
+    await createSession(token)
+    role = user.role
+  } catch (error) {
+    if (error instanceof ApiError) return { formError: error.detail }
+    throw error
   }
 
-  await createSession({ id: user.id, email: user.email, name: user.name, role: user.role })
-  redirect(user.role === 'ADMIN' ? '/admin' : '/tai-khoan')
+  // redirect() ném lỗi để điều hướng nên phải gọi ngoài khối try/catch ở trên.
+  redirect(role === 'ADMIN' ? '/admin' : '/tai-khoan')
 }
 
 export async function register(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -61,18 +66,21 @@ export async function register(_prev: AuthState, formData: FormData): Promise<Au
   })
   if (!parsed.success) return { errors: collect(parsed.error) }
 
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
-  if (existing) return { errors: { email: 'Email này đã được đăng ký' } }
+  try {
+    const { token } = await api.auth.register(
+      parsed.data.name,
+      parsed.data.email,
+      parsed.data.password,
+    )
+    await createSession(token)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      return { errors: { email: error.detail } }
+    }
+    if (error instanceof ApiError) return { formError: error.detail }
+    throw error
+  }
 
-  const user = await prisma.user.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash: await bcrypt.hash(parsed.data.password, 10),
-    },
-  })
-
-  await createSession({ id: user.id, email: user.email, name: user.name, role: user.role })
   redirect('/tai-khoan')
 }
 
@@ -108,14 +116,16 @@ export async function updateProfile(
   })
   if (!parsed.success) return { errors: collect(parsed.error) }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
+  try {
+    await api.auth.updateProfile({
       name: parsed.data.name,
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
-    },
-  })
+    })
+  } catch (error) {
+    if (error instanceof ApiError) return { formError: error.detail }
+    throw error
+  }
 
   revalidatePath('/tai-khoan')
   return { success: true }

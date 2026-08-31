@@ -3,13 +3,16 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { api, ApiError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { ORDER_STATUSES } from '@/lib/orderStatus'
 
 export type AdminState = { errors?: Record<string, string>; formError?: string; success?: boolean }
 
-/** Mọi action trong file này đều phải đi qua đây trước khi ghi dữ liệu. */
+/**
+ * Chặn sớm ở frontend cho thông báo thân thiện. Backend vẫn tự kiểm tra quyền
+ * trên từng endpoint `/api/admin/*` nên đây không phải lớp bảo vệ duy nhất.
+ */
 async function assertAdmin() {
   const user = await getCurrentUser()
   if (!user || user.role !== 'ADMIN') return null
@@ -69,28 +72,25 @@ export async function saveProduct(
   const parsed = readProductForm(formData)
   if (!parsed.success) return { errors: collect(parsed.error) }
 
-  const { categoryIds, salePrice, ...rest } = parsed.data
-  const data = {
+  const { salePrice, ...rest } = parsed.data
+  const body = {
     ...rest,
     salePrice: salePrice === '' || salePrice === undefined ? null : Number(salePrice),
   }
 
-  // Slug phải là duy nhất; kiểm tra trước để báo lỗi thân thiện thay vì lỗi CSDL.
-  const clash = await prisma.product.findFirst({
-    where: { slug: data.slug, ...(productId ? { id: { not: productId } } : {}) },
-    select: { id: true },
-  })
-  if (clash) return { errors: { slug: 'Slug này đã được dùng cho sản phẩm khác' } }
-
-  if (productId) {
-    await prisma.product.update({
-      where: { id: productId },
-      data: { ...data, categories: { set: categoryIds.map((id) => ({ id })) } },
-    })
-  } else {
-    await prisma.product.create({
-      data: { ...data, categories: { connect: categoryIds.map((id) => ({ id })) } },
-    })
+  try {
+    if (productId) {
+      await api.admin.updateProduct(productId, body)
+    } else {
+      await api.admin.createProduct(body)
+    }
+  } catch (error) {
+    // Slug trùng: backend trả 409, gắn lỗi vào đúng ô nhập cho dễ sửa.
+    if (error instanceof ApiError && error.status === 409) {
+      return { errors: { slug: error.detail } }
+    }
+    if (error instanceof ApiError) return { formError: error.detail }
+    throw error
   }
 
   revalidatePath('/admin/san-pham')
@@ -103,7 +103,7 @@ export async function deleteProduct(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
-  await prisma.product.delete({ where: { id } })
+  await api.admin.deleteProduct(id)
   revalidatePath('/admin/san-pham')
   revalidatePath('/')
 }
@@ -115,7 +115,7 @@ export async function updateOrderStatus(formData: FormData) {
   const status = String(formData.get('status') ?? '')
   if (!id || !ORDER_STATUSES.some((s) => s.value === status)) return
 
-  await prisma.order.update({ where: { id }, data: { status } })
+  await api.admin.updateOrderStatus(id, status)
   revalidatePath('/admin/don-hang')
 }
 
@@ -125,9 +125,6 @@ export async function toggleContactHandled(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
-  const message = await prisma.contactMessage.findUnique({ where: { id } })
-  if (!message) return
-
-  await prisma.contactMessage.update({ where: { id }, data: { handled: !message.handled } })
+  await api.admin.toggleContact(id)
   revalidatePath('/admin/lien-he')
 }

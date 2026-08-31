@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { formatPrice } from '@/lib/format'
 import { ProfileForm } from '@/components/account/ProfileForm'
@@ -12,18 +12,12 @@ export default async function AccountPage() {
   const session = await getCurrentUser()
   if (!session) redirect('/tai-khoan/dang-nhap')
 
-  const [user, orderCount, spent] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: session.id },
-      select: { name: true, email: true, phone: true, address: true },
-    }),
-    prisma.order.count({ where: { userId: session.id } }),
-    prisma.order.aggregate({
-      where: { userId: session.id, status: { not: 'CANCELLED' } },
-      _sum: { total: true },
-    }),
-  ])
-  if (!user) redirect('/tai-khoan/dang-nhap')
+  const [user, orders] = await Promise.all([api.auth.me(), api.orders.mine()])
+
+  // Đơn đã huỷ không tính vào tổng chi tiêu.
+  const spent = orders
+    .filter((o) => o.status !== 'CANCELLED')
+    .reduce((sum, o) => sum + o.total, 0)
 
   return (
     <div className="space-y-8">
@@ -33,8 +27,8 @@ export default async function AccountPage() {
         </h2>
         <div className="grid gap-4 sm:grid-cols-3">
           <Stat label="Email" value={user.email} />
-          <Stat label="Số đơn hàng" value={String(orderCount)} />
-          <Stat label="Tổng chi tiêu" value={formatPrice(spent._sum.total ?? 0)} />
+          <Stat label="Số đơn hàng" value={String(orders.length)} />
+          <Stat label="Tổng chi tiêu" value={formatPrice(spent)} />
         </div>
         <Link href="/tai-khoan/don-hang" className="btn-outline mt-4">
           Xem đơn hàng của tôi

@@ -7,7 +7,7 @@ export type PostCardData = {
   title: string
   excerpt: string
   image: string
-  publishedAt: Date
+  publishedAt: string
 }
 
 export function PostCard({ post }: { post: PostCardData }) {
@@ -23,7 +23,7 @@ export function PostCard({ post }: { post: PostCardData }) {
         />
       </Link>
       <div className="flex flex-1 flex-col p-4">
-        <time dateTime={post.publishedAt.toISOString()} className="text-xs text-muted">
+        <time dateTime={post.publishedAt} className="text-xs text-muted">
           {formatDate(post.publishedAt)}
         </time>
         <h2 className="mt-1.5 font-heading text-base leading-snug">

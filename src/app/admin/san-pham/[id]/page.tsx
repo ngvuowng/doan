@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { ProductForm } from '@/components/admin/ProductForm'
 
 export const metadata: Metadata = { title: 'Sửa sản phẩm' }
@@ -8,12 +8,8 @@ export const metadata: Metadata = { title: 'Sửa sản phẩm' }
 export default async function EditProductPage({ params }: PageProps<'/admin/san-pham/[id]'>) {
   const { id } = await params
   const [product, categories] = await Promise.all([
-    prisma.product.findUnique({ where: { id }, include: { categories: { select: { id: true } } } }),
-    prisma.category.findMany({
-      where: { kind: 'product' },
-      orderBy: { position: 'asc' },
-      select: { id: true, name: true },
-    }),
+    api.admin.product(id),
+    api.categories.list('product'),
   ])
   if (!product) notFound()
 

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { toggleContactHandled } from '@/actions/admin'
 
 export const metadata: Metadata = { title: 'Tin nhắn liên hệ' }
 
 export default async function AdminContactPage() {
-  const messages = await prisma.contactMessage.findMany({ orderBy: { createdAt: 'desc' } })
+  const messages = await api.admin.contacts()
 
   return (
     <>

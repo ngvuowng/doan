@@ -2,21 +2,21 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { POST_CARD_SELECT, getSidebarData } from '@/lib/blog'
+import { api } from '@/lib/api'
+import { getSidebarData } from '@/lib/blog'
 import { formatDate } from '@/lib/format'
 import { PageHeader } from '@/components/site/PageHeader'
 import { PostCard } from '@/components/blog/PostCard'
 import { PostSidebar } from '@/components/blog/PostSidebar'
 
 export async function generateStaticParams() {
-  const posts = await prisma.post.findMany({ select: { slug: true } })
+  const posts = await api.posts.list()
   return posts.map((p) => ({ slug: p.slug }))
 }
 
 export async function generateMetadata({ params }: PageProps<'/tin-tuc/[slug]'>): Promise<Metadata> {
   const { slug } = await params
-  const post = await prisma.post.findUnique({ where: { slug } })
+  const post = await api.posts.get(slug)
   if (!post) return {}
   return {
     title: post.title,
@@ -27,19 +27,11 @@ export async function generateMetadata({ params }: PageProps<'/tin-tuc/[slug]'>)
 
 export default async function PostPage({ params }: PageProps<'/tin-tuc/[slug]'>) {
   const { slug } = await params
-  const post = await prisma.post.findUnique({
-    where: { slug },
-    include: { categories: { orderBy: { position: 'asc' } } },
-  })
+  const post = await api.posts.get(slug)
   if (!post) notFound()
 
   const [related, [categories, recent]] = await Promise.all([
-    prisma.post.findMany({
-      where: { slug: { not: post.slug } },
-      orderBy: { publishedAt: 'desc' },
-      take: 3,
-      select: POST_CARD_SELECT,
-    }),
+    api.posts.list({ exclude: post.slug, limit: 3 }),
     getSidebarData(),
   ])
 
@@ -53,7 +45,7 @@ export default async function PostPage({ params }: PageProps<'/tin-tuc/[slug]'>)
       <div className="container-site flex flex-col gap-8 py-10 lg:flex-row">
         <article className="flex-1">
           <div className="mb-5 flex flex-wrap items-center gap-3 text-sm text-muted">
-            <time dateTime={post.publishedAt.toISOString()}>{formatDate(post.publishedAt)}</time>
+            <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
             {post.categories.map((c) => (
               <Link
                 key={c.id}

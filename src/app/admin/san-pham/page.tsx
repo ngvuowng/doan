@@ -1,17 +1,14 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { formatPrice } from '@/lib/format'
 import { deleteProduct } from '@/actions/admin'
 
 export const metadata: Metadata = { title: 'Quản lý sản phẩm' }
 
 export default async function AdminProductsPage() {
-  const products = await prisma.product.findMany({
-    orderBy: { createdAt: 'asc' },
-    include: { categories: { select: { name: true } } },
-  })
+  const products = await api.admin.products()
 
   return (
     <>

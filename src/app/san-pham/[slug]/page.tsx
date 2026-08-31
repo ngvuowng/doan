@@ -2,8 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { PRODUCT_CARD_SELECT } from '@/lib/catalog'
+import { api } from '@/lib/api'
 import { discountPercent, effectivePrice, formatPrice } from '@/lib/format'
 import { PageHeader } from '@/components/site/PageHeader'
 import { AddToCartForm } from '@/components/shop/AddToCartForm'
@@ -11,13 +10,13 @@ import { ProductGrid } from '@/components/shop/ProductGrid'
 import { CheckIcon } from '@/components/site/icons'
 
 export async function generateStaticParams() {
-  const products = await prisma.product.findMany({ select: { slug: true } })
-  return products.map((p) => ({ slug: p.slug }))
+  const { items } = await api.products.list()
+  return items.map((p) => ({ slug: p.slug }))
 }
 
 export async function generateMetadata({ params }: PageProps<'/san-pham/[slug]'>): Promise<Metadata> {
   const { slug } = await params
-  const product = await prisma.product.findUnique({ where: { slug } })
+  const product = await api.products.get(slug)
   if (!product) return {}
   return {
     title: product.name,
@@ -28,24 +27,13 @@ export async function generateMetadata({ params }: PageProps<'/san-pham/[slug]'>
 
 export default async function ProductPage({ params }: PageProps<'/san-pham/[slug]'>) {
   const { slug } = await params
-  const product = await prisma.product.findUnique({
-    where: { slug },
-    include: { categories: { orderBy: { position: 'asc' } } },
-  })
+  const product = await api.products.get(slug)
   if (!product) notFound()
 
   const percent = discountPercent(product.price, product.salePrice)
   const price = effectivePrice(product)
   const mainCategory = product.categories[0]
-
-  const related = await prisma.product.findMany({
-    where: {
-      id: { not: product.id },
-      categories: mainCategory ? { some: { id: mainCategory.id } } : undefined,
-    },
-    select: PRODUCT_CARD_SELECT,
-    take: 4,
-  })
+  const related = product.related
 
   return (
     <>

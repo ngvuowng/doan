@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { HeroSlider } from '@/components/home/HeroSlider'
 import { PromoBanners } from '@/components/home/PromoBanners'
 import { WideBanners } from '@/components/home/WideBanners'
@@ -7,37 +7,20 @@ import { ProductSection } from '@/components/home/ProductSection'
 import { BlogSection } from '@/components/home/BlogSection'
 import { ContactSection } from '@/components/home/ContactSection'
 
-const PRODUCT_CARD_FIELDS = {
-  id: true,
-  slug: true,
-  name: true,
-  price: true,
-  salePrice: true,
-  image: true,
-  hoverImage: true,
-} as const
-
 /** Ba danh mục được bản gốc hiển thị thành 3 khối riêng ở trang chủ. */
-const HOME_SECTIONS = ['trai-cay-nhap-khau', 'trai-cay-noi-dia', 'nuoc-ep']
+const HOME_SECTIONS = ['trai-cay-nhap-khau', 'trai-cay-noi-dia', 'nuoc-ep'] as const
 
 export default async function HomePage() {
-  const [categories, posts] = await Promise.all([
-    prisma.category.findMany({
-      where: { slug: { in: HOME_SECTIONS } },
-      orderBy: { position: 'asc' },
-      include: {
-        products: { select: PRODUCT_CARD_FIELDS, orderBy: { createdAt: 'asc' } },
-      },
-    }),
-    prisma.post.findMany({
-      orderBy: { publishedAt: 'desc' },
-      take: 4,
-      select: { slug: true, title: true, excerpt: true, image: true, publishedAt: true },
-    }),
+  const [categories, sections, posts] = await Promise.all([
+    api.categories.list('product'),
+    Promise.all(HOME_SECTIONS.map((slug) => api.products.list({ category: slug }))),
+    api.posts.list({ limit: 4 }),
   ])
 
-  const bySlug = (slug: string) => categories.find((c) => c.slug === slug)
-  const [first, second, third] = HOME_SECTIONS.map(bySlug)
+  const [first, second, third] = HOME_SECTIONS.map((slug, i) => {
+    const category = categories.find((c) => c.slug === slug)
+    return category && { ...category, products: sections[i].items }
+  })
 
   return (
     <>

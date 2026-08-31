@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
-import { PRODUCT_CARD_SELECT } from '@/lib/catalog'
+import { api } from '@/lib/api'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ProductGrid } from '@/components/shop/ProductGrid'
 
@@ -10,21 +9,9 @@ export default async function SearchPage({ searchParams }: PageProps<'/tim-kiem'
   const sp = await searchParams
   const query = (typeof sp.q === 'string' ? sp.q : '').trim()
 
-  // SQLite của Prisma không hỗ trợ `mode: insensitive`; LIKE của SQLite vốn đã
-  // không phân biệt hoa/thường với ký tự ASCII.
-  const products = query
-    ? await prisma.product.findMany({
-        where: {
-          OR: [
-            { name: { contains: query } },
-            { shortDescription: { contains: query } },
-            { description: { contains: query } },
-          ],
-        },
-        select: PRODUCT_CARD_SELECT,
-        orderBy: { name: 'asc' },
-      })
-    : []
+  // Đối chiếu utf8mb4_unicode_ci của MySQL bỏ qua cả hoa/thường lẫn dấu, nên
+  // gõ "tao" cũng ra "Táo nhập khẩu".
+  const products = query ? (await api.products.list({ q: query, sort: 'ten' })).items : []
 
   return (
     <>

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { api } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { StatusBadge } from '@/components/account/StatusBadge'
@@ -12,11 +12,7 @@ export default async function MyOrdersPage() {
   const session = await getCurrentUser()
   if (!session) redirect('/tai-khoan/dang-nhap')
 
-  const orders = await prisma.order.findMany({
-    where: { userId: session.id },
-    orderBy: { createdAt: 'desc' },
-    include: { _count: { select: { items: true } } },
-  })
+  const orders = await api.orders.mine()
 
   if (orders.length === 0) {
     return (
@@ -56,7 +52,7 @@ export default async function MyOrdersPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted">{formatDateTime(o.createdAt)}</td>
-                <td className="px-4 py-3">{o._count.items}</td>
+                <td className="px-4 py-3">{o.itemCount}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={o.status} />
                 </td>

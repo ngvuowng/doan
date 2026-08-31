@@ -1,16 +1,6 @@
 import 'server-only'
-import { cookies } from 'next/headers'
-import { SignJWT, jwtVerify } from 'jose'
-import { prisma } from '@/lib/prisma'
-
-const COOKIE_NAME = 'halona_session'
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 ngày
-
-function secretKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET
-  if (!secret) throw new Error('Thiếu biến môi trường AUTH_SECRET')
-  return new TextEncoder().encode(secret)
-}
+import { api, ApiError } from '@/lib/api'
+import { clearSessionToken, setSessionToken } from '@/lib/session'
 
 export type SessionUser = {
   id: string
@@ -19,51 +9,27 @@ export type SessionUser = {
   role: string
 }
 
-/** Ký JWT và đặt vào cookie httpOnly sau khi đăng nhập/đăng ký thành công. */
-export async function createSession(user: SessionUser) {
-  const token = await new SignJWT({ email: user.email, name: user.name, role: user.role })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(user.id)
-    .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE_SECONDS}s`)
-    .sign(secretKey())
-
-  const store = await cookies()
-  store.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: MAX_AGE_SECONDS,
-  })
+/** Lưu token do backend cấp vào cookie httpOnly sau khi đăng nhập/đăng ký thành công. */
+export async function createSession(token: string) {
+  await setSessionToken(token)
 }
 
 export async function destroySession() {
-  const store = await cookies()
-  store.delete(COOKIE_NAME)
+  await clearSessionToken()
 }
 
 /**
- * Đọc người dùng từ cookie phiên. Trả null nếu chưa đăng nhập, token hỏng/hết hạn,
- * hoặc tài khoản đã bị xoá khỏi CSDL.
+ * Đọc người dùng của phiên hiện tại. Trả null nếu chưa đăng nhập, token hỏng/hết hạn,
+ * hoặc tài khoản đã bị xoá — backend tự đối chiếu lại CSDL ở `/api/auth/me` nên quyền
+ * bị đổi có hiệu lực ngay, không phải chờ token hết hạn.
  */
 export async function getCurrentUser(): Promise<SessionUser | null> {
-  const store = await cookies()
-  const token = store.get(COOKIE_NAME)?.value
-  if (!token) return null
-
   try {
-    const { payload } = await jwtVerify(token, secretKey())
-    if (!payload.sub) return null
-
-    // Đối chiếu lại với CSDL để quyền hạn đổi có hiệu lực ngay, không chờ token hết hạn.
-    const user = await prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, email: true, name: true, role: true },
-    })
-    return user
-  } catch {
-    return null
+    const user = await api.auth.me()
+    return { id: user.id, email: user.email, name: user.name, role: user.role }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return null
+    throw error
   }
 }
 

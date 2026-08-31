@@ -7,18 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed",
-    "db:reset": "prisma migrate reset --force",
-    "db:studio": "prisma studio",
-    "fetch:assets": "tsx scripts/fetch-assets.ts",
-    "postinstall": "prisma generate"
+    "fetch:assets": "tsx scripts/fetch-assets.ts"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.10.0",
-    "@prisma/client": "^7.10.0",
-    "bcryptjs": "^3.0.3",
-    "jose": "^6.2.10",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -27,13 +18,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
-    "prisma": "^7.10.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5"

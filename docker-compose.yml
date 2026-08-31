@@ -1,0 +1,40 @@
+# MySQL cho dự án Halona Fruist. Chạy: docker compose up -d
+services:
+  db:
+    image: mysql:8.4
+    container_name: halona-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: halona_root
+      MYSQL_DATABASE: halona
+      MYSQL_USER: halona
+      MYSQL_PASSWORD: halona
+    # utf8mb4 để lưu đúng tiếng Việt có dấu và emoji trong nội dung bài viết.
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    # Cổng 3306 của máy đã có MySQL 9.5.0 cài sẵn (Oracle .pkg) chiếm giữ,
+    # nên ánh xạ ra 3307 để hai bên chạy song song, không đụng nhau.
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uhalona", "-phalona"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: halona-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql-data:

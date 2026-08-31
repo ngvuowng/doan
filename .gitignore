@@ -47,3 +47,9 @@ prisma/*.db
 
 # Giữ file mẫu để người khác chạy được dự án
 !.env.example
+
+# Backend Python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc

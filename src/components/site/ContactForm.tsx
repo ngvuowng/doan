@@ -4,7 +4,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { submitContact, type ContactState } from '@/actions/contact'
 
-const initial: ContactState = { ok: false }
+const initial: ContactState = {}
 
 export function ContactForm() {
   const [state, action] = useActionState(submitContact, initial)
@@ -51,8 +51,14 @@ export function ContactForm() {
         {state.errors?.message && <FieldError>{state.errors.message}</FieldError>}
       </div>
 
-      {state.ok && state.message && (
-        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary-dark">{state.message}</p>
+      {state.formError && (
+        <p className="rounded-md bg-sale/10 px-3 py-2 text-sm text-sale">{state.formError}</p>
+      )}
+
+      {state.success && (
+        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary-dark">
+          Cảm ơn bạn! Chúng tôi sẽ liên hệ lại trong thời gian sớm nhất.
+        </p>
       )}
 
       <SubmitButton />

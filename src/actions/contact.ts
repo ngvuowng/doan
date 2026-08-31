@@ -16,9 +16,9 @@ const schema = z.object({
 })
 
 export type ContactState = {
-  ok: boolean
-  message?: string
   errors?: Record<string, string>
+  formError?: string
+  success?: boolean
 }
 
 export async function submitContact(
@@ -39,7 +39,7 @@ export async function submitContact(
       const key = String(issue.path[0])
       errors[key] ??= issue.message
     }
-    return { ok: false, errors }
+    return { errors }
   }
 
   const { name, email, phone, subject, message } = parsed.data
@@ -52,9 +52,9 @@ export async function submitContact(
       message,
     })
   } catch (error) {
-    if (error instanceof ApiError) return { ok: false, message: error.detail }
+    if (error instanceof ApiError) return { formError: error.detail }
     throw error
   }
 
-  return { ok: true, message: 'Cảm ơn bạn! Chúng tôi sẽ liên hệ lại trong thời gian sớm nhất.' }
+  return { success: true }
 }

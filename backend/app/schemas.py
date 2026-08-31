@@ -236,3 +236,10 @@ class AdminStats(ApiModel):
     pending_contact_count: int
     revenue: int
     recent_orders: list[OrderOut] = []
+
+
+# ---------- Tình trạng ----------
+
+
+class HealthOut(ApiModel):
+    status: str

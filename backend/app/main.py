@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import CORS_ORIGINS
 from app.routers import admin, auth, categories, contact, orders, posts, products
+from app.schemas import HealthOut
 
 app = FastAPI(
     title="Halona Fruist API",
@@ -26,6 +27,6 @@ for module in (products, categories, posts, auth, orders, contact, admin):
     app.include_router(module.router)
 
 
-@app.get("/api/health", tags=["health"])
+@app.get("/api/health", tags=["health"], response_model=HealthOut)
 def health():
     return {"status": "ok"}

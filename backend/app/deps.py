@@ -2,7 +2,8 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,6 +11,11 @@ from app.models import User
 from app.security import read_token
 
 DbSession = Annotated[Session, Depends(get_db)]
+
+# auto_error=False: thiếu header hay sai lược đồ thì trả None để `optional_user`
+# vẫn chạy được; khai báo qua HTTPBearer để Swagger có nút Authorize.
+bearer_scheme = HTTPBearer(auto_error=False)
+BearerToken = Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)]
 
 
 def or_404[T](value: T | None, message: str) -> T:
@@ -19,10 +25,12 @@ def or_404[T](value: T | None, message: str) -> T:
     return value
 
 
-def _user_from_header(authorization: str | None, db: Session) -> User | None:
-    if not authorization or not authorization.lower().startswith("bearer "):
+def _user_from_credentials(
+    credentials: HTTPAuthorizationCredentials | None, db: Session
+) -> User | None:
+    if credentials is None:
         return None
-    payload = read_token(authorization[7:].strip())
+    payload = read_token(credentials.credentials.strip())
     if not payload or not payload.get("sub"):
         return None
     # Đọc lại CSDL mỗi lần thay vì tin payload, để quyền bị đổi hay tài khoản bị
@@ -30,16 +38,12 @@ def _user_from_header(authorization: str | None, db: Session) -> User | None:
     return db.get(User, payload["sub"])
 
 
-def optional_user(
-    db: DbSession, authorization: Annotated[str | None, Header()] = None
-) -> User | None:
-    return _user_from_header(authorization, db)
+def optional_user(db: DbSession, credentials: BearerToken = None) -> User | None:
+    return _user_from_credentials(credentials, db)
 
 
-def current_user(
-    db: DbSession, authorization: Annotated[str | None, Header()] = None
-) -> User:
-    user = _user_from_header(authorization, db)
+def current_user(db: DbSession, credentials: BearerToken = None) -> User:
+    user = _user_from_credentials(credentials, db)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Chưa đăng nhập hoặc phiên đã hết hạn.")
     return user

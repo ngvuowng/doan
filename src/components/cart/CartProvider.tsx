@@ -58,10 +58,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Đọc giỏ hàng sau khi mount: server không có localStorage nên phải render rỗng trước.
+  // Đọc giỏ hàng sau khi mount. Server không truy cập được localStorage nên lần render
+  // đầu buộc phải là giỏ rỗng; đọc trong effect là cách chuẩn để HTML của server và
+  // client khớp nhau, tránh lỗi hydration.
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- đồng bộ với localStorage sau hydration */
     setItems(readStorage())
     setIsLoading(false)
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-"""Dependency dùng chung: lấy người dùng từ header Authorization."""
+"""Dependency và tiện ích dùng chung cho các router."""
 
 from typing import Annotated
 
@@ -10,6 +10,13 @@ from app.models import User
 from app.security import read_token
 
 DbSession = Annotated[Session, Depends(get_db)]
+
+
+def or_404[T](value: T | None, message: str) -> T:
+    """Trả về `value`; None thì ném 404 kèm thông báo tiếng Việt."""
+    if value is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, message)
+    return value
 
 
 def _user_from_header(authorization: str | None, db: Session) -> User | None:
@@ -46,4 +53,3 @@ def admin_user(user: Annotated[User, Depends(current_user)]) -> User:
 
 CurrentUser = Annotated[User, Depends(current_user)]
 OptionalUser = Annotated[User | None, Depends(optional_user)]
-AdminUser = Annotated[User, Depends(admin_user)]

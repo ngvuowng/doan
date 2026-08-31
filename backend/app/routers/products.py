@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.deps import DbSession
+from app.deps import DbSession, or_404
 from app.models import Category, Product
 from app.schemas import ProductCard, ProductDetail, ProductPage
 
@@ -56,11 +56,12 @@ def list_products(
 
 @router.get("/{slug}", response_model=ProductDetail)
 def get_product(slug: str, db: DbSession):
-    product = db.execute(
-        select(Product).where(Product.slug == slug).options(selectinload(Product.categories))
-    ).scalar_one_or_none()
-    if not product:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy sản phẩm.")
+    product = or_404(
+        db.execute(
+            select(Product).where(Product.slug == slug).options(selectinload(Product.categories))
+        ).scalar_one_or_none(),
+        "Không tìm thấy sản phẩm.",
+    )
 
     # Sản phẩm liên quan: cùng danh mục chính, bỏ chính nó, lấy tối đa 4.
     related: list[Product] = []

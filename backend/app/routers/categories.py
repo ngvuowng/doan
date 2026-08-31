@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from app.deps import DbSession
+from app.deps import DbSession, or_404
 from app.models import Category, Post, Product, post_categories, product_categories
 from app.schemas import CategoryOut, CategoryWithCount
 
@@ -46,7 +46,4 @@ def get_category(slug: str, db: DbSession, kind: str | None = Query(default=None
     if kind:
         stmt = stmt.where(Category.kind == kind)
 
-    category = db.execute(stmt).scalar_one_or_none()
-    if not category:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy danh mục.")
-    return category
+    return or_404(db.execute(stmt).scalar_one_or_none(), "Không tìm thấy danh mục.")

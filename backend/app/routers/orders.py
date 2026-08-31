@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.deps import CurrentUser, DbSession, OptionalUser
+from app.deps import CurrentUser, DbSession, OptionalUser, or_404
 from app.models import Order, OrderItem, Product
 from app.schemas import OrderIn, OrderOut
 
@@ -87,6 +87,4 @@ def get_order(code: str, db: DbSession):
     order = db.execute(
         select(Order).where(Order.code == code).options(selectinload(Order.items))
     ).scalar_one_or_none()
-    if not order:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy đơn hàng.")
-    return _to_out(order)
+    return _to_out(or_404(order, "Không tìm thấy đơn hàng."))

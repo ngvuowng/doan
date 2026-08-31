@@ -103,7 +103,13 @@ export async function deleteProduct(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
-  await api.admin.deleteProduct(id)
+  try {
+    await api.admin.deleteProduct(id)
+  } catch (error) {
+    // 404 nghĩa là sản phẩm đã bị xoá trước đó (vd. bấm nút hai lần) — coi như thành công.
+    if (!(error instanceof ApiError && error.status === 404)) throw error
+  }
+
   revalidatePath('/admin/san-pham')
   revalidatePath('/')
 }

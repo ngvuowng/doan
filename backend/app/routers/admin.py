@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
-from app.deps import AdminUser, DbSession
+from app.deps import DbSession, admin_user, or_404
 from app.models import Category, ContactMessage, Order, Post, Product
 from app.schemas import (
     AdminStats,
@@ -14,18 +14,34 @@ from app.schemas import (
     ProductOut,
 )
 
-# Mọi endpoint dưới đây đều đi qua `admin_user`: thiếu token → 401, sai quyền → 403.
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[])
+# `admin_user` gắn ở cấp router nên mọi endpoint dưới đây — kể cả endpoint thêm
+# sau này — đều được bảo vệ: thiếu token → 401, sai quyền → 403.
+router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(admin_user)])
 
 
-def _load_categories(db, ids: list[str]) -> list[Category]:
+def _load_categories(db: Session, ids: list[str]) -> list[Category]:
     if not ids:
         return []
     return list(db.execute(select(Category).where(Category.id.in_(ids))).scalars().all())
 
 
+def _assert_slug_free(db: Session, slug: str, product_id: str | None) -> None:
+    stmt = select(Product).where(Product.slug == slug)
+    if product_id:
+        stmt = stmt.where(Product.id != product_id)
+    if db.execute(stmt).scalar_one_or_none():
+        raise HTTPException(status.HTTP_409_CONFLICT, "Slug này đã được dùng cho sản phẩm khác")
+
+
+def _assert_sale_price(data: ProductIn) -> None:
+    if data.sale_price is not None and data.sale_price >= data.price:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Giá khuyến mãi phải nhỏ hơn giá gốc"
+        )
+
+
 @router.get("/stats", response_model=AdminStats)
-def stats(db: DbSession, _: AdminUser):
+def stats(db: DbSession):
     recent = (
         db.execute(
             select(Order).order_by(Order.created_at.desc()).limit(5).options(selectinload(Order.items))
@@ -54,7 +70,7 @@ def stats(db: DbSession, _: AdminUser):
 
 
 @router.get("/products", response_model=list[ProductOut])
-def list_products(db: DbSession, _: AdminUser):
+def list_products(db: DbSession):
     return list(
         db.execute(
             select(Product).order_by(Product.created_at.asc()).options(selectinload(Product.categories))
@@ -65,15 +81,12 @@ def list_products(db: DbSession, _: AdminUser):
 
 
 @router.get("/products/{product_id}", response_model=ProductOut)
-def get_product(product_id: str, db: DbSession, _: AdminUser):
-    product = db.get(Product, product_id)
-    if not product:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy sản phẩm.")
-    return product
+def get_product(product_id: str, db: DbSession):
+    return or_404(db.get(Product, product_id), "Không tìm thấy sản phẩm.")
 
 
 @router.post("/products", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
-def create_product(data: ProductIn, db: DbSession, _: AdminUser):
+def create_product(data: ProductIn, db: DbSession):
     _assert_slug_free(db, data.slug, None)
     _assert_sale_price(data)
 
@@ -88,15 +101,16 @@ def create_product(data: ProductIn, db: DbSession, _: AdminUser):
 
 
 @router.put("/products/{product_id}", response_model=ProductOut)
-def update_product(product_id: str, data: ProductIn, db: DbSession, _: AdminUser):
-    product = db.get(Product, product_id)
-    if not product:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy sản phẩm.")
+def update_product(product_id: str, data: ProductIn, db: DbSession):
+    product = or_404(db.get(Product, product_id), "Không tìm thấy sản phẩm.")
 
     _assert_slug_free(db, data.slug, product_id)
     _assert_sale_price(data)
 
-    for field, value in data.model_dump(by_alias=False, exclude={"category_ids"}).items():
+    # Bỏ qua `hover_image`: form quản trị không có ô này nên `ProductIn` luôn mang
+    # giá trị mặc định None, ghi đè vào sẽ xoá mất ảnh hover đang lưu trong CSDL.
+    fields = data.model_dump(by_alias=False, exclude={"category_ids", "hover_image"})
+    for field, value in fields.items():
         setattr(product, field, value)
     product.categories = _load_categories(db, data.category_ids)
 
@@ -106,33 +120,17 @@ def update_product(product_id: str, data: ProductIn, db: DbSession, _: AdminUser
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: str, db: DbSession, _: AdminUser):
-    product = db.get(Product, product_id)
-    if product:
-        db.delete(product)
-        db.commit()
-
-
-def _assert_slug_free(db, slug: str, product_id: str | None) -> None:
-    stmt = select(Product).where(Product.slug == slug)
-    if product_id:
-        stmt = stmt.where(Product.id != product_id)
-    if db.execute(stmt).scalar_one_or_none():
-        raise HTTPException(status.HTTP_409_CONFLICT, "Slug này đã được dùng cho sản phẩm khác")
-
-
-def _assert_sale_price(data: ProductIn) -> None:
-    if data.sale_price is not None and data.sale_price >= data.price:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, "Giá khuyến mãi phải nhỏ hơn giá gốc"
-        )
+def delete_product(product_id: str, db: DbSession):
+    product = or_404(db.get(Product, product_id), "Không tìm thấy sản phẩm.")
+    db.delete(product)
+    db.commit()
 
 
 # ---------- Đơn hàng ----------
 
 
 @router.get("/orders", response_model=list[OrderOut])
-def list_orders(db: DbSession, _: AdminUser):
+def list_orders(db: DbSession):
     orders = (
         db.execute(
             select(Order).order_by(Order.created_at.desc()).options(selectinload(Order.items))
@@ -144,10 +142,8 @@ def list_orders(db: DbSession, _: AdminUser):
 
 
 @router.patch("/orders/{order_id}", response_model=OrderOut)
-def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession, _: AdminUser):
-    order = db.get(Order, order_id)
-    if not order:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy đơn hàng.")
+def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession):
+    order = or_404(db.get(Order, order_id), "Không tìm thấy đơn hàng.")
 
     order.status = data.status
     db.commit()
@@ -159,7 +155,7 @@ def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession, _: Ad
 
 
 @router.get("/posts", response_model=list[PostOut])
-def list_posts(db: DbSession, _: AdminUser):
+def list_posts(db: DbSession):
     return list(
         db.execute(
             select(Post).order_by(Post.published_at.desc()).options(selectinload(Post.categories))
@@ -173,17 +169,15 @@ def list_posts(db: DbSession, _: AdminUser):
 
 
 @router.get("/contacts", response_model=list[ContactOut])
-def list_contacts(db: DbSession, _: AdminUser):
+def list_contacts(db: DbSession):
     return list(
         db.execute(select(ContactMessage).order_by(ContactMessage.created_at.desc())).scalars().all()
     )
 
 
 @router.patch("/contacts/{message_id}", response_model=ContactOut)
-def toggle_contact_handled(message_id: str, db: DbSession, _: AdminUser):
-    message = db.get(ContactMessage, message_id)
-    if not message:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy tin nhắn.")
+def toggle_contact_handled(message_id: str, db: DbSession):
+    message = or_404(db.get(ContactMessage, message_id), "Không tìm thấy tin nhắn.")
 
     message.handled = not message.handled
     db.commit()

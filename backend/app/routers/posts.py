@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.deps import DbSession
+from app.deps import DbSession, or_404
 from app.models import Category, Post
 from app.schemas import PostCard, PostOut
 
@@ -34,6 +34,4 @@ def get_post(slug: str, db: DbSession):
     post = db.execute(
         select(Post).where(Post.slug == slug).options(selectinload(Post.categories))
     ).scalar_one_or_none()
-    if not post:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy bài viết.")
-    return post
+    return or_404(post, "Không tìm thấy bài viết.")

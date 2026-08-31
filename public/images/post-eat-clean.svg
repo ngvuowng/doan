@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 400" width="700" height="400" role="img" aria-label="Ảnh minh hoạ chủ đề ăn sạch">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8fbc5a"/>
+      <stop offset="1" stop-color="#4e7a24"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".55"/>
+    </linearGradient>
+  </defs>
+  <rect width="700" height="400" fill="url(#bg)"/>
+  <circle cx="120" cy="70" r="130" fill="#ffffff" opacity=".07"/>
+  <circle cx="610" cy="350" r="160" fill="#000000" opacity=".07"/>
+  <circle cx="560" cy="90" r="46" fill="#ffffff" opacity=".10"/>
+  <g transform="translate(350 200)">
+    <path d="M0-92C52-92 96-52 96 0c0 52-44 92-96 92S-96 52-96 0C-96-52-52-92 0-92Z" fill="#ffffff" opacity=".14"/>
+    <path d="M0 62C-42 40-58 4-52-40c40-6 74 12 84 44 8-30 34-52 72-50C112-6 90 34 46 58 30 66 14 68 0 62Z" fill="url(#leaf)"/>
+    <path d="M0 62C4 26 20-6 46-30" fill="none" stroke="#4e7a24" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>
+    <path d="M0 62C-10 30-26 8-48-8" fill="none" stroke="#4e7a24" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

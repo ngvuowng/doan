@@ -8,7 +8,7 @@ Next.js đang dùng đúng những tên đó (`salePrice`, `hoverImage`, `create
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer, computed_field
 from pydantic.alias_generators import to_camel
 
 
@@ -177,7 +177,12 @@ class OrderOut(ApiModel):
     created_at: UtcDatetime
     updated_at: UtcDatetime
     items: list[OrderItemOut] = []
-    item_count: int = 0
+
+    @computed_field
+    @property
+    def item_count(self) -> int:
+        """Suy ra từ `items` để không phải vá tay ở từng router."""
+        return len(self.items)
 
 
 class OrderLineIn(ApiModel):

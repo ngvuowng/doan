@@ -16,10 +16,6 @@ def _generate_code() -> str:
     return f"HL-{secrets.token_hex(3).upper()}"
 
 
-def _to_out(order: Order) -> OrderOut:
-    return OrderOut.model_validate(order).model_copy(update={"item_count": len(order.items)})
-
-
 @router.post("", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
 def create_order(data: OrderIn, db: DbSession, user: OptionalUser):
     ids = [line.product_id for line in data.items]
@@ -59,7 +55,7 @@ def create_order(data: OrderIn, db: DbSession, user: OptionalUser):
     db.add(order)
     db.commit()
     db.refresh(order)
-    return _to_out(order)
+    return order
 
 
 @router.get("", response_model=list[OrderOut])
@@ -74,7 +70,7 @@ def my_orders(db: DbSession, user: CurrentUser):
         .scalars()
         .all()
     )
-    return [_to_out(o) for o in orders]
+    return orders
 
 
 @router.get("/{code}", response_model=OrderOut)
@@ -87,4 +83,4 @@ def get_order(code: str, db: DbSession):
     order = db.execute(
         select(Order).where(Order.code == code).options(selectinload(Order.items))
     ).scalar_one_or_none()
-    return _to_out(or_404(order, "Không tìm thấy đơn hàng."))
+    return or_404(order, "Không tìm thấy đơn hàng.")

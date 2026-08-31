@@ -59,10 +59,7 @@ def stats(db: DbSession):
         revenue=db.execute(
             select(func.coalesce(func.sum(Order.total), 0)).where(Order.status != "CANCELLED")
         ).scalar_one(),
-        recent_orders=[
-            OrderOut.model_validate(o).model_copy(update={"item_count": len(o.items)})
-            for o in recent
-        ],
+        recent_orders=[OrderOut.model_validate(o) for o in recent],
     )
 
 
@@ -138,7 +135,7 @@ def list_orders(db: DbSession):
         .scalars()
         .all()
     )
-    return [OrderOut.model_validate(o).model_copy(update={"item_count": len(o.items)}) for o in orders]
+    return orders
 
 
 @router.patch("/orders/{order_id}", response_model=OrderOut)
@@ -148,7 +145,7 @@ def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession):
     order.status = data.status
     db.commit()
     db.refresh(order)
-    return OrderOut.model_validate(order).model_copy(update={"item_count": len(order.items)})
+    return order
 
 
 # ---------- Bài viết ----------

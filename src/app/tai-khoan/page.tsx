@@ -9,10 +9,12 @@ import { ProfileForm } from '@/components/account/ProfileForm'
 export const metadata: Metadata = { title: 'Tài khoản' }
 
 export default async function AccountPage() {
-  const session = await getCurrentUser()
-  if (!session) redirect('/tai-khoan/dang-nhap')
+  const user = await getCurrentUser()
+  if (!user) redirect('/tai-khoan/dang-nhap')
 
-  const [user, orders] = await Promise.all([api.auth.me(), api.orders.mine()])
+  // Không gộp vào Promise.all với getCurrentUser: `orders.mine()` ném 401 khi
+  // chưa đăng nhập, redirect ở trên mới là thứ bảo đảm nó không bị gọi tới.
+  const orders = await api.orders.mine()
 
   // Đơn đã huỷ không tính vào tổng chi tiêu.
   const spent = orders

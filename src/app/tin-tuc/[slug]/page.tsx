@@ -27,13 +27,14 @@ export async function generateMetadata({ params }: PageProps<'/tin-tuc/[slug]'>)
 
 export default async function PostPage({ params }: PageProps<'/tin-tuc/[slug]'>) {
   const { slug } = await params
-  const post = await api.posts.get(slug)
-  if (!post) notFound()
-
-  const [related, [categories, recent]] = await Promise.all([
-    api.posts.list({ exclude: post.slug, limit: 3 }),
+  // `posts.get` đối chiếu đúng bằng slug nên `post.slug === slug`; nhờ vậy
+  // `related` dùng được `slug` trên URL và cả ba lời gọi chạy song song.
+  const [post, related, [categories, recent]] = await Promise.all([
+    api.posts.get(slug),
+    api.posts.list({ exclude: slug, limit: 3 }),
     getSidebarData(),
   ])
+  if (!post) notFound()
 
   return (
     <>

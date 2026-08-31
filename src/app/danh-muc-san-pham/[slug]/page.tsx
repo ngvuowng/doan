@@ -31,13 +31,14 @@ export default async function CategoryPage({
   const sort = typeof sp['sap-xep'] === 'string' ? sp['sap-xep'] : undefined
   const page = parsePage(typeof sp.trang === 'string' ? sp.trang : undefined)
 
-  const category = await api.categories.get(slug, 'product')
-  if (!category) notFound()
-
-  const [categories, { items: products, total }] = await Promise.all([
+  // Ba lời gọi độc lập nhau: `products.list` lọc theo `slug` trên URL chứ không
+  // cần `category` đã tải xong, nên gọi song song rồi mới kiểm tra 404.
+  const [category, categories, { items: products, total }] = await Promise.all([
+    api.categories.get(slug, 'product'),
     api.categories.list('product'),
     api.products.list({ category: slug, sort, page, page_size: PAGE_SIZE }),
   ])
+  if (!category) notFound()
 
   return (
     <>

@@ -21,13 +21,13 @@ export async function generateMetadata({
 
 export default async function PostCategoryPage({ params }: PageProps<'/chuyen-muc/[slug]'>) {
   const { slug } = await params
-  const category = await api.categories.get(slug, 'post')
-  if (!category) notFound()
-
-  const [posts, [categories, recent]] = await Promise.all([
+  // `posts.list` lọc theo `slug` trên URL nên không phải chờ `category`.
+  const [category, posts, [categories, recent]] = await Promise.all([
+    api.categories.get(slug, 'post'),
     api.posts.list({ category: slug }),
     getSidebarData(),
   ])
+  if (!category) notFound()
 
   return (
     <>

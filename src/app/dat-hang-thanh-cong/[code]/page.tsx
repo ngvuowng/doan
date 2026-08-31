@@ -4,16 +4,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
 import { formatDateTime, formatPrice } from '@/lib/format'
+import { PAYMENT_LABEL } from '@/lib/orderStatus'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ClearCartOnMount } from '@/components/cart/ClearCartOnMount'
 import { CheckIcon } from '@/components/site/icons'
 
 export const metadata: Metadata = { title: 'Đặt hàng thành công' }
-
-const PAYMENT_LABEL: Record<string, string> = {
-  COD: 'Thanh toán khi nhận hàng (COD)',
-  BANK: 'Chuyển khoản ngân hàng',
-}
 
 export default async function OrderSuccessPage({
   params,

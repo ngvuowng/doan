@@ -73,8 +73,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method: options.method ?? 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      // Dữ liệu thay đổi được từ trang quản trị nên không cache; giống hệt cách
-      // bản Prisma trước đây truy vấn thẳng CSDL mỗi lần render.
+      // Dữ liệu sửa được từ trang quản trị nên không giữ Data Cache giữa các
+      // request — giống cách bản Prisma trước đây truy vấn thẳng CSDL mỗi lần
+      // render. Lưu ý `no-store` KHÔNG tắt việc gộp request: Next bỏ trường
+      // `cache` ra khỏi khoá gộp, nên các GET giống hệt nhau trong cùng một lượt
+      // render vẫn chỉ đi một vòng tới backend.
       cache: 'no-store',
     })
   } catch (cause) {

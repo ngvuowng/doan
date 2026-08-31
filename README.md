@@ -26,6 +26,9 @@ Bản dựng lại (clone) của website **nongsan.maugiaodien.com**, kiến tr�
 Frontend **không bao giờ nói chuyện trực tiếp với CSDL** — mọi truy vấn đều đi qua API.
 Token cũng chỉ nằm ở phía máy chủ Next.js (cookie `httpOnly`), không lộ ra trình duyệt.
 
+Đặc tả yêu cầu đầy đủ — tác nhân, use case, sơ đồ tuần tự/hoạt động/lớp, ERD và thiết kế
+CSDL — nằm ở [docs/SRS.md](docs/SRS.md).
+
 ## Chạy dự án
 
 Yêu cầu: **Docker**, **Python 3.12+**, **Node.js 20+**.
@@ -44,7 +47,7 @@ python seed.py                             # nạp dữ liệu mẫu
 uvicorn app.main:app --reload --port 8000
 
 # 3. Frontend (cửa sổ 2)
-cd ..
+cd ../frontend
 cp .env.example .env
 npm install
 npm run dev                                # http://localhost:3000
@@ -117,7 +120,7 @@ backend kiểm lại trên từng endpoint `/api/admin/*` (thiếu token → 401
 ## Lệnh thường dùng
 
 ```bash
-# Frontend
+# Frontend (trong frontend/)
 npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
@@ -138,26 +141,37 @@ docker compose down -v    # tắt và XOÁ toàn bộ dữ liệu
 
 ## Cấu trúc thư mục
 
+Mỗi tầng trong sơ đồ kiến trúc ở trên là một thư mục riêng ở gốc repo:
+
 ```
 docker-compose.yml   MySQL 8.4 + phpMyAdmin
-backend/
+docs/SRS.md          đặc tả yêu cầu phần mềm
+_reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
+
+backend/             ← tầng nghiệp vụ (Python)
   app/models.py      7 bảng + 2 bảng nối (SQLAlchemy)
   app/schemas.py     Pydantic; đổi snake_case ↔ camelCase ở biên API
   app/routers/       products · categories · posts · auth · orders · contact · admin
   app/security.py    băm mật khẩu, ký/đọc JWT
-  app/deps.py        dependency lấy người dùng từ header Authorization
+  app/deps.py        dependency lấy người dùng từ Authorization, tiện ích or_404
   alembic/           migration
-  seed.py            nạp dữ liệu gốc
-src/
-  lib/api.ts         lớp gọi backend — thay cho Prisma ở bản trước
-  lib/auth.ts        phiên đăng nhập; lib/session.ts giữ cookie
-  app/               các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
-  components/        component giao diện, chia theo khu vực
-  actions/           server action (đặt hàng, xác thực, quản trị, liên hệ)
-scripts/             tải ảnh từ Wayback, kiểm thử đầu-cuối
-_reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
-public/images/       ảnh gốc đã tải về
+  seed.py            nạp dữ liệu gốc (đọc RSS trong _reference/)
+
+frontend/            ← tầng giao diện (TypeScript)
+  src/lib/api.ts     lớp gọi backend — thay cho Prisma ở bản trước
+  src/lib/auth.ts    phiên đăng nhập; lib/session.ts giữ cookie
+  src/app/           các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
+  src/components/    component giao diện, chia theo khu vực
+  src/actions/       server action (đặt hàng, xác thực, quản trị, liên hệ)
+  public/images/     ảnh gốc đã tải về
+  scripts/           tải ảnh từ Wayback, kiểm thử đầu-cuối
 ```
+
+> Lệnh `npm` phải chạy trong `frontend/`, giống như lệnh `uvicorn`/`alembic` phải
+> chạy trong `backend/`. Gốc repo không có `package.json`.
+
+`_reference/` nằm ở gốc vì cả hai tầng đều dùng: `backend/seed.py` đọc RSS lưu trữ
+trong đó, còn `frontend/scripts/fetch-assets.ts` tải ảnh từ cùng bản lưu trữ.
 
 ## Ghi chú về việc clone
 

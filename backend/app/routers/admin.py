@@ -3,9 +3,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import DbSession, admin_user, or_404
-from app.models import Category, ContactMessage, Order, Post, Product
+from app.models import Category, ChatMessage, ChatSession, ContactMessage, Order, Post, Product
 from app.schemas import (
     AdminStats,
+    ChatMessageOut,
+    ChatSessionSummary,
+    ChatTranscript,
     ContactOut,
     OrderOut,
     OrderStatusIn,
@@ -180,3 +183,55 @@ def toggle_contact_handled(message_id: str, db: DbSession):
     db.commit()
     db.refresh(message)
     return message
+
+
+# ---------- Hội thoại trợ lý ảo ----------
+
+
+def _summary_fields(session: ChatSession, message_count: int) -> dict:
+    """Ba trường user_name/user_email/message_count không nằm trên model nên gán tay."""
+    return {
+        "id": session.id,
+        "client_key": session.client_key,
+        "title": session.title,
+        "user_name": session.user.name if session.user else None,
+        "user_email": session.user.email if session.user else None,
+        "message_count": message_count,
+        "created_at": session.created_at,
+        "updated_at": session.updated_at,
+    }
+
+
+@router.get("/chats", response_model=list[ChatSessionSummary])
+def list_chats(db: DbSession):
+    # Đếm bằng subquery thay vì nạp hết tin nhắn của từng phiên chỉ để lấy con số.
+    message_count = (
+        select(func.count())
+        .select_from(ChatMessage)
+        .where(ChatMessage.session_id == ChatSession.id)
+        .correlate(ChatSession)
+        .scalar_subquery()
+    )
+    rows = db.execute(
+        select(ChatSession, message_count)
+        .options(selectinload(ChatSession.user))
+        .order_by(ChatSession.updated_at.desc())
+        .limit(200)
+    ).all()
+    return [ChatSessionSummary(**_summary_fields(session, count)) for session, count in rows]
+
+
+@router.get("/chats/{session_id}", response_model=ChatTranscript)
+def get_chat(session_id: str, db: DbSession):
+    session = or_404(
+        db.execute(
+            select(ChatSession)
+            .where(ChatSession.id == session_id)
+            .options(selectinload(ChatSession.user), selectinload(ChatSession.messages))
+        ).scalar_one_or_none(),
+        "Không tìm thấy cuộc trò chuyện.",
+    )
+    return ChatTranscript(
+        **_summary_fields(session, len(session.messages)),
+        messages=[ChatMessageOut.model_validate(m) for m in session.messages],
+    )

@@ -226,6 +226,52 @@ class ContactOut(ApiModel):
     created_at: UtcDatetime
 
 
+# ---------- Trợ lý ảo ----------
+
+
+class ChatMessageOut(ApiModel):
+    id: str
+    role: str  # "user" | "model"
+    content: str
+    created_at: UtcDatetime
+
+
+class ChatIn(ApiModel):
+    # UUID do trình duyệt sinh và giữ ở localStorage, dùng để nhận lại phiên sau khi tải lại trang.
+    client_key: str = Field(min_length=8, max_length=64)
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class ChatOut(ApiModel):
+    session_id: str
+    reply: ChatMessageOut
+    # Sản phẩm được nhắc tên trong câu trả lời. Giá và slug lấy thẳng từ CSDL nên giao
+    # diện luôn hiện đúng giá, kể cả khi model nói sai số trong câu chữ.
+    suggestions: list[ProductCard] = []
+
+
+class ChatHistoryOut(ApiModel):
+    """`session_id` là None khi client_key chưa từng có hội thoại nào."""
+
+    session_id: str | None = None
+    messages: list[ChatMessageOut] = []
+
+
+class ChatSessionSummary(ApiModel):
+    id: str
+    client_key: str
+    user_name: str | None = None
+    user_email: str | None = None
+    title: str | None = None
+    message_count: int = 0
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
+
+
+class ChatTranscript(ChatSessionSummary):
+    messages: list[ChatMessageOut] = []
+
+
 # ---------- Quản trị ----------
 
 

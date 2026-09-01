@@ -202,3 +202,58 @@ class ContactMessage(Base):
     message: Mapped[str] = mapped_column(Text)
     handled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow)
+
+
+class ChatSession(Base):
+    """Một cuộc trò chuyện với trợ lý ảo.
+
+    `client_key` là UUID do trình duyệt tự sinh rồi giữ trong localStorage — nó đóng
+    vai trò "vé" nhận lại đúng phiên qua các lần tải trang, kể cả với khách chưa đăng
+    nhập. Khách có đăng nhập thì gắn thêm `user_id`; dùng SET NULL để xoá tài khoản
+    không kéo theo mất lịch sử hội thoại.
+    """
+
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    client_key: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Băm SHA-256 của IP (muối bằng AUTH_SECRET): đủ để đếm hạn mức mà không lưu IP thật.
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 120 ký tự đầu của câu hỏi đầu tiên, để trang quản trị liệt kê cho dễ đọc.
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow, onupdate=utcnow)
+
+    user: Mapped[User | None] = relationship()
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="ChatMessage.created_at",
+    )
+
+    __table_args__ = (
+        Index("ix_chat_sessions_user_id", "user_id"),
+        Index("ix_chat_sessions_ip_hash", "ip_hash"),
+        Index("ix_chat_sessions_updated_at", "updated_at"),
+    )
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    session_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chat_sessions.id", ondelete="CASCADE")
+    )
+    # Lưu đúng hai giá trị "user"/"model" của Gemini để phát lại lịch sử khỏi phải ánh xạ.
+    role: Mapped[str] = mapped_column(String(10))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow)
+
+    session: Mapped[ChatSession] = relationship(back_populates="messages")
+
+    __table_args__ = (Index("ix_chat_messages_session_id", "session_id"),)

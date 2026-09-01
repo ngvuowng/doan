@@ -14,9 +14,10 @@ Bản dựng lại (clone) của website **nongsan.maugiaodien.com**, kiến tr�
         • Server Action     →  gọi API   (zod kiểm tra form, JWT trong cookie httpOnly)
                      │  HTTP/JSON + Authorization: Bearer <JWT>
                      ▼
-      FastAPI (Python)         :8000        ← nghiệp vụ, 26 endpoint, Swagger ở /docs
+      FastAPI (Python)         :8000        ← nghiệp vụ, 31 endpoint, Swagger ở /docs
         • SQLAlchemy 2.0 + Alembic
         • Pydantic v2 · JWT HS256 · bcrypt
+        • Trợ lý ảo: httpx  ──────────────→  Gemini API (Google)
                      │  PyMySQL
                      ▼
       MySQL 8.4 (Docker)       :3307        ← dữ liệu
@@ -53,6 +54,18 @@ npm install
 npm run dev                                # http://localhost:3000
 ```
 
+**Trợ lý ảo cần thêm một khoá API.** Lấy khoá miễn phí ở
+[Google AI Studio](https://aistudio.google.com/apikey) rồi điền vào `backend/.env`:
+
+```bash
+GEMINI_API_KEY=khoa-cua-ban
+```
+
+Chưa có khoá thì **website vẫn chạy đầy đủ**, chỉ riêng khung chat báo lỗi cấu hình
+bằng tiếng Việt. Muốn thử trước cả luồng chat (lưu CSDL, lịch sử, giao diện) khi chưa
+có khoá thì đặt `GEMINI_MOCK=1` để trợ lý trả lời bằng câu giả lập.
+File `.env` nằm trong `.gitignore` — **không commit khoá lên git**.
+
 | Địa chỉ | Nội dung |
 | --- | --- |
 | http://localhost:3000 | Website |
@@ -83,6 +96,7 @@ npm run dev                                # http://localhost:3000
 | CSDL | MySQL 8.4 (Docker), driver PyMySQL |
 | Xác thực | JWT HS256 (`python-jose`) + bcrypt, lưu trong cookie httpOnly |
 | Kiểm tra dữ liệu | `zod` ở form frontend, `pydantic` ở biên API |
+| Trợ lý ảo | Gemini API gọi qua REST bằng `httpx` (không dùng SDK) |
 
 **Vì sao kiểm tra dữ liệu hai lần:** `zod` sinh thông báo lỗi tiếng Việt theo từng ô nhập
 cho `useActionState`; `pydantic` là lớp bảo vệ ở biên API, chặn cả những request không đi
@@ -103,6 +117,8 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 - Tài khoản: đăng ký, đăng nhập, cập nhật hồ sơ, xem lịch sử đơn hàng
 - Tin tức: danh sách, chuyên mục, chi tiết bài viết
 - Giới thiệu và liên hệ (form lưu vào CSDL)
+- Trợ lý ảo tư vấn (nút nổi ở mọi trang): giải đáp về sản phẩm, tư vấn chọn hoa quả
+  theo nhu cầu, hướng dẫn bảo quản, gợi ý công thức nước ép/sinh tố
 
 **Phía quản trị** (`/admin`, cần tài khoản `ADMIN`)
 
@@ -110,6 +126,7 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 - Sản phẩm: thêm, sửa, xoá, gán danh mục
 - Đơn hàng: xem chi tiết và đổi trạng thái
 - Bài viết và tin nhắn liên hệ
+- Xem lại hội thoại của trợ lý ảo (chỉ đọc)
 
 Quyền quản trị được kiểm ở **cả hai phía**: frontend chặn sớm để báo lỗi thân thiện,
 backend kiểm lại trên từng endpoint `/api/admin/*` (thiếu token → 401, sai quyền → 403).
@@ -125,7 +142,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 38 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 43 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -149,9 +166,11 @@ docs/SRS.md          đặc tả yêu cầu phần mềm
 _reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
 
 backend/             ← tầng nghiệp vụ (Python)
-  app/models.py      7 bảng + 2 bảng nối (SQLAlchemy)
+  app/models.py      9 bảng + 2 bảng nối (SQLAlchemy)
   app/schemas.py     Pydantic; đổi snake_case ↔ camelCase ở biên API
-  app/routers/       products · categories · posts · auth · orders · contact · admin
+  app/routers/       products · categories · posts · auth · orders · contact · chat · admin
+  app/gemini.py      gọi Gemini API qua REST (httpx)
+  app/chat_prompt.py system prompt tiếng Việt + nhồi danh mục sản phẩm vào ngữ cảnh
   app/security.py    băm mật khẩu, ký/đọc JWT
   app/deps.py        dependency lấy người dùng từ Authorization, tiện ích or_404
   alembic/           migration
@@ -161,7 +180,7 @@ frontend/            ← tầng giao diện (TypeScript)
   src/lib/api.ts     lớp gọi backend — thay cho Prisma ở bản trước
   src/lib/auth.ts    phiên đăng nhập; lib/session.ts giữ cookie
   src/app/           các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
-  src/components/    component giao diện, chia theo khu vực
+  src/components/    component giao diện, chia theo khu vực (có chat/ cho trợ lý ảo)
   src/actions/       server action (đặt hàng, xác thực, quản trị, liên hệ)
   public/images/     ảnh gốc đã tải về
   scripts/           tải ảnh từ Wayback, kiểm thử đầu-cuối
@@ -217,9 +236,9 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 38 kiểm tra: hiển thị trang chủ, điều hướng catalog, thêm
+Playwright/Puppeteer) và chạy 43 kiểm tra: hiển thị trang chủ, điều hướng catalog, thêm
 giỏ hàng, đặt hàng cho khách vãng lai và cho thành viên, đăng nhập, tìm kiếm, blog, form
-liên hệ, toàn bộ luồng quản trị, responsive ở 375px và trang 404.
+liên hệ, toàn bộ luồng quản trị, responsive ở 375px, trang 404 và khung trợ lý ảo.
 
 ```bash
 docker compose up -d                                    # cửa sổ 1
@@ -228,5 +247,8 @@ npm run dev                                             # cửa sổ 3
 node scripts/e2e.mjs                                    # cửa sổ 4
 ```
 
-Bộ kiểm thử này **không bị sửa** khi chuyển stack — nó chạy qua giao diện thật nên là
-bằng chứng cho thấy việc đổi backend không làm thay đổi hành vi của website.
+38 kiểm tra đầu **không bị sửa** khi chuyển stack — chúng chạy qua giao diện thật nên là
+bằng chứng cho thấy việc đổi backend không làm thay đổi hành vi của website. Mục 11
+(trợ lý ảo) được thêm sau, và cố ý chấp nhận **cả hai** kết quả: chưa gắn
+`GEMINI_API_KEY` thì khung chat phải báo lỗi cấu hình, có khoá thì phải hiện câu trả
+lời — nhờ vậy bộ kiểm thử vẫn xanh khi chưa có khoá.

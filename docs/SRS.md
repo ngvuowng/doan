@@ -22,6 +22,7 @@ Tài liệu mô tả đầy đủ **những gì hệ thống làm** (yêu cầu 
 | Nội dung: tin tức, chuyên mục, giới thiệu, form liên hệ | Vận chuyển, tính phí ship, mã giảm giá |
 | Khu quản trị: thống kê, sản phẩm, đơn hàng, bài viết, tin nhắn liên hệ | Đa ngôn ngữ, đa tiền tệ |
 | SEO: `sitemap.xml`, `robots.txt`, metadata theo trang | Quản lý người dùng từ giao diện quản trị (chỉ có sẵn qua CSDL/seed) |
+| Trợ lý ảo tư vấn bán hàng chạy trên Gemini: giải đáp về sản phẩm, tư vấn chọn hoa quả, hướng dẫn bảo quản, gợi ý công thức | Trợ lý **không** đặt hàng hộ, không sửa giỏ hàng, không tra cứu đơn; không có giọng nói, không streaming từng chữ |
 
 ### 0.3. Kiến trúc tổng thể
 
@@ -38,13 +39,14 @@ flowchart TD
     end
 
     subgraph BE["FastAPI · Python · cổng 8000"]
-        RT["Router: products · categories · posts<br/>auth · orders · contact · admin"]
+        RT["Router: products · categories · posts<br/>auth · orders · contact · chat · admin"]
         SEC["security.py<br/>bcrypt + JWT HS256"]
         SCH["schemas.py — Pydantic v2<br/>snake_case ↔ camelCase"]
     end
 
     DB[("MySQL 8.4 · cổng 3307<br/>utf8mb4_unicode_ci")]
     PMA["phpMyAdmin · cổng 8080"]
+    GM["☁️ Gemini API<br/>(generativelanguage.googleapis.com)"]
 
     B -->|HTTP| RSC
     B -->|submit form| SA
@@ -58,12 +60,14 @@ flowchart TD
     RT --> SCH
     RT -->|"SQLAlchemy 2.0 + PyMySQL"| DB
     PMA --> DB
+    RT -->|"HTTPS + httpx<br/>x-goog-api-key"| GM
 ```
 
 Hai ràng buộc kiến trúc quan trọng nhất:
 
 1. **Trình duyệt không bao giờ nói chuyện trực tiếp với CSDL, và Next.js cũng vậy.** Mọi truy vấn đều đi qua HTTP tới FastAPI. Lớp gọi API duy nhất là `src/lib/api.ts`, được đánh dấu `import 'server-only'` nên không thể vô tình bị bundle vào JavaScript phía client.
 2. **JWT không bao giờ rời khỏi máy chủ Next.js.** Token do FastAPI cấp được ghi thẳng vào cookie `httpOnly`; Server Component và Server Action đọc cookie đó rồi gắn header `Authorization` khi gọi API. JavaScript trong trình duyệt không đọc được token.
+3. **Khoá Gemini chỉ nằm ở backend.** Trình duyệt không bao giờ gọi thẳng Gemini; khung chat đi qua Server Action → `api.ts` → FastAPI, và chỉ FastAPI đọc `GEMINI_API_KEY` từ `backend/.env`. Khoá cũng được gửi ở header `x-goog-api-key` thay vì `?key=` để không lọt vào log truy cập.
 
 ### 0.4. Thuật ngữ và quy ước
 
@@ -89,12 +93,14 @@ Tên bảng và cột trong CSDL viết `snake_case` không dấu; JSON trả v�
 | **Khách vãng lai** (Guest) | Người truy cập chưa đăng nhập. | Xem toàn bộ catalog và tin tức; tìm kiếm; thêm/sửa giỏ hàng; **đặt hàng không cần tài khoản**; tra cứu đơn theo mã; gửi tin nhắn liên hệ; đăng ký/đăng nhập. |
 | **Khách hàng** (`role = USER`) | Người dùng đã đăng ký và đăng nhập. | Toàn bộ quyền của Khách vãng lai, cộng thêm: form thanh toán **tự điền sẵn** thông tin hồ sơ; xem danh sách đơn của mình; xem chi tiết đơn của mình; cập nhật hồ sơ (họ tên, điện thoại, địa chỉ). |
 | **Quản trị viên** (`role = ADMIN`) | Người vận hành cửa hàng. | Toàn bộ quyền của Khách hàng, cộng thêm khu `/admin`: xem bảng điều khiển, thêm/sửa/xoá sản phẩm và gán danh mục, đổi trạng thái đơn hàng, xem bài viết, đánh dấu tin nhắn liên hệ đã xử lý. Xem được chi tiết đơn của **mọi** khách. |
-| **Hệ thống** (tác nhân thứ cấp) | Các xử lý tự động, không do người dùng bấm. | Sinh mã đơn `HL-XXXXXX`; **tính lại tổng tiền từ CSDL** khi tạo đơn; chụp tên/giá/ảnh sản phẩm vào dòng đơn hàng; cấp và thẩm định JWT; chọn sản phẩm liên quan; sinh `sitemap.xml` và `robots.txt`; quy đổi thời điểm sang ISO UTC có hậu tố `Z`. |
+| **Gemini API** (tác nhân ngoài, thứ cấp) | Dịch vụ mô hình ngôn ngữ của Google, do backend gọi qua REST. | Sinh câu trả lời tư vấn từ system prompt (đã nhồi sẵn danh mục sản phẩm) và ngữ cảnh hội thoại. **Không** truy cập CSDL, không biết gì ngoài những gì backend gửi trong mỗi request. |
+| **Hệ thống** (tác nhân thứ cấp) | Các xử lý tự động, không do người dùng bấm. | Sinh mã đơn `HL-XXXXXX`; **tính lại tổng tiền từ CSDL** khi tạo đơn; chụp tên/giá/ảnh sản phẩm vào dòng đơn hàng; cấp và thẩm định JWT; chọn sản phẩm liên quan; sinh `sitemap.xml` và `robots.txt`; quy đổi thời điểm sang ISO UTC có hậu tố `Z`; nhồi danh mục sản phẩm vào system prompt và dò tên sản phẩm trong câu trả lời của trợ lý để gắn thẻ liên kết. |
 
 **Ghi chú:**
 - Hệ thống **không có** vai trò riêng cho bộ phận kho hay biên tập viên — mọi thao tác quản trị đều thuộc về `ADMIN`. Cột `role` chỉ nhận hai giá trị `USER` và `ADMIN`.
 - Tài khoản mới đăng ký luôn nhận `role = USER`; **không có giao diện nào thăng quyền** — muốn tạo `ADMIN` phải sửa trực tiếp trong CSDL hoặc chạy `python seed.py`.
 - Khách vãng lai đặt hàng thành công sẽ tạo đơn có `user_id = NULL`; đơn này **không** được gắn về tài khoản sau này kể cả khi khách dùng cùng email đăng ký.
+- **Gemini API là tác nhân ngoài, có thể vắng mặt.** Thiếu `GEMINI_API_KEY` thì toàn bộ 25 use case còn lại vẫn chạy bình thường, chỉ UC-TL-01 trả 503 kèm thông báo tiếng Việt. Đây là lựa chọn có chủ đích để tính năng này phát triển và bàn giao được trước khi có khoá thật.
 
 ---
 
@@ -106,6 +112,7 @@ flowchart LR
     CU["🧑 Khách hàng"]
     AD["🛡️ Quản trị viên"]
     SYS["⚙️ Hệ thống<br/>(tự động)"]
+    GM["☁️ Gemini API<br/>(dịch vụ ngoài)"]
 
     subgraph HALONA["Hệ thống Halona Fruist"]
         subgraph G1["Danh mục sản phẩm"]
@@ -142,6 +149,13 @@ flowchart LR
             UC21(["UC-HT-01<br/>SEO: sitemap,<br/>robots, metadata"])
             UC22(["UC-HT-02<br/>Xử lý lỗi và<br/>mất kết nối API"])
         end
+
+        subgraph G7["Trợ lý ảo"]
+            UC23(["UC-TL-01<br/>Hỏi trợ lý<br/>tư vấn"])
+            UC24(["UC-TL-02<br/>Xem lại lịch sử<br/>trò chuyện"])
+            UC25(["UC-TL-03<br/>Xoá cuộc<br/>trò chuyện"])
+            UC26(["UC-QT-06<br/>Giám sát hội thoại<br/>trợ lý ảo"])
+        end
     end
 
     GU --- UC1
@@ -173,13 +187,24 @@ flowchart LR
     UC12 --- SYS
     UC21 --- SYS
     UC22 --- SYS
+
+    GU --- UC23
+    GU --- UC24
+    GU --- UC25
+    CU --- UC23
+    CU --- UC24
+    CU --- UC25
+    AD --- UC26
+    UC23 --- GM
+    UC23 --- SYS
 ```
 
 **Ghi chú:**
 - **Khách vãng lai đặt hàng được** (UC-GH-02) — đây là quyết định thiết kế có chủ đích, xem `OptionalUser` trong `backend/app/routers/orders.py`. Khách hàng đã đăng nhập dùng chung use case đó nhưng được điền sẵn form.
 - **UC-GH-03 (tra cứu đơn theo mã) công khai** để trang cảm ơn hiển thị được cho khách vãng lai; **UC-GH-04 (lịch sử đơn)** thì bắt buộc đăng nhập.
 - Quản trị viên kế thừa mọi use case của Khách hàng (đường nét đứt tới biên hệ thống), vì `ADMIN` cũng là một bản ghi trong bảng `users`.
-- **Hệ thống** là tác nhân thứ cấp cho các use case có xử lý tự động: tính lại tiền và sinh mã đơn (UC-GH-02), cấp/thẩm định JWT (UC-TK-04), sinh sitemap/robots (UC-HT-01), chuyển lỗi kết nối thành thông báo tiếng Việt (UC-HT-02).
+- **Hệ thống** là tác nhân thứ cấp cho các use case có xử lý tự động: tính lại tiền và sinh mã đơn (UC-GH-02), cấp/thẩm định JWT (UC-TK-04), sinh sitemap/robots (UC-HT-01), chuyển lỗi kết nối thành thông báo tiếng Việt (UC-HT-02), nhồi danh mục sản phẩm vào prompt và dò tên sản phẩm trong câu trả lời (UC-TL-01).
+- **Gemini API** là tác nhân **ngoài**, chỉ tham gia UC-TL-01. Đây là phụ thuộc duy nhất của hệ thống vào một dịch vụ bên thứ ba, và được thiết kế để vắng mặt được: thiếu khoá thì use case này trả 503, mọi use case khác không bị ảnh hưởng.
 
 ---
 
@@ -688,6 +713,94 @@ flowchart LR
 
 ---
 
+### 3.7. Phân hệ Trợ lý ảo (AI)
+
+```mermaid
+flowchart LR
+    GU["🧑 Khách vãng lai"]
+    CU["👤 Khách hàng"]
+    AD["🛡️ Quản trị viên"]
+    GM["☁️ Gemini API"]
+
+    subgraph TL["Trợ lý ảo"]
+        T1(["UC-TL-01<br/>Hỏi trợ lý tư vấn"])
+        T1a(["Giải đáp về sản phẩm"])
+        T1b(["Tư vấn chọn hoa quả<br/>theo nhu cầu"])
+        T1c(["Hướng dẫn bảo quản<br/>và sử dụng"])
+        T1d(["Gợi ý công thức<br/>nước ép / sinh tố"])
+        T1e(["Gắn thẻ sản phẩm<br/>bấm được"])
+
+        T2(["UC-TL-02<br/>Xem lại lịch sử trò chuyện"])
+        T3(["UC-TL-03<br/>Xoá cuộc trò chuyện"])
+        T4(["UC-QT-06<br/>Giám sát hội thoại trợ lý"])
+    end
+
+    GU --- T1
+    CU --- T1
+    GU --- T2
+    CU --- T2
+    GU --- T3
+    CU --- T3
+    AD --- T4
+    T1 --- GM
+
+    T1 -. "«include»" .-> T1a
+    T1 -. "«include»" .-> T1b
+    T1 -. "«include»" .-> T1c
+    T1 -. "«include»" .-> T1d
+    T1 -. "«include»" .-> T1e
+```
+
+#### UC-TL-01 — Hỏi trợ lý tư vấn
+
+| Mục | Nội dung |
+|---|---|
+| **Mã UC** | UC-TL-01 |
+| **Tác nhân** | Khách vãng lai, Khách hàng · (tác nhân phụ: Gemini API) |
+| **Mô tả** | Nút nổi ở góc phải mọi trang phía khách hàng mở khung chat. Trợ lý trả lời bốn nhóm việc: giải đáp về sản phẩm đang bán, tư vấn chọn hoa quả theo nhu cầu, hướng dẫn bảo quản/sử dụng, và gợi ý công thức món ăn — nước ép — sinh tố. |
+| **Tiền điều kiện** | Backend có `GEMINI_API_KEY` trong `backend/.env`. Không cần đăng nhập. |
+| **Luồng chính** | 1. Khách mở khung chat; giao diện gọi `loadChatHistory(clientKey)` để nạp lịch sử cũ.<br>2. Khách gõ câu hỏi; bong bóng của khách hiện **ngay**, kèm chỉ báo đang gõ.<br>3. Server Action `sendChatMessage` gọi `POST /api/chat/messages`.<br>4. Backend kiểm cấu hình, kiểm chủ sở hữu phiên, kiểm hạn mức.<br>5. Backend nạp **toàn bộ danh mục sản phẩm** từ MySQL và nhồi vào system prompt, kèm tối đa 12 tin nhắn gần nhất làm ngữ cảnh.<br>6. Gọi Gemini qua REST (`httpx`), nhận văn bản trả lời.<br>7. **Sau khi** có câu trả lời mới ghi CSDL: cặp `user` + `model` trong một transaction.<br>8. Backend dò tên sản phẩm xuất hiện trong câu trả lời, trả kèm `suggestions`; giao diện dựng thẻ bấm được trỏ tới `/san-pham/{slug}`. |
+| **Luồng thay thế / Quy tắc** | - **Thiếu `GEMINI_API_KEY` → 503** kèm thông báo tiếng Việt, và **không ghi gì vào CSDL** để không để lại hội thoại cụt. Phần còn lại của website chạy bình thường.<br>- Timeout → 504 · mất kết nối/5xx → 502 · khoá sai → 503 · quá hạn mức → 429. Mỗi mã một câu tiếng Việt riêng, giao diện hiện bong bóng lỗi kèm nút **Thử lại**.<br>- Bị bộ lọc an toàn của Gemini chặn → vẫn trả **200** với câu từ chối lịch sự, không lộ lỗi kỹ thuật.<br>- **Chống bịa đặt**: prompt cấm giới thiệu sản phẩm ngoài danh sách được nhồi vào, cấm tự nghĩ ra giá, cấm chèn đường dẫn. Giá và slug trên thẻ gợi ý **luôn lấy từ MySQL**, nên kể cả khi model viết sai số trong câu chữ thì con số hiển thị vẫn đúng.<br>- Câu hỏi ngoài phạm vi (chính trị, lập trình, làm bài tập hộ…) bị từ chối ngắn gọn rồi hỏi lại về hoa quả. Prompt cũng dặn bỏ qua yêu cầu đòi quên quy tắc hay tiết lộ hướng dẫn.<br>- Hạn mức: 20 câu hỏi/phiên và 60 câu hỏi/IP trong 10 phút → 429.<br>- Câu hỏi tối đa 1000 ký tự (`zod` chặn ở frontend, `pydantic` chặn lại ở biên API).<br>- Danh mục nhồi vào prompt giới hạn 80 sản phẩm; vượt quá thì prompt nói rõ đây là danh sách cắt bớt và mời khách dùng ô tìm kiếm.<br>- **Không streaming** — trả lời một lần, giao diện hiện chỉ báo đang gõ trong lúc chờ. |
+| **Hậu điều kiện** | Cặp câu hỏi–trả lời được lưu vào `chat_messages`; `chat_sessions.updated_at` được cập nhật. |
+
+#### UC-TL-02 — Xem lại lịch sử trò chuyện
+
+| Mục | Nội dung |
+|---|---|
+| **Mã UC** | UC-TL-02 |
+| **Tác nhân** | Khách vãng lai, Khách hàng |
+| **Mô tả** | Mở lại khung chat thì thấy nguyên nội dung đã trao đổi, kể cả sau khi tải lại trang hay đóng trình duyệt. |
+| **Tiền điều kiện** | Trình duyệt còn giữ `client_key` trong `localStorage` (khoá `halona-chat`). |
+| **Luồng chính** | 1. `ChatWidget` đọc `client_key`, chưa có thì sinh UUIDv4 mới và lưu lại.<br>2. Khi khách **mở** khung chat, `GET /api/chat/sessions/{clientKey}` nạp toàn bộ tin nhắn theo thứ tự thời gian. |
+| **Luồng thay thế / Quy tắc** | - Chưa từng trò chuyện → trả `{sessionId: null, messages: []}`, **không phải 404**: lần mở đầu tiên của mỗi khách không nên đi vào đường lỗi.<br>- Phiên đã gắn tài khoản mà người gọi không phải chủ → **403**.<br>- Chỉ nạp khi khách thực sự mở khung chat, nên người không dùng trợ lý không tốn thêm request nào mỗi lần tải trang.<br>- Xoá `localStorage` hoặc đổi máy → mất vé, coi như bắt đầu cuộc trò chuyện mới; lịch sử cũ vẫn nằm trong CSDL cho quản trị viên xem (UC-QT-06). |
+| **Hậu điều kiện** | Khung chat hiển thị đúng lịch sử của phiên. |
+
+#### UC-TL-03 — Xoá cuộc trò chuyện
+
+| Mục | Nội dung |
+|---|---|
+| **Mã UC** | UC-TL-03 |
+| **Tác nhân** | Khách vãng lai, Khách hàng |
+| **Mô tả** | Nút "Xoá trò chuyện" trên đầu khung chat xoá hẳn phiên khỏi CSDL. |
+| **Tiền điều kiện** | Phiên đã có ít nhất một tin nhắn. |
+| **Luồng chính** | 1. Khách bấm "Xoá trò chuyện".<br>2. Giao diện dọn state ngay, rồi gọi `DELETE /api/chat/sessions/{clientKey}`.<br>3. Backend xoá `chat_sessions`; tin nhắn đi theo nhờ `ON DELETE CASCADE`. |
+| **Luồng thay thế / Quy tắc** | - Xoá một phiên không tồn tại vẫn trả **204** — thao tác lặp không báo lỗi vô cớ, cùng quy ước với xoá sản phẩm ở UC-QT-02.<br>- Phiên đã gắn tài khoản mà người gọi không phải chủ → **403**.<br>- `client_key` **không** bị xoá khỏi `localStorage`: khách hỏi tiếp thì một phiên mới được tạo với cùng chiếc vé đó. |
+| **Hậu điều kiện** | Phiên và toàn bộ tin nhắn biến mất khỏi CSDL. |
+
+#### UC-QT-06 — Giám sát hội thoại trợ lý ảo
+
+| Mục | Nội dung |
+|---|---|
+| **Mã UC** | UC-QT-06 |
+| **Tác nhân** | Quản trị viên |
+| **Mô tả** | Trang `/admin/tro-ly-ao` liệt kê các cuộc trò chuyện gần nhất và cho xem toàn văn từng cuộc, để kiểm chứng trợ lý có tư vấn sai hay bịa sản phẩm không. |
+| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Luồng chính** | 1. `GET /api/admin/chats` trả 200 phiên gần nhất (tên khách hoặc "Khách vãng lai", số tin, tiêu đề).<br>2. Bấm một dòng → `?id=…` → `GET /api/admin/chats/{id}` trả toàn văn. |
+| **Luồng thay thế / Quy tắc** | - **Chỉ đọc**: không sửa, không xoá, không phân trang (backend đã giới hạn 200 bản ghi).<br>- Nút nổi của trợ lý bị **ẩn** trong khu `/admin` — quản trị viên không cần công cụ bán hàng.<br>- Số tin nhắn ở danh sách đếm bằng subquery, không nạp toàn bộ tin của từng phiên. |
+| **Hậu điều kiện** | Quản trị viên nắm được chất lượng tư vấn của trợ lý. |
+
+---
+
 ## 4. Ma trận Tác nhân × Use Case
 
 | Use Case | Khách vãng lai | Khách hàng | Quản trị viên | Hệ thống |
@@ -712,10 +825,14 @@ flowchart LR
 | UC-QT-03 Quản lý đơn hàng | | | ✅ | cập nhật `updated_at` tự động |
 | UC-QT-04 Quản lý bài viết | | | ✅ chỉ đọc | — |
 | UC-QT-05 Xử lý tin nhắn liên hệ | | | ✅ | đảo cờ `handled` |
+| UC-QT-06 Giám sát hội thoại trợ lý ảo | | | ✅ chỉ đọc | đếm tin bằng subquery, giới hạn 200 phiên |
+| UC-TL-01 Hỏi trợ lý tư vấn | ✅ | ✅ gắn phiên vào tài khoản | ẩn trong khu `/admin` | nhồi danh mục vào prompt, gọi Gemini, dò tên SP để gắn thẻ, chặn hạn mức |
+| UC-TL-02 Xem lại lịch sử trò chuyện | ✅ theo `client_key` | ✅ | — | trả danh sách rỗng thay vì 404; 403 nếu phiên của người khác |
+| UC-TL-03 Xoá cuộc trò chuyện | ✅ | ✅ | — | `ON DELETE CASCADE`; xoá lặp vẫn 204 |
 | UC-HT-01 SEO | gián tiếp | gián tiếp | gián tiếp | ✅ sinh sitemap/robots/metadata |
 | UC-HT-02 Xử lý lỗi | chịu tác động | chịu tác động | chịu tác động | ✅ đổi lỗi mạng thành thông báo tiếng Việt, 404, ranh giới lỗi |
 
-**Tổng cộng 22 use case** trên 6 phân hệ.
+**Tổng cộng 26 use case** trên 7 phân hệ.
 
 ---
 
@@ -730,7 +847,8 @@ Sơ đồ tuần tự mô tả luồng tương tác chi tiết cho các use case
 | **AC** | Lớp gọi API `src/lib/api.ts` — nơi duy nhất nói chuyện với backend, gắn header `Authorization` từ cookie |
 | **API** | Router FastAPI tương ứng (`products`, `orders`, `auth`, `admin`…) |
 | **DB** | MySQL, truy cập qua SQLAlchemy |
-| **LS** | `localStorage` của trình duyệt (chỉ dùng cho giỏ hàng) |
+| **LS** | `localStorage` của trình duyệt (giỏ hàng `halona-cart`, vé phiên chat `halona-chat`) |
+| **GM** | Gemini API của Google, gọi qua REST bằng `httpx` từ backend |
 | **CK** | Cookie `httpOnly` chứa JWT phiên |
 
 Mã sơ đồ **SD-xx** tương ứng với use case **UC-xx** cùng hậu tố. Một số use case gần nhau được gộp chung một sơ đồ (ghi rõ ở tiêu đề); UC-ND-02 là trang tĩnh, không có tương tác nào để vẽ nên không có sơ đồ riêng.
@@ -1535,6 +1653,71 @@ sequenceDiagram
 
 ---
 
+### 5.7. Trợ lý ảo
+
+#### SD-TL-01 — Hỏi trợ lý tư vấn
+
+```mermaid
+sequenceDiagram
+    actor U as Khách
+    participant UI as ChatPanel (Client Component)
+    participant LS as localStorage
+    participant SA as actions/chat.ts
+    participant AC as api.ts
+    participant API as router chat
+    participant DB as MySQL
+    participant GM as Gemini API
+
+    U->>UI: Mở khung chat
+    UI->>LS: Đọc halona-chat (client_key)
+    LS-->>UI: UUID (sinh mới nếu chưa có)
+    UI->>SA: loadChatHistory(clientKey)
+    SA->>AC: api.chat.history
+    AC->>API: GET /api/chat/sessions/{clientKey}
+    API->>DB: SELECT chat_messages ORDER BY created_at
+    DB-->>API: Danh sách tin (rỗng nếu chưa từng hỏi)
+    API-->>UI: messages
+
+    U->>UI: Gõ câu hỏi rồi gửi
+    UI->>UI: Hiện bong bóng của khách NGAY + chỉ báo đang gõ
+    UI->>SA: sendChatMessage(clientKey, message)
+    SA->>SA: zod kiểm (1..1000 ký tự)
+    SA->>AC: api.chat.send
+    AC->>API: POST /api/chat/messages
+
+    alt Thiếu GEMINI_API_KEY
+        API-->>UI: 503 "Trợ lý ảo chưa được cấu hình..."
+        Note over API,DB: KHÔNG ghi gì vào CSDL — tránh để lại hội thoại cụt
+        UI-->>U: Bong bóng lỗi + nút Thử lại
+    else Vượt hạn mức (20 câu/phiên hoặc 60 câu/IP trong 10 phút)
+        API->>DB: COUNT tin nhắn role='user' gần đây
+        API-->>UI: 429 "Bạn đang gửi hơi nhanh..."
+    else Bình thường
+        API->>DB: SELECT products + categories (tối đa 80)
+        DB-->>API: Danh mục sản phẩm
+        API->>DB: SELECT 12 tin nhắn gần nhất làm ngữ cảnh
+        API->>GM: POST generateContent<br/>systemInstruction = prompt + danh mục<br/>thinkingBudget = 0
+        alt Gemini lỗi
+            GM-->>API: timeout / 5xx / 401 / 429
+            API-->>UI: 504 / 502 / 503 / 429 kèm câu tiếng Việt riêng
+        else Gemini trả lời
+            GM-->>API: Văn bản trả lời
+            API->>DB: INSERT cặp (user, model) trong MỘT transaction
+            API->>API: match_products — dò tên SP trong câu trả lời
+            API-->>UI: reply + suggestions (giá & slug lấy từ MySQL)
+            UI-->>U: Bong bóng trả lời + thẻ sản phẩm bấm được
+        end
+    end
+```
+
+Ba điểm đáng chú ý trong sơ đồ trên:
+
+1. **Kiểm cấu hình đứng trước mọi thao tác CSDL.** Nhờ vậy khi chưa có khoá, bảng `chat_sessions` vẫn sạch — không có phiên nào chỉ có câu hỏi mà thiếu câu trả lời.
+2. **Ghi CSDL nằm sau lời gọi Gemini**, và ghi cả cặp trong một transaction. Lịch sử vì thế luôn xen kẽ `user` → `model` đúng như Gemini yêu cầu khi phát lại ngữ cảnh.
+3. **`suggestions` không do model sinh ra.** Model chỉ viết chữ; backend dò tên sản phẩm rồi lấy `slug`, `price`, `salePrice`, `image` từ MySQL. Đây là lý do giá trên thẻ luôn đúng kể cả khi model viết sai số, và đường dẫn không bao giờ 404.
+
+---
+
 ## 6. Sơ đồ hoạt động (Activity Diagrams)
 
 Sơ đồ hoạt động mô tả **luồng công việc** (workflow) của từng use case dưới góc nhìn các bước xử lý và điểm rẽ nhánh — bổ sung cho sơ đồ tuần tự (vốn nhấn mạnh thứ tự trao đổi giữa các thành phần). Mã sơ đồ **AD-xx** tương ứng 1-1 với sơ đồ tuần tự **SD-xx** ở mục 5. Quy ước:
@@ -1983,15 +2166,21 @@ classDiagram
     AdminStats ..> ContactMessage : đếm chưa xử lý
 
     Session ..> User : định danh qua JWT
+
+    User "0..1" o-- "*" ChatSession : trò chuyện — userId có thể NULL
+    ChatSession "1" *-- "*" ChatMessage : gồm các tin nhắn
+    ChatReply ..> ChatMessage : câu trả lời
+    ChatReply ..> Product : thẻ gợi ý lấy giá từ CSDL
 ```
 
-**Ba lớp không có bảng trong CSDL:**
+**Bốn lớp không có bảng trong CSDL:**
 
 | Lớp | Sống ở đâu | Vì sao không lưu |
 |---|---|---|
 | `Cart` / `CartLine` | `localStorage` của trình duyệt | Giỏ hàng là trạng thái tạm của một thiết bị; lưu vào CSDL sẽ kéo theo nhu cầu đồng bộ, dọn giỏ cũ và phiên cho khách vãng lai — không tương xứng với lợi ích. |
 | `AdminStats` | Tính bằng `COUNT`/`SUM` mỗi lần tải bảng điều khiển | Dữ liệu của bài toán ở quy mô vài trăm đơn; bảng tổng hợp sẽ tạo thêm nguy cơ lệch số. |
 | `Session` | JWT trong cookie `httpOnly` | Phiên không trạng thái (stateless) — máy chủ không lưu bảng phiên, hệ quả là **không thu hồi được token trước hạn**. |
+| `ChatReply` | Dựng lại ở mỗi lần trả lời | Chỉ là gói dữ liệu trả về: câu trả lời (đã lưu ở `chat_messages`) cộng danh sách sản phẩm dò được. Lưu thêm sẽ là bản sao thừa của dữ liệu đã có trong `products`. |
 
 ### 7.2. Phân hệ Danh mục sản phẩm & Nội dung
 
@@ -2229,6 +2418,75 @@ classDiagram
 | `ContactMessage.handled` | Cờ nội bộ. Endpoint cập nhật là **toggle** (đảo giá trị), không nhận giá trị mong muốn. |
 | `AdminStats.revenue` | `SUM(total)` của các đơn có `status != 'CANCELLED'` — **bao gồm cả đơn chưa xác nhận**. |
 
+### 7.5. Phân hệ Trợ lý ảo
+
+```mermaid
+classDiagram
+    direction TB
+
+    class ChatSession {
+        +id: string
+        +clientKey: string
+        +userId: string?
+        +ipHash: string?
+        +title: string?
+        +createdAt: datetime
+        +updatedAt: datetime
+    }
+
+    class ChatMessage {
+        +id: string
+        +sessionId: string
+        +role: ChatRole
+        +content: string
+        +createdAt: datetime
+    }
+
+    class ChatRole {
+        <<enumeration>>
+        user
+        model
+    }
+
+    class ChatReply {
+        <<computed>>
+        +sessionId: string
+        +reply: ChatMessage
+        +suggestions: Product[]
+    }
+
+    class GeminiClient {
+        <<service>>
+        +isConfigured() bool
+        +generateReply(systemPrompt, history, message) string
+    }
+
+    class ChatPrompt {
+        <<service>>
+        +loadCatalog(db) Product[]
+        +buildSystemPrompt(products, total) string
+        +matchProducts(reply, catalog) Product[]
+    }
+
+    User "0..1" --> "*" ChatSession : trò chuyện
+    ChatSession "1" *-- "*" ChatMessage : gồm
+    ChatMessage --> ChatRole
+    ChatReply ..> ChatMessage
+    ChatReply ..> Product : gợi ý
+    ChatPrompt ..> Product : nhồi vào prompt
+    GeminiClient ..> ChatPrompt : dùng system prompt
+```
+
+| Lớp / thuộc tính | Ghi chú |
+|---|---|
+| `ChatSession.clientKey` | UUIDv4 do **trình duyệt** sinh và giữ ở `localStorage`; đóng vai trò "vé" nhận lại phiên, kể cả khi khách chưa đăng nhập. Là ràng buộc `UNIQUE`. |
+| `ChatSession.userId` | `NULL` = khách vãng lai. Khi khách đăng nhập rồi hỏi tiếp, phiên được gắn tài khoản và từ đó có kiểm chủ sở hữu (403 với người khác). |
+| `ChatSession.ipHash` | SHA-256 của IP kèm muối `AUTH_SECRET`. Chỉ dùng đếm hạn mức — **không lưu IP thật**. |
+| `ChatMessage.role` | Dùng **đúng hai chuỗi của Gemini** (`user` / `model`) nên phát lại lịch sử không cần bảng ánh xạ. |
+| `ChatReply` | Lớp tính toán, **không có bảng**. `suggestions` do `matchProducts` dò tên sản phẩm trong câu trả lời rồi lấy dữ liệu **từ MySQL**, không phải do mô hình sinh ra. |
+| `GeminiClient` | Bọc một lời gọi REST bằng `httpx`. `isConfigured()` cho phép router trả 503 **trước khi** chạm CSDL khi thiếu khoá. |
+| `ChatPrompt` | Không giữ trạng thái; dựng lại system prompt cho **mỗi** request để danh mục sản phẩm luôn mới. |
+
 ---
 
 ## 8. Sơ đồ thực thể – quan hệ (ERD)
@@ -2242,7 +2500,7 @@ ERD ánh xạ mô hình lớp ở mục 7 xuống **thiết kế bảng CSDL qua
 | `\|\|--o{` | Quan hệ 1 — không hoặc nhiều |
 | `}o--o{` | Quan hệ nhiều — nhiều (hiện thực bằng bảng nối) |
 
-Ba lớp `<<computed>>` ở mục 7 (`Cart`, `AdminStats`, `Session`) **không có bảng** — xem ghi chú 8.5.
+Bốn lớp `<<computed>>` ở mục 7 (`Cart`, `AdminStats`, `Session`, `ChatReply`) và hai lớp `<<service>>` (`GeminiClient`, `ChatPrompt`) **không có bảng** — xem ghi chú 8.6.
 
 ### 8.1. ERD tổng quát
 
@@ -2256,6 +2514,9 @@ erDiagram
     USERS    ||--o{ ORDERS : "đặt hàng"
     ORDERS   ||--|{ ORDER_ITEMS : "gồm các dòng"
     PRODUCTS ||--o{ ORDER_ITEMS : "được đặt mua"
+
+    USERS         ||--o{ CHAT_SESSIONS : "trò chuyện (có thể vô danh)"
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "gồm các tin nhắn"
 ```
 
 Bảng độc lập, không có khoá ngoại nào: `CONTACT_MESSAGES`.
@@ -2370,7 +2631,38 @@ erDiagram
     }
 ```
 
-### 8.5. Ghi chú cài đặt
+### 8.5. Trợ lý ảo
+
+```mermaid
+erDiagram
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "gồm các tin nhắn"
+
+    CHAT_SESSIONS {
+        varchar36 id PK
+        varchar64 client_key UK "UUID trình duyệt sinh, lưu ở localStorage"
+        varchar36 user_id FK "NULL được — khách vãng lai; ON DELETE SET NULL"
+        varchar64 ip_hash "SHA-256 của IP + muối, chỉ để đếm hạn mức"
+        varchar255 title "120 ký tự đầu của câu hỏi đầu tiên"
+        datetime6 created_at
+        datetime6 updated_at
+    }
+
+    CHAT_MESSAGES {
+        varchar36 id PK
+        varchar36 session_id FK "ON DELETE CASCADE"
+        varchar10 role "'user' | 'model' — đúng tên vai trò của Gemini"
+        text content
+        datetime6 created_at
+    }
+```
+
+Ba điểm cần lưu ý:
+
+- **`client_key` là "vé" nhận diện phiên**, không phải khoá bí mật. Trình duyệt sinh một UUIDv4 rồi giữ trong `localStorage` (khoá `halona-chat`), gửi kèm mỗi request. Nhờ vậy **khách chưa đăng nhập vẫn có lịch sử** qua các lần tải trang. Khách đăng nhập thì phiên được gắn thêm `user_id` và từ đó có kiểm chủ sở hữu.
+- **`role` lưu đúng chuỗi của Gemini** (`user` / `model`) để lúc phát lại lịch sử không phải ánh xạ qua bảng trung gian.
+- **Không lưu IP thật**, chỉ lưu bản băm có muối — đủ để đếm hạn mức chống spam mà không giữ dữ liệu định danh của khách.
+
+### 8.6. Ghi chú cài đặt
 
 - **Không có bảng cho giá trị tính toán.** Giỏ hàng (`Cart`) nằm ở `localStorage`; thống kê quản trị (`AdminStats`) tính bằng `COUNT`/`SUM` mỗi lần tải trang; phiên đăng nhập (`Session`) chỉ là JWT trong cookie. Hệ quả cần biết: **không thu hồi được token trước hạn** và **không thống kê được giỏ hàng bị bỏ dở**.
 - **Khoá chính là chuỗi UUID `VARCHAR(36)`**, không phải số tự tăng. Lý do: bản trước dùng `cuid()` của Prisma, giữ kiểu chuỗi để giỏ hàng trong `localStorage` và các route `/admin/san-pham/[id]` không phải đổi kiểu dữ liệu. UUID cũng cho phép sinh id ở tầng ứng dụng trước khi ghi.
@@ -2384,7 +2676,7 @@ erDiagram
 
 ## 9. Thiết kế cơ sở dữ liệu (Database Design)
 
-Mục này chuyển ERD ở mục 8 thành lược đồ CSDL chạy được. Nguồn sự thật của lược đồ là `backend/app/models.py`; migration `backend/alembic/versions/c2e89c660e4e_tao_lieu_do_ban_dau.py` sinh ra đúng các bảng dưới đây bằng `alembic upgrade head`.
+Mục này chuyển ERD ở mục 8 thành lược đồ CSDL chạy được. Nguồn sự thật của lược đồ là `backend/app/models.py`; hai migration `c2e89c660e4e_tao_lieu_do_ban_dau.py` (9 bảng đầu) và `d30a18851a31_them_bang_tro_ly_ao.py` (hai bảng hội thoại) sinh ra đúng các bảng dưới đây bằng `alembic upgrade head`.
 
 ### 9.1. Lựa chọn công nghệ & nguyên tắc thiết kế
 
@@ -2404,7 +2696,7 @@ Mục này chuyển ERD ở mục 8 thành lược đồ CSDL chạy được. N
 
 ```sql
 -- Halona Fruist — lược đồ MySQL 8.4
--- Sinh bởi: alembic upgrade head (revision c2e89c660e4e)
+-- Sinh bởi: alembic upgrade head (revision c2e89c660e4e → d30a18851a31)
 -- Mọi bảng: ENGINE=InnoDB, CHARSET=utf8mb4, COLLATE=utf8mb4_unicode_ci
 
 -- ---------------------------------------------
@@ -2564,6 +2856,43 @@ CREATE TABLE contact_messages (
     created_at DATETIME(6)  NOT NULL,
     PRIMARY KEY (id)
 );
+
+-- ---------------------------------------------
+-- Hội thoại với trợ lý ảo Gemini
+-- ---------------------------------------------
+CREATE TABLE chat_sessions (
+    id         VARCHAR(36) NOT NULL,
+    -- UUID do trình duyệt sinh và giữ ở localStorage; nhận lại phiên qua các lần tải trang
+    client_key VARCHAR(64) NOT NULL,
+    -- NULL = khách vãng lai. SET NULL để xoá tài khoản không mất lịch sử hội thoại
+    user_id    VARCHAR(36) NULL,
+    -- SHA-256 của IP kèm muối; chỉ dùng để đếm hạn mức, không lưu IP thật
+    ip_hash    VARCHAR(64)  NULL,
+    -- 120 ký tự đầu của câu hỏi đầu tiên, cho trang quản trị dễ đọc
+    title      VARCHAR(255) NULL,
+    created_at DATETIME(6)  NOT NULL,
+    updated_at DATETIME(6)  NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY client_key (client_key),
+    KEY ix_chat_sessions_user_id (user_id),
+    KEY ix_chat_sessions_ip_hash (ip_hash),
+    KEY ix_chat_sessions_updated_at (updated_at),
+    CONSTRAINT chat_sessions_ibfk_1 FOREIGN KEY (user_id)
+        REFERENCES users (id) ON DELETE SET NULL
+);
+
+CREATE TABLE chat_messages (
+    id         VARCHAR(36) NOT NULL,
+    session_id VARCHAR(36) NOT NULL,
+    -- 'user' | 'model' — đúng tên vai trò của Gemini nên phát lại lịch sử khỏi phải ánh xạ
+    role       VARCHAR(10) NOT NULL,
+    content    TEXT        NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (id),
+    KEY ix_chat_messages_session_id (session_id),
+    CONSTRAINT chat_messages_ibfk_1 FOREIGN KEY (session_id)
+        REFERENCES chat_sessions (id) ON DELETE CASCADE
+);
 ```
 
 ### 9.3. Chỉ mục & hiệu năng
@@ -2575,6 +2904,9 @@ CREATE TABLE contact_messages (
 | `uq_users_email` UNIQUE | Đăng nhập tra theo email; chặn đăng ký trùng (lỗi 409). Độ dài 191 ký tự là giới hạn an toàn cho chỉ mục `utf8mb4` trên các phiên bản MySQL cũ. |
 | `uq_orders_code` UNIQUE | Tra cứu đơn theo mã ở trang cảm ơn và trang chi tiết đơn; đồng thời chặn mã trùng do `secrets.token_hex` sinh ra. |
 | `ix_orders_user_id` | Trang "Đơn hàng của tôi" lọc theo `user_id`. |
+| `uq_chat_sessions_client_key` UNIQUE | Mỗi request của trợ lý ảo đều tra phiên theo `client_key`; UNIQUE vừa tăng tốc vừa chặn hai phiên trùng vé. `VARCHAR(64)` = 256 byte utf8mb4, dưới hạn 3072 byte của InnoDB. |
+| `ix_chat_messages_session_id` | Nạp lịch sử một phiên và đếm hạn mức chống spam. |
+| `ix_chat_sessions_updated_at` | Trang quản trị liệt kê 200 hội thoại gần nhất. |
 | `ix_orders_status` | Lọc đơn theo trạng thái. Lưu ý: truy vấn doanh thu dùng điều kiện phủ định `status <> 'CANCELLED'` nên trên thực tế MySQL vẫn quét toàn bảng — chỉ mục này chỉ có ích cho các truy vấn lọc **bằng** một trạng thái cụ thể. |
 | `ix_order_items_order_id` | Nạp dòng đơn hàng bằng `selectinload` cho danh sách đơn — tránh N+1. |
 | Khoá chính tổ hợp của hai bảng nối | Vừa chặn gán trùng một sản phẩm vào cùng một danh mục hai lần, vừa là chỉ mục cho phép lọc sản phẩm theo danh mục. |
@@ -2696,7 +3028,7 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Giới hạn nguồn gọi API từ trình duyệt | CORS chỉ mở cho các origin liệt kê trong `CORS_ORIGINS` | `backend/app/main.py` |
 | Trang riêng tư không bị lập chỉ mục | `robots.txt` chặn `/admin`, `/tai-khoan`, `/thanh-toan`, `/gio-hang`, `/dat-hang-thanh-cong` | `src/app/robots.ts` |
 
-**Rủi ro đã biết, chấp nhận trong phạm vi đồ án:** endpoint tra đơn theo mã là công khai (ai biết mã đều xem được đơn); không có giới hạn số lần đăng nhập sai, captcha, xác minh email, đổi/quên mật khẩu, hay cơ chế thu hồi token trước hạn.
+**Rủi ro đã biết, chấp nhận trong phạm vi đồ án:** endpoint tra đơn theo mã là công khai (ai biết mã đều xem được đơn); không có giới hạn số lần đăng nhập sai, captcha, xác minh email, đổi/quên mật khẩu, hay cơ chế thu hồi token trước hạn. Với trợ lý ảo, `chat_sessions.client_key` đóng vai trò "vé" — ai biết chuỗi UUID đó thì đọc được lịch sử của phiên **vô danh** tương ứng (122 bit ngẫu nhiên nên không đoán được); phiên đã gắn tài khoản thì có kiểm chủ sở hữu và trả **403**. Hạn mức chống spam đếm bằng truy vấn CSDL nên một loạt request đồng thời vẫn có thể lọt qua trước khi commit.
 
 ### 10.2. Hiệu năng
 
@@ -2721,6 +3053,10 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Một bản ghi hỏng không làm mất cả giỏ hàng | `readStorage` lọc bỏ từng dòng sai kiểu | `src/components/cart/CartProvider.tsx` |
 | Chuỗi băm hỏng không làm sập API | `verify_password` bắt `ValueError` và coi như sai mật khẩu | `backend/app/security.py` |
 | Đơn hàng phải sống sót qua việc xoá tài khoản/sản phẩm | Khoá ngoại dùng `ON DELETE SET NULL`; dữ liệu sản phẩm đã được chụp vào `order_items` | `backend/app/models.py` |
+| Thiếu khoá Gemini không được làm sập website | `GEMINI_API_KEY` **không** fail-fast như `DATABASE_URL`; `is_configured()` kiểm trước khi chạm CSDL rồi trả **503** kèm thông báo tiếng Việt, phần còn lại của site chạy bình thường | `backend/app/config.py`, `backend/app/routers/chat.py` |
+| Trợ lý ảo lỗi phải nói rõ lỗi gì | Timeout → **504**, mất mạng/5xx → **502**, khoá sai → **503**, quá hạn mức → **429**; mỗi mã một câu tiếng Việt riêng | `backend/app/gemini.py` |
+| Gọi Gemini hỏng không được để lại hội thoại cụt | Chỉ ghi CSDL **sau khi** có câu trả lời, cả cặp user+model trong một transaction | `backend/app/routers/chat.py` |
+| Trợ lý bịa giá không được lừa khách | Câu trả lời chỉ là chữ; thẻ sản phẩm bấm được do backend dò tên rồi lấy giá/slug **từ MySQL** | `backend/app/chat_prompt.py` |
 
 ### 10.4. Khả dụng và giao diện
 
@@ -2762,13 +3098,13 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Dựng môi trường nhanh | `docker compose up -d` cho MySQL + phpMyAdmin; `python seed.py` nạp dữ liệu mẫu |
 | Không đụng MySQL sẵn có trên máy dev | Container ánh xạ cổng **3307** thay vì 3306 |
 | Tài liệu API luôn khớp mã nguồn | FastAPI tự sinh Swagger tại `/docs` từ chính các lớp Pydantic |
-| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 38 kiểm thử đầu-cuối chạy qua giao diện thật, **không bị sửa** khi chuyển stack |
+| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 43 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, mục 11 (trợ lý ảo) thêm sau và chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
 
 ---
 
 ## Phụ lục A — Danh mục API endpoint
 
-Toàn bộ **26 endpoint** của backend FastAPI. Tài liệu tương tác được sinh tự động tại `http://localhost:8000/docs`.
+Toàn bộ **31 endpoint** của backend FastAPI. Tài liệu tương tác được sinh tự động tại `http://localhost:8000/docs`.
 
 **Cột "Quyền"**: *Công khai* = không cần token · *Đăng nhập* = cần token hợp lệ (401 nếu thiếu) · *ADMIN* = cần token và `role = ADMIN` (401 nếu thiếu token, 403 nếu sai quyền).
 
@@ -2816,7 +3152,7 @@ Toàn bộ **26 endpoint** của backend FastAPI. Tài liệu tương tác đư�
 |---|---|---|---|
 | `POST /api/contact` | Công khai | Gửi tin nhắn liên hệ (201), lưu với `handled = FALSE` | UC-ND-03 |
 
-### A.7. Quản trị — `admin` (11)
+### A.7. Quản trị — `admin` (13)
 
 Toàn bộ nhóm này được bảo vệ bằng `dependencies=[Depends(admin_user)]` gắn ở **cấp router**.
 
@@ -2833,8 +3169,18 @@ Toàn bộ nhóm này được bảo vệ bằng `dependencies=[Depends(admin_us
 | `GET /api/admin/posts` | ADMIN | Toàn bộ bài viết kèm chuyên mục (chỉ đọc) | UC-QT-04 |
 | `GET /api/admin/contacts` | ADMIN | Toàn bộ tin nhắn liên hệ, mới nhất trước | UC-QT-05 |
 | `PATCH /api/admin/contacts/{id}` | ADMIN | **Đảo** cờ `handled` của một tin nhắn | UC-QT-05 |
+| `GET /api/admin/chats` | ADMIN | 200 phiên trò chuyện gần nhất kèm tên khách và số tin (chỉ đọc) | UC-QT-06 |
+| `GET /api/admin/chats/{id}` | ADMIN | Toàn văn một cuộc trò chuyện; 404 nếu không có | UC-QT-06 |
 
-### A.8. Tình trạng — `health` (1)
+### A.8. Trợ lý ảo — `chat` (3)
+
+| Phương thức & đường dẫn | Quyền | Mô tả | Use case |
+|---|---|---|---|
+| `POST /api/chat/messages` | Công khai | Gửi câu hỏi, nhận câu trả lời trong một lượt kèm `suggestions` là các sản phẩm được nhắc tên. **503** khi thiếu `GEMINI_API_KEY`, 504 timeout, 502 mất kết nối, 429 quá hạn mức | UC-TL-01 |
+| `GET /api/chat/sessions/{clientKey}` | Công khai | Lịch sử hội thoại của một trình duyệt; chưa có thì trả danh sách rỗng (**không** 404); 403 nếu phiên đã gắn tài khoản khác | UC-TL-02 |
+| `DELETE /api/chat/sessions/{clientKey}` | Công khai | Xoá cuộc trò chuyện (204); tin nhắn đi theo nhờ `ON DELETE CASCADE`; xoá hai lần vẫn là 204 | UC-TL-03 |
+
+### A.9. Tình trạng — `health` (1)
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|

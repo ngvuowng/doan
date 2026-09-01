@@ -100,6 +100,11 @@ async function main() {
   const send = createSession(ws)
   await send('Page.enable')
   await send('Runtime.enable')
+  // Profile Chrome ở trên dùng lại một thư mục cố định nên cookie và localStorage sống
+  // sót qua các lần chạy: lần chạy sau sẽ vào /tai-khoan/dang-nhap trong trạng thái đã
+  // đăng nhập (mục 5 hỏng) và giỏ hàng còn hàng cũ (mục 3 đếm sai). Dọn sạch để mỗi lần
+  // chạy đều bắt đầu từ một trình duyệt trắng.
+  await send('Storage.clearDataForOrigin', { origin: BASE, storageTypes: 'all' })
 
   /** Điều hướng và chờ trang ổn định. */
   async function goto(path) {
@@ -122,7 +127,7 @@ async function main() {
       returnByValue: true,
       awaitPromise: true,
     })
-    if (exceptionDetails) throw new Error(exceptionDetails.text ?? 'lỗi khi evaluate')
+    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text ?? 'lỗi khi evaluate')
     return result.value
   }
 
@@ -382,6 +387,50 @@ async function main() {
     console.log('\n10. Trang lỗi')
     await goto('/khong-ton-tai-dau-ca')
     check('trang 404 hiển thị đúng', (await text()).includes('404'))
+
+    // ---- 11. Trợ lý ảo ----
+    // Chạy đúng ở cả hai trạng thái: chưa gắn GEMINI_API_KEY thì khung chat phải báo
+    // lỗi cấu hình, có khoá thì phải hiện câu trả lời. Chỉ hỏng khi không có gì xảy ra.
+    console.log('\n11. Trợ lý ảo')
+    await goto('/')
+    await evaluate(`
+      document.querySelector('[aria-label="Mở trợ lý tư vấn Halona"]').click();
+      return true;
+    `)
+    await sleep(900)
+    const chat = await text()
+    check('mở được khung trợ lý', chat.includes('TRỢ LÝ HALONA'))
+    check('có lời chào tiếng Việt', chat.includes('cần tư vấn chọn hoa quả'))
+
+    await evaluate(`
+      const el = document.querySelector('#halona-chat-input');
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(el, 'Táo nhập khẩu giá bao nhiêu?');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      document.querySelector('[aria-label="Gửi câu hỏi"]').click();
+      return true;
+    `)
+    await sleep(800)
+    check('hiện ngay bong bóng câu hỏi', (await text()).includes('Táo nhập khẩu giá bao nhiêu?'))
+
+    let settled = false
+    for (let i = 0; i < 30; i++) {
+      await sleep(1000)
+      settled = await evaluate(
+        'return Boolean(document.querySelector("[data-chat-error]") || document.querySelector(\'[data-role="model"]\'))',
+      )
+      if (settled) break
+    }
+    check('trợ lý trả lời hoặc báo lỗi cấu hình rõ ràng', settled === true)
+
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'Escape',
+      code: 'Escape',
+      windowsVirtualKeyCode: 27,
+    })
+    await sleep(600)
+    check('Escape đóng khung trợ lý', !(await text()).includes('Nhập câu hỏi của bạn'))
   } finally {
     ws.close()
     chrome.kill()

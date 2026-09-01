@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/admin/don-hang', label: 'Đơn hàng' },
   { href: '/admin/bai-viet', label: 'Bài viết' },
   { href: '/admin/lien-he', label: 'Liên hệ' },
+  { href: '/admin/tro-ly-ao', label: 'Trợ lý ảo' },
 ]
 
 export function AdminNav() {

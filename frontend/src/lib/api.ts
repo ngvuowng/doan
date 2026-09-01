@@ -206,6 +206,38 @@ export type ContactMessage = {
   createdAt: string
 }
 
+export type ChatRole = 'user' | 'model'
+
+export type ChatMessage = {
+  id: string
+  role: ChatRole
+  content: string
+  createdAt: string
+}
+
+export type ChatReply = {
+  sessionId: string
+  reply: ChatMessage
+  /** Sản phẩm trợ lý nhắc tên; giá và slug lấy từ CSDL nên luôn đúng. */
+  suggestions: ProductCard[]
+}
+
+/** `sessionId` là null khi trình duyệt này chưa từng hỏi câu nào. */
+export type ChatHistory = { sessionId: string | null; messages: ChatMessage[] }
+
+export type ChatSessionSummary = {
+  id: string
+  clientKey: string
+  userName: string | null
+  userEmail: string | null
+  title: string | null
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type ChatTranscript = ChatSessionSummary & { messages: ChatMessage[] }
+
 export type AdminStats = {
   productCount: number
   orderCount: number
@@ -293,6 +325,18 @@ export const api = {
       request<unknown>('/api/contact', { method: 'POST', body }),
   },
 
+  chat: {
+    send: (body: { clientKey: string; message: string }) =>
+      request<ChatReply>('/api/chat/messages', { method: 'POST', body, auth: true }),
+    history: (clientKey: string) =>
+      request<ChatHistory>(`/api/chat/sessions/${encodeURIComponent(clientKey)}`, { auth: true }),
+    clear: (clientKey: string) =>
+      request<void>(`/api/chat/sessions/${encodeURIComponent(clientKey)}`, {
+        method: 'DELETE',
+        auth: true,
+      }),
+  },
+
   admin: {
     stats: () => request<AdminStats>('/api/admin/stats', { auth: true }),
     products: () => request<Product[]>('/api/admin/products', { auth: true }),
@@ -310,5 +354,7 @@ export const api = {
     contacts: () => request<ContactMessage[]>('/api/admin/contacts', { auth: true }),
     toggleContact: (id: string) =>
       request<ContactMessage>(`/api/admin/contacts/${id}`, { method: 'PATCH', auth: true }),
+    chats: () => request<ChatSessionSummary[]>('/api/admin/chats', { auth: true }),
+    chat: (id: string) => findOrNull<ChatTranscript>(`/api/admin/chats/${id}`, { auth: true }),
   },
 }

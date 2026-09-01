@@ -133,3 +133,16 @@ export const HeadsetIcon = ({ className }: IconProps) => (
     <path d="M20 18v.5a2.5 2.5 0 0 1-2.5 2.5H13" />
   </svg>
 )
+
+export const ChatIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M21 12a8 8 0 0 1-8 8H7l-4 3 1.2-4.3A8 8 0 1 1 21 12Z" />
+    <path d="M8.5 11h7M8.5 14.5h4" />
+  </svg>
+)
+
+export const SendIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M4 11.5 20.5 4l-7 16.5-2.2-6.8L4 11.5Z" />
+  </svg>
+)

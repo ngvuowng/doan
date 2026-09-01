@@ -4,6 +4,7 @@ import { SITE, SITE_URL } from '@/lib/site'
 import { CartProvider } from '@/components/cart/CartProvider'
 import { SiteHeader } from '@/components/site/SiteHeader'
 import { Footer } from '@/components/site/Footer'
+import { ChatWidget } from '@/components/chat/ChatWidget'
 import './globals.css'
 
 // Đúng 3 font mà site gốc nạp từ Google Fonts.
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           <SiteHeader />
           <main className="flex-1">{children}</main>
           <Footer />
+          <ChatWidget />
         </CartProvider>
       </body>
     </html>

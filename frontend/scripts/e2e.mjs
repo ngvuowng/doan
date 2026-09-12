@@ -400,7 +400,23 @@ async function main() {
     await sleep(900)
     const chat = await text()
     check('mở được khung trợ lý', chat.includes('TRỢ LÝ HALONA'))
-    check('có lời chào tiếng Việt', chat.includes('cần tư vấn chọn hoa quả'))
+    check('có lời chào tiếng Việt', chat.includes('Mình là trợ lý của Halona Fruist'))
+
+    // Khách phải chọn chủ đề trước: bảng chọn có 4 nút, ô nhập bị khoá.
+    const modeCount = 'return document.querySelectorAll("[data-chat-mode]").length'
+    const inputDisabled = 'return document.querySelector("#halona-chat-input").disabled'
+    check('hiện 4 nút chọn chủ đề', (await evaluate(modeCount)) === 4)
+    check('chưa chọn chủ đề thì chưa gõ được', (await evaluate(inputDisabled)) === true)
+
+    await evaluate(`
+      document.querySelector('[data-chat-mode="product"]').click();
+      return true;
+    `)
+    await sleep(300)
+    check(
+      'chọn chủ đề xong thì mở ô nhập',
+      (await evaluate(inputDisabled)) === false && (await text()).includes('Chủ đề: Sản phẩm'),
+    )
 
     await evaluate(`
       const el = document.querySelector('#halona-chat-input');
@@ -423,6 +439,18 @@ async function main() {
     }
     check('trợ lý trả lời hoặc báo lỗi cấu hình rõ ràng', settled === true)
 
+    // Đổi chủ đề giữa chừng: bảng chọn hiện lại nhưng lịch sử không mất.
+    await evaluate(`
+      document.querySelector('[data-chat-switch]').click();
+      return true;
+    `)
+    await sleep(300)
+    check(
+      'Đổi chủ đề hiện lại bảng chọn',
+      (await evaluate(modeCount)) === 4 && (await evaluate(inputDisabled)) === true,
+    )
+    check('đổi chủ đề vẫn giữ lịch sử', (await text()).includes('Táo nhập khẩu giá bao nhiêu?'))
+
     await send('Input.dispatchKeyEvent', {
       type: 'keyDown',
       key: 'Escape',
@@ -430,7 +458,11 @@ async function main() {
       windowsVirtualKeyCode: 27,
     })
     await sleep(600)
-    check('Escape đóng khung trợ lý', !(await text()).includes('Nhập câu hỏi của bạn'))
+    // innerText không chứa placeholder của textarea, nên kiểm bằng sự tồn tại của panel.
+    check(
+      'Escape đóng khung trợ lý',
+      (await evaluate('return !document.querySelector("#halona-chat-panel")')) === true,
+    )
   } finally {
     ws.close()
     chrome.kill()

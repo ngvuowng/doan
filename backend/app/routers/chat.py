@@ -14,7 +14,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import gemini
-from app.chat_prompt import build_system_prompt, load_catalog, match_products
+from app.chat_modes import CHAT_MODES
+from app.chat_prompt import build_system_prompt, history_turn, load_catalog, match_products
 from app.config import (
     AUTH_SECRET,
     CHAT_HISTORY_MESSAGES,
@@ -22,7 +23,7 @@ from app.config import (
     CHAT_RATE_WINDOW_MINUTES,
 )
 from app.deps import DbSession, OptionalUser
-from app.models import ChatMessage, ChatSession, User, utcnow
+from app.models import ChatMessage, ChatSession, Order, OrderItem, User, utcnow
 from app.schemas import ChatHistoryOut, ChatIn, ChatMessageOut, ChatOut, ProductCard
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -74,6 +75,25 @@ def _assert_within_rate_limit(
             raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, TOO_MANY_MESSAGE)
 
 
+def _purchased_names(db: Session, user_id: str, limit: int = 30) -> list[str]:
+    """Tên hàng trong các đơn gần nhất của khách, để chủ đề công thức gợi ý từ quả đã mua.
+
+    Một truy vấn join thay vì "N đơn gần nhất" bằng subquery: MySQL không cho LIMIT bên
+    trong IN (...). Đơn huỷ bị bỏ vì khách chưa thực sự nhận hàng.
+    """
+    return list(
+        db.execute(
+            select(OrderItem.name)
+            .join(Order, OrderItem.order_id == Order.id)
+            .where(Order.user_id == user_id, Order.status != "CANCELLED")
+            .order_by(Order.created_at.desc())
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+
+
 @router.post("/messages", response_model=ChatOut)
 def send_message(data: ChatIn, request: Request, db: DbSession, user: OptionalUser):
     """Gửi câu hỏi cho trợ lý và nhận câu trả lời trong một lượt (không streaming)."""
@@ -88,8 +108,16 @@ def send_message(data: ChatIn, request: Request, db: DbSession, user: OptionalUs
     ip_hash = _ip_hash(request)
     _assert_within_rate_limit(db, session, ip_hash)
 
+    # Chủ đề công thức: gom hoa quả khách đã mua (đơn cũ, cần đăng nhập) và đang có
+    # trong giỏ (frontend gửi kèm) để gợi ý đúng từ những gì khách có sẵn.
+    owned: list[str] = []
+    if data.mode == "recipe":
+        if user is not None:
+            owned += _purchased_names(db, user.id)
+        owned += data.cart_items
+
     products, total = load_catalog(db)
-    system_prompt = build_system_prompt(products, total)
+    system_prompt = build_system_prompt(products, total, data.mode, owned)
 
     history: list[tuple[str, str]] = []
     if session is not None:
@@ -104,10 +132,16 @@ def send_message(data: ChatIn, request: Request, db: DbSession, user: OptionalUs
             .scalars()
             .all()
         )
-        history = [(m.role, m.content) for m in reversed(recent)]
+        history = [history_turn(m, data.mode) for m in reversed(recent)]
 
+    spec = CHAT_MODES.get(data.mode) if data.mode else None
     try:
-        reply_text = gemini.generate_reply(system_prompt, history, data.message)
+        reply_text = gemini.generate_reply(
+            system_prompt,
+            history,
+            data.message,
+            temperature=spec.temperature if spec else 0.4,
+        )
     except gemini.GeminiError as error:
         raise HTTPException(error.status_code, error.message) from error
 
@@ -124,8 +158,8 @@ def send_message(data: ChatIn, request: Request, db: DbSession, user: OptionalUs
         session.user_id = user.id
     session.updated_at = utcnow()
 
-    db.add(ChatMessage(session=session, role="user", content=data.message))
-    reply = ChatMessage(session=session, role="model", content=reply_text)
+    db.add(ChatMessage(session=session, role="user", content=data.message, mode=data.mode))
+    reply = ChatMessage(session=session, role="model", content=reply_text, mode=data.mode)
     db.add(reply)
     db.commit()
     db.refresh(reply)

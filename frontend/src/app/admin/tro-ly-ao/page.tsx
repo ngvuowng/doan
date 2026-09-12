@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { chatModeInfo } from '@/lib/chatModes'
 import { formatDateTime } from '@/lib/format'
 
 export const metadata: Metadata = { title: 'Hội thoại trợ lý ảo' }
@@ -74,7 +75,15 @@ export default async function AdminChatPage({ searchParams }: PageProps<'/admin/
                   >
                     {m.content}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted">{formatDateTime(m.createdAt)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    {/* Chủ đề khách chọn cho lượt hỏi này, để đối chiếu câu trả lời có bám đúng chủ đề không. */}
+                    {m.role === 'user' && m.mode && (
+                      <span className="mr-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-primary-dark">
+                        {chatModeInfo(m.mode)?.shortLabel ?? m.mode}
+                      </span>
+                    )}
+                    {formatDateTime(m.createdAt)}
+                  </p>
                 </div>
               ))}
             </article>

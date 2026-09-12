@@ -1,4 +1,5 @@
 import 'server-only'
+import type { ChatMode } from '@/lib/chatModes'
 import { getSessionToken } from '@/lib/session'
 
 /**
@@ -212,6 +213,8 @@ export type ChatMessage = {
   id: string
   role: ChatRole
   content: string
+  /** Chủ đề khách chọn ở lượt hỏi này; null với tin trước khi có tính năng chọn chủ đề. */
+  mode: ChatMode | null
   createdAt: string
 }
 
@@ -326,7 +329,7 @@ export const api = {
   },
 
   chat: {
-    send: (body: { clientKey: string; message: string }) =>
+    send: (body: { clientKey: string; message: string; mode: ChatMode; cartItems: string[] }) =>
       request<ChatReply>('/api/chat/messages', { method: 'POST', body, auth: true }),
     history: (clientKey: string) =>
       request<ChatHistory>(`/api/chat/sessions/${encodeURIComponent(clientKey)}`, { auth: true }),

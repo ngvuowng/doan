@@ -117,8 +117,10 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 - Tài khoản: đăng ký, đăng nhập, cập nhật hồ sơ, xem lịch sử đơn hàng
 - Tin tức: danh sách, chuyên mục, chi tiết bài viết
 - Giới thiệu và liên hệ (form lưu vào CSDL)
-- Trợ lý ảo tư vấn (nút nổi ở mọi trang): giải đáp về sản phẩm, tư vấn chọn hoa quả
-  theo nhu cầu, hướng dẫn bảo quản, gợi ý công thức nước ép/sinh tố
+- Trợ lý ảo tư vấn (nút nổi ở mọi trang): khách chọn 1 trong 4 chủ đề trước khi hỏi —
+  giải đáp về sản phẩm, tư vấn chọn hoa quả theo nhu cầu, hướng dẫn bảo quản, gợi ý
+  công thức nước ép/sinh tố — mỗi chủ đề có system prompt và temperature riêng; chủ đề
+  công thức đọc thêm giỏ hàng và đơn đã mua để gợi ý đúng từ những gì khách có
 
 **Phía quản trị** (`/admin`, cần tài khoản `ADMIN`)
 
@@ -142,7 +144,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 43 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 48 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -170,7 +172,8 @@ backend/             ← tầng nghiệp vụ (Python)
   app/schemas.py     Pydantic; đổi snake_case ↔ camelCase ở biên API
   app/routers/       products · categories · posts · auth · orders · contact · chat · admin
   app/gemini.py      gọi Gemini API qua REST (httpx)
-  app/chat_prompt.py system prompt tiếng Việt + nhồi danh mục sản phẩm vào ngữ cảnh
+  app/chat_modes.py  4 chủ đề tư vấn: đoạn prompt riêng + temperature từng chủ đề
+  app/chat_prompt.py ghép system prompt tiếng Việt + nhồi danh mục sản phẩm vào ngữ cảnh
   app/security.py    băm mật khẩu, ký/đọc JWT
   app/deps.py        dependency lấy người dùng từ Authorization, tiện ích or_404
   alembic/           migration
@@ -236,7 +239,7 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 43 kiểm tra: hiển thị trang chủ, điều hướng catalog, thêm
+Playwright/Puppeteer) và chạy 48 kiểm tra: hiển thị trang chủ, điều hướng catalog, thêm
 giỏ hàng, đặt hàng cho khách vãng lai và cho thành viên, đăng nhập, tìm kiếm, blog, form
 liên hệ, toàn bộ luồng quản trị, responsive ở 375px, trang 404 và khung trợ lý ảo.
 

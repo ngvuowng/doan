@@ -48,8 +48,17 @@ def is_configured() -> bool:
     return bool(GEMINI_API_KEY) or GEMINI_MOCK
 
 
-def generate_reply(system_prompt: str, history: list[tuple[str, str]], message: str) -> str:
-    """Trả về câu trả lời dạng văn bản thuần. `history` là các cặp (role, content)."""
+def generate_reply(
+    system_prompt: str,
+    history: list[tuple[str, str]],
+    message: str,
+    temperature: float = 0.4,
+) -> str:
+    """Trả về câu trả lời dạng văn bản thuần. `history` là các cặp (role, content).
+
+    `temperature` do chủ đề quyết định (app/chat_modes.py): tra cứu giá cần chính xác
+    nên thấp, gợi ý công thức cần đa dạng nên cao hơn.
+    """
     if GEMINI_MOCK:
         return (
             "[CHẾ ĐỘ THỬ — chưa gắn khoá Gemini] Mình đã nhận câu hỏi: "
@@ -65,7 +74,7 @@ def generate_reply(system_prompt: str, history: list[tuple[str, str]], message: 
         ]
         + [{"role": "user", "parts": [{"text": message}]}],
         "generationConfig": {
-            "temperature": 0.4,
+            "temperature": temperature,
             "topP": 0.9,
             "maxOutputTokens": 800,
             # Gemini 2.5 Flash mặc định bật "thinking"; phần suy nghĩ ăn hết

@@ -11,6 +11,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer, computed_field
 from pydantic.alias_generators import to_camel
 
+from app.chat_modes import ChatMode
+
 
 def _iso_utc(value: datetime) -> str:
     """MySQL DATETIME không lưu múi giờ; ta quy ước đã lưu UTC nên gắn lại hậu tố Z.
@@ -233,6 +235,8 @@ class ChatMessageOut(ApiModel):
     id: str
     role: str  # "user" | "model"
     content: str
+    # Chủ đề khách chọn ở lượt hỏi này; None với tin cũ. Trang quản trị hiện thành nhãn.
+    mode: str | None = None
     created_at: UtcDatetime
 
 
@@ -240,6 +244,14 @@ class ChatIn(ApiModel):
     # UUID do trình duyệt sinh và giữ ở localStorage, dùng để nhận lại phiên sau khi tải lại trang.
     client_key: str = Field(min_length=8, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
+    # Chủ đề khách bấm chọn trước khi hỏi. Giao diện luôn gửi; None chỉ để tương thích
+    # khi gọi tay qua Swagger (dùng prompt chung). Chuỗi lạ bị chặn 422.
+    mode: ChatMode | None = None
+    # Tên sản phẩm trong giỏ hàng (localStorage của trình duyệt), chỉ dùng cho chủ đề
+    # công thức để gợi ý đúng từ những gì khách đang có.
+    cart_items: list[Annotated[str, Field(max_length=255)]] = Field(
+        default_factory=list, max_length=20
+    )
 
 
 class ChatOut(ApiModel):

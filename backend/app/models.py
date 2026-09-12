@@ -252,6 +252,10 @@ class ChatMessage(Base):
     # Lưu đúng hai giá trị "user"/"model" của Gemini để phát lại lịch sử khỏi phải ánh xạ.
     role: Mapped[str] = mapped_column(String(10))
     content: Mapped[str] = mapped_column(Text)
+    # Chủ đề khách chọn khi hỏi (product/advice/storage/recipe). NULL với tin nhắn cũ
+    # trước khi có tính năng chọn chủ đề. Lưu ở cả hai dòng của một cặp hỏi–đáp vì câu
+    # trả lời cũng được sinh dưới prompt của chủ đề đó.
+    mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow)
 
     session: Mapped[ChatSession] = relationship(back_populates="messages")

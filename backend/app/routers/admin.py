@@ -3,7 +3,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import DbSession, admin_user, or_404
-from app.models import Category, ChatMessage, ChatSession, ContactMessage, Order, Post, Product
+from app.models import (
+    Category,
+    ChatMessage,
+    ChatSession,
+    ContactMessage,
+    Order,
+    Post,
+    Product,
+    utcnow,
+)
+from app.routers.orders import expire_unpaid_orders
 from app.schemas import (
     AdminStats,
     ChatMessageOut,
@@ -45,6 +55,7 @@ def _assert_sale_price(data: ProductIn) -> None:
 
 @router.get("/stats", response_model=AdminStats)
 def stats(db: DbSession):
+    expire_unpaid_orders(db)
     recent = (
         db.execute(
             select(Order).order_by(Order.created_at.desc()).limit(5).options(selectinload(Order.items))
@@ -131,6 +142,7 @@ def delete_product(product_id: str, db: DbSession):
 
 @router.get("/orders", response_model=list[OrderOut])
 def list_orders(db: DbSession):
+    expire_unpaid_orders(db)
     orders = (
         db.execute(
             select(Order).order_by(Order.created_at.desc()).options(selectinload(Order.items))
@@ -146,6 +158,28 @@ def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession):
     order = or_404(db.get(Order, order_id), "Không tìm thấy đơn hàng.")
 
     order.status = data.status
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+@router.post("/orders/{order_id}/payment", response_model=OrderOut)
+def mark_order_paid(order_id: str, db: DbSession):
+    """Admin xác nhận đã thấy tiền chuyển khoản về tài khoản.
+
+    Cho phép cả đơn đã bị tự huỷ vì quá hạn: tiền về muộn thì vẫn nhận và khôi phục
+    đơn về CONFIRMED. Đơn đã giao/hoàn thành thì chỉ ghi nhận thanh toán, giữ trạng thái.
+    """
+    order = or_404(db.get(Order, order_id), "Không tìm thấy đơn hàng.")
+    if order.payment_method != "BANK":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Đơn này thanh toán khi nhận hàng.")
+    if order.payment_status == "PAID":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Đơn này đã được ghi nhận thanh toán.")
+
+    order.payment_status = "PAID"
+    order.paid_at = utcnow()
+    if order.status in ("PENDING", "CANCELLED"):
+        order.status = "CONFIRMED"
     db.commit()
     db.refresh(order)
     return order

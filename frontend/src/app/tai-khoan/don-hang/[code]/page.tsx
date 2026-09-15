@@ -4,7 +4,8 @@ import { notFound, redirect } from 'next/navigation'
 import { api } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { OrderDetail } from '@/components/account/OrderDetail'
-import { StatusBadge } from '@/components/account/StatusBadge'
+import { PaymentBadge, StatusBadge } from '@/components/account/StatusBadge'
+import { needsBankPayment } from '@/lib/orderStatus'
 
 export const metadata: Metadata = { title: 'Chi tiết đơn hàng' }
 
@@ -24,8 +25,20 @@ export default async function MyOrderDetailPage({
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-lg font-bold uppercase">Đơn hàng {order.code}</h2>
-        <StatusBadge status={order.status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={order.status} />
+          {order.paymentMethod === 'BANK' && <PaymentBadge status={order.paymentStatus} />}
+        </div>
       </div>
+
+      {needsBankPayment(order) && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+          <span>Đơn đang chờ bạn chuyển khoản.</span>
+          <Link href={`/thanh-toan/${order.code}`} className="btn-primary">
+            Thanh toán ngay
+          </Link>
+        </div>
+      )}
 
       <OrderDetail order={order} />
 

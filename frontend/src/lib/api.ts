@@ -15,11 +15,15 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly detail: string,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; data?: unknown },
   ) {
     super(detail, options)
     this.name = 'ApiError'
+    this.data = options?.data
   }
+
+  /** `detail` gốc của backend khi là object (vd. kèm danh sách id lỗi). */
+  readonly data: unknown
 }
 
 type Query = Record<string, string | number | boolean | null | undefined>
@@ -50,6 +54,9 @@ function buildUrl(path: string, query?: Query): string {
 function readDetail(data: unknown): string | null {
   const detail = (data as { detail?: unknown } | null)?.detail
   if (typeof detail === 'string') return detail
+  // Một số endpoint trả detail dạng object `{ message, ... }` để client xử lý thêm.
+  const message = (detail as { message?: unknown } | null)?.message
+  if (typeof message === 'string') return message
   if (Array.isArray(detail)) {
     const messages = detail
       .map((issue) => (issue as { msg?: unknown } | null)?.msg)
@@ -92,11 +99,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (response.status === 204) return undefined as T
   if (!response.ok) {
-    const detail = await response
-      .json()
-      .then(readDetail)
-      .catch(() => null)
-    throw new ApiError(response.status, detail ?? `Lỗi API (HTTP ${response.status})`)
+    const body: unknown = await response.json().catch(() => null)
+    const detail = readDetail(body)
+    throw new ApiError(response.status, detail ?? `Lỗi API (HTTP ${response.status})`, {
+      data: (body as { detail?: unknown } | null)?.detail,
+    })
   }
 
   return response.json() as Promise<T>
@@ -189,6 +196,11 @@ export type Order = {
   note: string | null
   paymentMethod: string
   status: string
+  /** UNPAID | PAID — admin đánh dấu tay khi thấy tiền chuyển khoản về. */
+  paymentStatus: string
+  paidAt: string | null
+  /** Chỉ có ở đơn BANK: quá mốc này chưa trả thì đơn tự huỷ. */
+  paymentExpiresAt: string | null
   total: number
   createdAt: string
   updatedAt: string
@@ -353,6 +365,8 @@ export const api = {
     orders: () => request<Order[]>('/api/admin/orders', { auth: true }),
     updateOrderStatus: (id: string, status: string) =>
       request<Order>(`/api/admin/orders/${id}`, { method: 'PATCH', body: { status }, auth: true }),
+    markOrderPaid: (id: string) =>
+      request<Order>(`/api/admin/orders/${id}/payment`, { method: 'POST', auth: true }),
     posts: () => request<Post[]>('/api/admin/posts', { auth: true }),
     contacts: () => request<ContactMessage[]>('/api/admin/contacts', { auth: true }),
     toggleContact: (id: string) =>

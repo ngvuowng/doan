@@ -21,3 +21,29 @@ export const PAYMENT_LABEL: Record<string, string> = {
   COD: 'Thanh toán khi nhận hàng (COD)',
   BANK: 'Chuyển khoản ngân hàng',
 }
+
+export const PAYMENT_STATUSES = [
+  { value: 'UNPAID', label: 'Chưa thanh toán', className: 'bg-neutral-100 text-neutral-700' },
+  { value: 'PAID', label: 'Đã thanh toán', className: 'bg-primary/15 text-primary-dark' },
+] as const
+
+export function paymentStatusInfo(status: string) {
+  return (
+    PAYMENT_STATUSES.find((s) => s.value === status) ?? {
+      value: status,
+      label: status,
+      className: 'bg-neutral-100 text-neutral-700',
+    }
+  )
+}
+
+/** Đơn chuyển khoản còn đang chờ khách quét QR — chưa trả, chưa bị huỷ/xác nhận. */
+export function needsBankPayment(order: {
+  paymentMethod: string
+  paymentStatus: string
+  status: string
+}): boolean {
+  return (
+    order.paymentMethod === 'BANK' && order.paymentStatus === 'UNPAID' && order.status === 'PENDING'
+  )
+}

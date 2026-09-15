@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import type { Order } from '@/lib/api'
 import { formatDateTime, formatPrice } from '@/lib/format'
-import { PAYMENT_LABEL } from '@/lib/orderStatus'
+import { PAYMENT_LABEL, paymentStatusInfo } from '@/lib/orderStatus'
 
 /**
  * Thẻ chi tiết đơn hàng, dùng chung cho trang cảm ơn và trang đơn của tôi.
@@ -23,7 +23,13 @@ export function OrderDetail({ order, heading }: { order: Order; heading?: string
         <Row label="Email" value={order.email} />
         <Row label="Ngày đặt" value={formatDateTime(order.createdAt)} />
         <Row label="Địa chỉ" value={order.address} full />
-        <Row label="Thanh toán" value={PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod} full />
+        <Row
+          label="Thanh toán"
+          value={`${PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}${
+            order.paymentMethod === 'BANK' ? ` — ${paymentStatusInfo(order.paymentStatus).label}` : ''
+          }`}
+          full
+        />
         {order.note && <Row label="Ghi chú" value={order.note} full />}
       </dl>
 

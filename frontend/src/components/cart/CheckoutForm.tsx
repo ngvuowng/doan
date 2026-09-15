@@ -2,14 +2,13 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useActionState } from 'react'
+import { useActionState, useCallback, useState } from 'react'
 import { useCart } from '@/components/cart/CartProvider'
-import { placeOrder } from '@/actions/order'
+import { placeOrder, type CheckoutState } from '@/actions/order'
 import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
-import type { FormState } from '@/lib/validation'
 import { formatPrice } from '@/lib/format'
 
-const initial: FormState = {}
+const initial: CheckoutState = {}
 
 type Props = {
   /** Điền sẵn thông tin nếu khách đã đăng nhập. */
@@ -17,8 +16,25 @@ type Props = {
 }
 
 export function CheckoutForm({ defaults }: Props) {
-  const { items, subtotal, isLoading } = useCart()
-  const [state, action] = useActionState(placeOrder, initial)
+  const { items, subtotal, isLoading, remove } = useCart()
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD')
+  // Giỏ hàng nằm ở localStorage nên có thể chứa sản phẩm đã bị xoá trong CSDL.
+  // Khi backend báo, gỡ các dòng đó khỏi giỏ và nêu tên để khách biết vì sao.
+  const submit = useCallback(
+    async (prev: CheckoutState, formData: FormData): Promise<CheckoutState> => {
+      const result = await placeOrder(prev, formData)
+      const missing = result.missingProductIds ?? []
+      if (missing.length === 0) return result
+      const names = items.filter((l) => missing.includes(l.productId)).map((l) => l.name)
+      missing.forEach(remove)
+      return {
+        ...result,
+        formError: `Sản phẩm không còn bán và đã được gỡ khỏi giỏ: ${names.join(', ')}. Vui lòng kiểm tra lại giỏ hàng trước khi đặt.`,
+      }
+    },
+    [items, remove],
+  )
+  const [state, action] = useActionState(submit, initial)
   // Giỏ hàng được dọn ở trang cảm ơn (<ClearCartOnMount />) sau khi đơn đã ghi vào CSDL.
 
   if (isLoading) return <p className="py-16 text-center text-muted">Đang tải giỏ hàng...</p>
@@ -26,6 +42,7 @@ export function CheckoutForm({ defaults }: Props) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-20 text-center">
+        {state.formError && <FormError>{state.formError}</FormError>}
         <p className="text-muted">Giỏ hàng đang trống nên chưa thể thanh toán.</p>
         <Link href="/cua-hang" className="btn-primary">
           Chọn sản phẩm
@@ -123,7 +140,14 @@ export function CheckoutForm({ defaults }: Props) {
         </h2>
         <div className="space-y-2">
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 has-checked:border-primary has-checked:bg-primary/5">
-            <input type="radio" name="paymentMethod" value="COD" defaultChecked className="mt-1" />
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="COD"
+              checked={paymentMethod === 'COD'}
+              onChange={() => setPaymentMethod('COD')}
+              className="mt-1"
+            />
             <span>
               <span className="block text-sm font-medium">Thanh toán khi nhận hàng (COD)</span>
               <span className="block text-xs text-muted">
@@ -132,11 +156,19 @@ export function CheckoutForm({ defaults }: Props) {
             </span>
           </label>
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 has-checked:border-primary has-checked:bg-primary/5">
-            <input type="radio" name="paymentMethod" value="BANK" className="mt-1" />
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="BANK"
+              checked={paymentMethod === 'BANK'}
+              onChange={() => setPaymentMethod('BANK')}
+              className="mt-1"
+            />
             <span>
               <span className="block text-sm font-medium">Chuyển khoản ngân hàng</span>
               <span className="block text-xs text-muted">
-                Nhân viên sẽ liên hệ gửi thông tin tài khoản sau khi đặt hàng.
+                Sau khi đặt hàng bạn sẽ nhận mã QR có sẵn số tiền và mã đơn. Đơn được giữ 15
+                phút để bạn chuyển khoản.
               </span>
             </span>
           </label>

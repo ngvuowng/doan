@@ -175,6 +175,9 @@ class OrderOut(ApiModel):
     note: str | None = None
     payment_method: str
     status: str
+    payment_status: str
+    paid_at: UtcDatetime | None = None
+    payment_expires_at: UtcDatetime | None = None
     total: int
     created_at: UtcDatetime
     updated_at: UtcDatetime

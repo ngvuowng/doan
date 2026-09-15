@@ -115,6 +115,23 @@ export async function updateOrderStatus(formData: FormData) {
   revalidatePath('/admin/don-hang')
 }
 
+export async function markOrderPaid(formData: FormData) {
+  if (!(await assertAdmin())) return
+
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+
+  try {
+    await api.admin.markOrderPaid(id)
+  } catch (error) {
+    // 409 nghĩa là đã đánh dấu rồi (vd. bấm nút hai lần) — coi như thành công.
+    if (!(error instanceof ApiError && error.status === 409)) throw error
+  }
+
+  revalidatePath('/admin/don-hang')
+  revalidatePath('/admin')
+}
+
 export async function toggleContactHandled(formData: FormData) {
   if (!(await assertAdmin())) return
 

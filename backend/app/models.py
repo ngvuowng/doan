@@ -155,6 +155,11 @@ class Order(Base):
     payment_method: Mapped[str] = mapped_column(String(20), default="COD")
     # PENDING | CONFIRMED | SHIPPING | COMPLETED | CANCELLED
     status: Mapped[str] = mapped_column(String(20), default="PENDING")
+    # UNPAID | PAID — admin đánh dấu tay khi thấy tiền về (đơn COD giữ UNPAID).
+    payment_status: Mapped[str] = mapped_column(String(20), default="UNPAID")
+    paid_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
+    # Chỉ đặt cho đơn BANK: quá mốc này mà chưa trả thì đơn tự huỷ.
+    payment_expires_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
     # Tổng tiền chốt tại thời điểm đặt, đơn vị VND.
     total: Mapped[int] = mapped_column(Integer)
 

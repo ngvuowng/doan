@@ -15,6 +15,9 @@ CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o
 # Phiên đăng nhập 7 ngày, khớp với maxAge của cookie bên Next.js.
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
 
+# Đơn chuyển khoản chưa nhận tiền quá ngần này phút thì tự huỷ (xem routers/orders.py).
+PAYMENT_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_TIMEOUT_MINUTES", "15"))
+
 if not DATABASE_URL:
     raise RuntimeError("Thiếu DATABASE_URL trong backend/.env")
 if not AUTH_SECRET:

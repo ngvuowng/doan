@@ -3,8 +3,8 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { ORDER_STATUSES, PAYMENT_LABEL } from '@/lib/orderStatus'
-import { updateOrderStatus } from '@/actions/admin'
-import { StatusBadge } from '@/components/account/StatusBadge'
+import { markOrderPaid, updateOrderStatus } from '@/actions/admin'
+import { PaymentBadge, StatusBadge } from '@/components/account/StatusBadge'
 
 export const metadata: Metadata = { title: 'Quản lý đơn hàng' }
 
@@ -34,8 +34,20 @@ export default async function AdminOrdersPage() {
                 <p className="font-heading text-base font-bold text-primary">{order.code}</p>
                 <p className="text-xs text-muted">{formatDateTime(order.createdAt)}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge status={order.status} />
+                {order.paymentMethod === 'BANK' && <PaymentBadge status={order.paymentStatus} />}
+                {order.paymentMethod === 'BANK' && order.paymentStatus === 'UNPAID' && (
+                  <form action={markOrderPaid}>
+                    <input type="hidden" name="id" value={order.id} />
+                    <button
+                      type="submit"
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-dark"
+                    >
+                      Đã nhận tiền
+                    </button>
+                  </form>
+                )}
                 <form action={updateOrderStatus} className="flex items-center gap-2">
                   <input type="hidden" name="id" value={order.id} />
                   <select
@@ -76,6 +88,9 @@ export default async function AdminOrdersPage() {
               <p className="sm:col-span-2">
                 <span className="text-muted">Thanh toán: </span>
                 {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}
+                {order.paymentMethod === 'BANK' && order.paidAt && (
+                  <span className="text-muted"> — nhận tiền lúc {formatDateTime(order.paidAt)}</span>
+                )}
               </p>
               {order.note && (
                 <p className="sm:col-span-2">

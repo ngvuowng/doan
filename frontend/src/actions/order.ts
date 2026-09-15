@@ -22,10 +22,15 @@ const checkoutSchema = z.object({
   paymentMethod: z.enum(['COD', 'BANK']),
 })
 
+export type CheckoutState = FormState & {
+  /** Id sản phẩm trong giỏ đã không còn trong CSDL — client gỡ khỏi giỏ hàng. */
+  missingProductIds?: string[]
+}
+
 export async function placeOrder(
-  _prev: FormState,
+  _prev: CheckoutState,
   formData: FormData,
-): Promise<FormState> {
+): Promise<CheckoutState> {
   const parsed = checkoutSchema.safeParse({
     customerName: formData.get('customerName'),
     email: formData.get('email'),
@@ -55,9 +60,41 @@ export async function placeOrder(
     })
     code = order.code
   } catch (error) {
-    if (error instanceof ApiError) return { formError: error.detail }
+    if (error instanceof ApiError) {
+      const ids = (error.data as { missing_product_ids?: unknown } | null)?.missing_product_ids
+      const missingProductIds = Array.isArray(ids)
+        ? ids.filter((id): id is string => typeof id === 'string')
+        : undefined
+      return { formError: error.detail, missingProductIds }
+    }
     throw error
   }
 
-  redirect(`/dat-hang-thanh-cong/${code}`)
+  // Đơn chuyển khoản qua trang QR trước; trang cảm ơn chỉ hiện khi admin đã nhận tiền.
+  redirect(
+    parsed.data.paymentMethod === 'BANK' ? `/thanh-toan/${code}` : `/dat-hang-thanh-cong/${code}`,
+  )
+}
+
+export type PaymentState = {
+  status: string
+  paymentStatus: string
+  paymentExpiresAt: string | null
+}
+
+/**
+ * Trang QR (client) polling hàm này vài giây một lần để biết admin đã nhận tiền chưa.
+ * Backend tự huỷ đơn quá hạn ngay trong lần đọc này nên client không cần tự kết luận.
+ */
+export async function getPaymentState(code: string): Promise<PaymentState | null> {
+  const parsed = z.string().trim().regex(/^[A-Z0-9-]{4,30}$/).safeParse(code)
+  if (!parsed.success) return null
+
+  const order = await api.orders.get(parsed.data)
+  if (!order) return null
+  return {
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentExpiresAt: order.paymentExpiresAt,
+  }
 }

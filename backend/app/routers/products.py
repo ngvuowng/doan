@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import DbSession, or_404
-from app.models import Category, Product
+from app.models import Category, Product, product_categories
 from app.schemas import ProductCard, ProductDetail, ProductPage
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -29,7 +29,18 @@ def list_products(
     stmt = select(Product)
 
     if category:
-        stmt = stmt.join(Product.categories).where(Category.slug == category)
+        # Danh mục cha gom sản phẩm của mọi danh mục con. Lọc bằng IN trên bảng nối
+        # (không JOIN) để sản phẩm thuộc hai danh mục con không bị nhân đôi dòng,
+        # nhờ đó `total` đếm đúng. Slug lạ -> rỗng (giữ hành vi cũ, không 404).
+        node = db.execute(select(Category).where(Category.slug == category)).scalar_one_or_none()
+        ids = [node.id, *(c.id for c in node.children)] if node else []
+        stmt = stmt.where(
+            Product.id.in_(
+                select(product_categories.c.product_id).where(
+                    product_categories.c.category_id.in_(ids)
+                )
+            )
+        )
     if q:
         like = f"%{q}%"
         stmt = stmt.where(

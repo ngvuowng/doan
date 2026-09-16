@@ -85,7 +85,7 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[slug
             <ul className="my-6 space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 text-primary" />
-                {product.stock > 0 ? `Còn hàng (${product.stock} kg)` : 'Tạm hết hàng'}
+                {product.stock > 0 ? `Còn hàng (${product.stock} kg)` : 'Hết hàng'}
               </li>
               <li className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 text-primary" />

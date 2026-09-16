@@ -132,7 +132,7 @@ export function CartPageContent() {
           </div>
           <div className="flex justify-between">
             <dt className="text-muted">Phí giao hàng</dt>
-            <dd className="text-primary">Miễn phí</dd>
+            <dd className="text-muted">Tính ở bước thanh toán</dd>
           </div>
           <div className="flex justify-between border-t border-line pt-3 text-base font-medium">
             <dt>Tổng cộng</dt>

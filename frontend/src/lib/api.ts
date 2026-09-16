@@ -128,6 +128,8 @@ export type Category = {
   kind: string
   subtitle: string | null
   position: number
+  /** Danh mục cha; null = danh mục gốc (mục menu chính). */
+  parentId: string | null
 }
 
 export type CategoryWithCount = Category & { productCount: number; postCount: number }
@@ -140,13 +142,14 @@ export type ProductCard = {
   salePrice: number | null
   image: string
   hoverImage: string | null
+  /** Tồn kho; 0 = hiện "Hết hàng" và khoá nút thêm vào giỏ. */
+  stock: number
   updatedAt: string
 }
 
 export type Product = ProductCard & {
   shortDescription: string
   description: string
-  stock: number
   createdAt: string
   categories: Category[]
 }
@@ -171,9 +174,34 @@ export type PostCard = {
 
 export type Post = PostCard & { content: string; categories: Category[] }
 
-export type SessionUser = { id: string; email: string; name: string; role: string }
+export type SessionUser = {
+  id: string
+  email: string
+  name: string
+  /** USER (khách hàng) | ADMIN | STORE_MANAGER | CASHIER | SALES. */
+  role: string
+  /** Khoá quyền của nhân viên; rỗng với khách hàng và ADMIN (ADMIN có toàn quyền). */
+  permissions: string[]
+  /** Cửa hàng nhân viên làm việc; null với ADMIN và khách hàng. */
+  storeId: string | null
+}
 
 export type Profile = SessionUser & { phone: string | null; address: string | null }
+
+export type Store = {
+  id: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+}
+
+/** Cửa hàng kèm khoảng cách và phí giao hàng ứng với vị trí khách (nếu có). */
+export type StoreQuote = Store & {
+  /** null khi khách chưa chia sẻ vị trí; khi đó `shippingFee` là mức phí chuẩn. */
+  distanceKm: number | null
+  shippingFee: number
+}
 
 export type OrderItem = {
   id: string
@@ -201,6 +229,13 @@ export type Order = {
   paidAt: string | null
   /** Chỉ có ở đơn BANK: quá mốc này chưa trả thì đơn tự huỷ. */
   paymentExpiresAt: string | null
+  /** null với đơn đặt trước khi có tính năng chọn cửa hàng. */
+  storeId: string | null
+  store: Store | null
+  shippingFee: number
+  /** Khoảng cách khách → cửa hàng dùng để tính phí; null khi khách không chia sẻ vị trí. */
+  distanceKm: number | null
+  /** Số tiền phải trả = tiền hàng + phí giao hàng. */
   total: number
   createdAt: string
   updatedAt: string
@@ -253,6 +288,22 @@ export type ChatSessionSummary = {
 
 export type ChatTranscript = ChatSessionSummary & { messages: ChatMessage[] }
 
+/** Tài khoản nhân viên trong trang quản lý nhân sự. */
+export type Staff = Profile & {
+  store: Store | null
+  /** false = đã khoá (nghỉ việc). */
+  isActive: boolean
+  createdAt: string
+}
+
+export type StaffInput = {
+  name: string
+  phone: string | null
+  role: string
+  storeId: string | null
+  permissions: string[]
+}
+
 export type AdminStats = {
   productCount: number
   orderCount: number
@@ -281,6 +332,10 @@ export type OrderInput = {
   address: string
   note?: string
   paymentMethod: string
+  storeId: string
+  /** Toạ độ do trình duyệt cung cấp; backend tự tính khoảng cách và phí. */
+  lat?: number
+  lng?: number
   items: { productId: string; quantity: number }[]
 }
 
@@ -335,6 +390,12 @@ export const api = {
     get: (code: string) => findOrNull<Order>(`/api/orders/${code}`),
   },
 
+  stores: {
+    /** Có toạ độ thì cửa hàng gần nhất lên đầu, kèm khoảng cách và phí giao hàng. */
+    list: (coords?: { lat: number; lng: number }) =>
+      request<StoreQuote[]>('/api/stores', { query: { lat: coords?.lat, lng: coords?.lng } }),
+  },
+
   contact: {
     create: (body: ContactInput) =>
       request<unknown>('/api/contact', { method: 'POST', body }),
@@ -373,5 +434,26 @@ export const api = {
       request<ContactMessage>(`/api/admin/contacts/${id}`, { method: 'PATCH', auth: true }),
     chats: () => request<ChatSessionSummary[]>('/api/admin/chats', { auth: true }),
     chat: (id: string) => findOrNull<ChatTranscript>(`/api/admin/chats/${id}`, { auth: true }),
+
+    staff: {
+      list: () => request<Staff[]>('/api/admin/staff', { auth: true }),
+      get: (id: string) => findOrNull<Staff>(`/api/admin/staff/${id}`, { auth: true }),
+      create: (body: StaffInput & { email: string; password: string }) =>
+        request<Staff>('/api/admin/staff', { method: 'POST', body, auth: true }),
+      update: (id: string, body: StaffInput) =>
+        request<Staff>(`/api/admin/staff/${id}`, { method: 'PUT', body, auth: true }),
+      setActive: (id: string, isActive: boolean) =>
+        request<Staff>(`/api/admin/staff/${id}/active`, {
+          method: 'PATCH',
+          body: { isActive },
+          auth: true,
+        }),
+      resetPassword: (id: string, password: string) =>
+        request<void>(`/api/admin/staff/${id}/password`, {
+          method: 'POST',
+          body: { password },
+          auth: true,
+        }),
+    },
   },
 }

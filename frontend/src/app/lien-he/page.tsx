@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { api } from '@/lib/api'
 import { SITE } from '@/lib/site'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ContactForm } from '@/components/site/ContactForm'
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
   description: `Liên hệ ${SITE.name} - ${SITE.address} - ${SITE.phone}`,
 }
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const stores = await api.stores.list()
+
   return (
     <>
       <PageHeader title="Liên hệ" crumbs={[{ label: 'Liên hệ' }]} />
@@ -23,9 +26,25 @@ export default function ContactPage() {
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
                   <MapPinIcon className="h-5 w-5" />
                 </span>
-                <span>
-                  <strong className="block">Địa chỉ</strong>
-                  <span className="text-muted">{SITE.address}</span>
+                <span className="flex-1">
+                  <strong className="block">Hệ thống cửa hàng</strong>
+                  <ul className="mt-1 space-y-2">
+                    {stores.map((store) => (
+                      <li key={store.id}>
+                        <span className="block font-medium">{store.name}</span>
+                        <span className="text-muted">{store.address}</span>
+                        {' — '}
+                        <a
+                          href={`https://www.google.com/maps?q=${store.lat},${store.lng}`}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="text-primary hover:underline"
+                        >
+                          Chỉ đường
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 </span>
               </li>
               <li className="flex gap-3">

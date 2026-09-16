@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
+import { requirePermission } from '@/lib/auth'
 import { ProductForm } from '@/components/admin/ProductForm'
 
 export const metadata: Metadata = { title: 'Sửa sản phẩm' }
 
 export default async function EditProductPage({ params }: PageProps<'/admin/san-pham/[id]'>) {
+  await requirePermission('products.edit')
   const { id } = await params
   const [product, categories] = await Promise.all([
     api.admin.product(id),

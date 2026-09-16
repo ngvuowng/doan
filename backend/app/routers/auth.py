@@ -22,6 +22,11 @@ def login(data: LoginIn, db: DbSession):
     # Cùng một thông báo cho cả hai trường hợp để không lộ email nào đã đăng ký.
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Email hoặc mật khẩu không đúng.")
+    # Kiểm tra sau khi khớp mật khẩu để người lạ không dò được tài khoản nào bị khoá.
+    if not user.is_active:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Tài khoản đã bị khoá. Vui lòng liên hệ quản trị viên."
+        )
     return _auth_out(user)
 
 

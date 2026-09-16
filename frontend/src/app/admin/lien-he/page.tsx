@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { api } from '@/lib/api'
+import { requirePermission } from '@/lib/auth'
 import { formatDateTime } from '@/lib/format'
 import { toggleContactHandled } from '@/actions/admin'
 
 export const metadata: Metadata = { title: 'Tin nhắn liên hệ' }
 
 export default async function AdminContactPage() {
+  await requirePermission('contacts.manage')
   const messages = await api.admin.contacts()
 
   return (

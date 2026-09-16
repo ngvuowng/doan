@@ -5,6 +5,7 @@ import { useActionState } from 'react'
 import { saveProduct } from '@/actions/admin'
 import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
 import type { FormState } from '@/lib/validation'
+import { buildCategoryTree } from '@/lib/catalog'
 
 const initial: FormState = {}
 
@@ -21,9 +22,11 @@ export type ProductFormValues = {
   categoryIds: string[]
 }
 
+type CategoryOption = { id: string; name: string; parentId: string | null }
+
 type Props = {
   product: ProductFormValues
-  categories: { id: string; name: string }[]
+  categories: CategoryOption[]
 }
 
 export function ProductForm({ product, categories }: Props) {
@@ -93,17 +96,16 @@ export function ProductForm({ product, categories }: Props) {
 
       <fieldset>
         <legend className="label">Danh mục</legend>
-        <div className="flex flex-wrap gap-3">
-          {categories.map((c) => (
-            <label key={c.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="categoryIds"
-                value={c.id}
-                defaultChecked={product.categoryIds.includes(c.id)}
-              />
-              {c.name}
-            </label>
+        {/* Mỗi danh mục gốc một dòng: cha (đậm) rồi các con. Vẫn cho tick cha để form
+            hiển thị được mọi trạng thái trong CSDL. */}
+        <div className="space-y-2">
+          {buildCategoryTree(categories).map((group) => (
+            <div key={group.id} className="flex flex-wrap gap-3">
+              <CategoryCheckbox category={group} checked={product.categoryIds.includes(group.id)} parent />
+              {group.children.map((c) => (
+                <CategoryCheckbox key={c.id} category={c} checked={product.categoryIds.includes(c.id)} />
+              ))}
+            </div>
           ))}
         </div>
       </fieldset>
@@ -136,5 +138,22 @@ function Field({
       {children}
       {error && <FieldError>{error}</FieldError>}
     </div>
+  )
+}
+
+function CategoryCheckbox({
+  category,
+  checked,
+  parent,
+}: {
+  category: CategoryOption
+  checked: boolean
+  parent?: boolean
+}) {
+  return (
+    <label className={`flex items-center gap-2 text-sm ${parent ? 'font-medium' : ''}`}>
+      <input type="checkbox" name="categoryIds" value={category.id} defaultChecked={checked} />
+      {category.name}
+    </label>
   )
 }

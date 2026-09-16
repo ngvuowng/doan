@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
-import { PAGE_SIZE, parsePage } from '@/lib/catalog'
+import { PAGE_SIZE, buildCategoryTree, parsePage } from '@/lib/catalog'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ProductGrid } from '@/components/shop/ProductGrid'
 import { SortSelect } from '@/components/shop/SortSelect'
@@ -40,15 +40,22 @@ export default async function CategoryPage({
   ])
   if (!category) notFound()
 
+  // Danh mục con: chèn cha vào breadcrumb; tra trong danh sách đã tải, không gọi API thêm.
+  const parent = category.parentId ? categories.find((c) => c.id === category.parentId) : undefined
+
   return (
     <>
       <PageHeader
         title={category.name}
-        crumbs={[{ label: 'Cửa hàng', href: '/cua-hang' }, { label: category.name }]}
+        crumbs={[
+          { label: 'Cửa hàng', href: '/cua-hang' },
+          ...(parent ? [{ label: parent.name, href: `/danh-muc-san-pham/${parent.slug}` }] : []),
+          { label: category.name },
+        ]}
       />
 
       <div className="container-site flex flex-col gap-8 py-10 lg:flex-row">
-        <CategorySidebar categories={categories} activeSlug={category.slug} />
+        <CategorySidebar categories={buildCategoryTree(categories)} activeSlug={category.slug} />
 
         <div className="flex-1">
           {category.subtitle && <p className="mb-5 text-muted">{category.subtitle}</p>}

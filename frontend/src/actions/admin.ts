@@ -6,15 +6,16 @@ import { z } from 'zod'
 import { api, ApiError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { ORDER_STATUSES } from '@/lib/orderStatus'
+import { can, type Permission } from '@/lib/permissions'
 import { collectIssues, type FormState } from '@/lib/validation'
 
 /**
  * Chặn sớm ở frontend cho thông báo thân thiện. Backend vẫn tự kiểm tra quyền
  * trên từng endpoint `/api/admin/*` nên đây không phải lớp bảo vệ duy nhất.
  */
-async function assertAdmin() {
+async function assertPermission(permission: Permission) {
   const user = await getCurrentUser()
-  if (!user || user.role !== 'ADMIN') return null
+  if (!user || !can(user, permission)) return null
   return user
 }
 
@@ -57,7 +58,9 @@ export async function saveProduct(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  if (!(await assertAdmin())) return { formError: 'Bạn không có quyền thực hiện thao tác này.' }
+  if (!(await assertPermission('products.edit'))) {
+    return { formError: 'Bạn không có quyền thực hiện thao tác này.' }
+  }
 
   const parsed = readProductForm(formData)
   if (!parsed.success) return { errors: collectIssues(parsed.error) }
@@ -89,7 +92,7 @@ export async function saveProduct(
 }
 
 export async function deleteProduct(formData: FormData) {
-  if (!(await assertAdmin())) return
+  if (!(await assertPermission('products.edit'))) return
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
@@ -104,36 +107,59 @@ export async function deleteProduct(formData: FormData) {
   revalidatePath('/')
 }
 
+/**
+ * Form ở /admin/don-hang là <form action> không có state (useActionState), nên lỗi API
+ * (vd. không đủ tồn kho) được đưa lên URL `?loi=` để trang hiện banner; thành công thì
+ * về URL sạch để banner cũ biến mất. redirect() ném lỗi điều hướng nên gọi ngoài try/catch.
+ */
+function backToOrders(message: string | null): never {
+  redirect(message ? `/admin/don-hang?loi=${encodeURIComponent(message)}` : '/admin/don-hang')
+}
+
 export async function updateOrderStatus(formData: FormData) {
-  if (!(await assertAdmin())) return
+  if (!(await assertPermission('orders.update'))) return
 
   const id = String(formData.get('id') ?? '')
   const status = String(formData.get('status') ?? '')
   if (!id || !ORDER_STATUSES.some((s) => s.value === status)) return
 
-  await api.admin.updateOrderStatus(id, status)
+  let message: string | null = null
+  try {
+    await api.admin.updateOrderStatus(id, status)
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error
+    message = error.detail // 400 không đủ tồn kho, 404 đơn đã mất...
+  }
+
   revalidatePath('/admin/don-hang')
+  revalidatePath('/admin/san-pham') // Hoàn thành / huỷ đơn làm đổi cột tồn kho.
+  backToOrders(message)
 }
 
 export async function markOrderPaid(formData: FormData) {
-  if (!(await assertAdmin())) return
+  if (!(await assertPermission('orders.payment'))) return
 
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
+  let message: string | null = null
   try {
     await api.admin.markOrderPaid(id)
   } catch (error) {
+    if (!(error instanceof ApiError)) throw error
     // 409 nghĩa là đã đánh dấu rồi (vd. bấm nút hai lần) — coi như thành công.
-    if (!(error instanceof ApiError && error.status === 409)) throw error
+    // 400 (không đủ tồn kho, đơn COD) thì phải cho admin thấy.
+    if (error.status !== 409) message = error.detail
   }
 
   revalidatePath('/admin/don-hang')
+  revalidatePath('/admin/san-pham')
   revalidatePath('/admin')
+  backToOrders(message)
 }
 
 export async function toggleContactHandled(formData: FormData) {
-  if (!(await assertAdmin())) return
+  if (!(await assertPermission('contacts.manage'))) return
 
   const id = String(formData.get('id') ?? '')
   if (!id) return

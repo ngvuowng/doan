@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, type StoreQuote } from '@/lib/api'
 import { collectIssues, type FormState } from '@/lib/validation'
 
 const lineSchema = z.object({
@@ -20,11 +20,30 @@ const checkoutSchema = z.object({
   address: z.string().trim().min(8, 'Vui lòng nhập địa chỉ nhận hàng đầy đủ'),
   note: z.string().trim().max(500).optional(),
   paymentMethod: z.enum(['COD', 'BANK']),
+  storeId: z.string().min(1, 'Vui lòng chọn cửa hàng giao hàng'),
+  // Toạ độ chỉ có khi khách bấm "Dùng vị trí của tôi"; input hidden không render
+  // thì `formData.get` trả null → đổi thành undefined để `.optional()` bỏ qua.
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
 })
+
+const coordsSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+})
+
+// Backend trả snake_case trong `detail` của HTTPException (không qua alias camelCase).
+const outOfStockSchema = z.array(
+  z.object({ product_id: z.string(), name: z.string(), stock: z.number().int().min(0) }),
+)
+
+export type OutOfStockLine = { productId: string; name: string; stock: number }
 
 export type CheckoutState = FormState & {
   /** Id sản phẩm trong giỏ đã không còn trong CSDL — client gỡ khỏi giỏ hàng. */
   missingProductIds?: string[]
+  /** Dòng trong giỏ vượt tồn kho — client hạ số lượng về `stock` (0 = gỡ dòng). */
+  outOfStock?: OutOfStockLine[]
 }
 
 export async function placeOrder(
@@ -38,6 +57,9 @@ export async function placeOrder(
     address: formData.get('address'),
     note: formData.get('note') ?? '',
     paymentMethod: formData.get('paymentMethod') ?? 'COD',
+    storeId: formData.get('storeId') ?? '',
+    lat: formData.get('lat') ?? undefined,
+    lng: formData.get('lng') ?? undefined,
   })
 
   if (!parsed.success) return { errors: collectIssues(parsed.error) }
@@ -61,11 +83,16 @@ export async function placeOrder(
     code = order.code
   } catch (error) {
     if (error instanceof ApiError) {
-      const ids = (error.data as { missing_product_ids?: unknown } | null)?.missing_product_ids
+      const data = error.data as { missing_product_ids?: unknown; out_of_stock?: unknown } | null
+      const ids = data?.missing_product_ids
       const missingProductIds = Array.isArray(ids)
         ? ids.filter((id): id is string => typeof id === 'string')
         : undefined
-      return { formError: error.detail, missingProductIds }
+      const short = outOfStockSchema.safeParse(data?.out_of_stock)
+      const outOfStock = short.success
+        ? short.data.map((l) => ({ productId: l.product_id, name: l.name, stock: l.stock }))
+        : undefined
+      return { formError: error.detail, missingProductIds, outOfStock }
     }
     throw error
   }
@@ -74,6 +101,22 @@ export async function placeOrder(
   redirect(
     parsed.data.paymentMethod === 'BANK' ? `/thanh-toan/${code}` : `/dat-hang-thanh-cong/${code}`,
   )
+}
+
+/**
+ * Trang thanh toán gọi sau khi trình duyệt trả toạ độ của khách: backend tính khoảng
+ * cách tới từng cửa hàng và phí tương ứng, cửa hàng gần nhất đứng đầu. Trả null thay
+ * vì ném lỗi vì lỗi ném từ server action bị che ở production, nút "Dùng vị trí của
+ * tôi" sẽ kẹt ở trạng thái đang tải.
+ */
+export async function getShippingQuote(lat: number, lng: number): Promise<StoreQuote[] | null> {
+  const parsed = coordsSchema.safeParse({ lat, lng })
+  if (!parsed.success) return null
+  try {
+    return await api.stores.list(parsed.data)
+  } catch {
+    return null
+  }
 }
 
 export type PaymentState = {

@@ -1,24 +1,46 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { requireStaff } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { StatusBadge } from '@/components/account/StatusBadge'
 
 export const metadata: Metadata = { title: 'Quản trị' }
 
 export default async function AdminDashboard() {
+  const user = await requireStaff()
+  // Số đơn và doanh thu đã được backend lọc theo cửa hàng của nhân viên.
   const { productCount, orderCount, postCount, pendingContactCount, revenue, recentOrders } =
     await api.admin.stats()
+  // Ô thống kê chỉ dẫn sang trang nhân viên có quyền xem.
+  const link = (href: string, allowed: boolean) => (allowed ? href : undefined)
 
   return (
     <div className="space-y-8">
       <section>
         <h2 className="mb-4 font-heading text-lg font-bold uppercase">Tổng quan</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Stat label="Sản phẩm" value={String(productCount)} href="/admin/san-pham" />
-          <Stat label="Đơn hàng" value={String(orderCount)} href="/admin/don-hang" />
-          <Stat label="Bài viết" value={String(postCount)} href="/admin/bai-viet" />
-          <Stat label="Liên hệ chưa xử lý" value={String(pendingContactCount)} href="/admin/lien-he" />
+          <Stat
+            label="Sản phẩm"
+            value={String(productCount)}
+            href={link('/admin/san-pham', can(user, 'products.view'))}
+          />
+          <Stat
+            label="Đơn hàng"
+            value={String(orderCount)}
+            href={link('/admin/don-hang', can(user, 'orders.view'))}
+          />
+          <Stat
+            label="Bài viết"
+            value={String(postCount)}
+            href={link('/admin/bai-viet', can(user, 'posts.view'))}
+          />
+          <Stat
+            label="Liên hệ chưa xử lý"
+            value={String(pendingContactCount)}
+            href={link('/admin/lien-he', can(user, 'contacts.manage'))}
+          />
           <Stat label="Doanh thu" value={formatPrice(revenue)} />
         </div>
       </section>

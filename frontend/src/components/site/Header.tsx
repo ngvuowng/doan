@@ -3,28 +3,27 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { SITE } from '@/lib/site'
+import type { CategoryNode } from '@/lib/catalog'
 import { useCart } from '@/components/cart/CartProvider'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 import { ChevronDownIcon, MenuIcon, SearchIcon, UserIcon, XIcon, CartIcon } from '@/components/site/icons'
 
-export type NavCategory = { slug: string; name: string }
-
 type Props = {
-  /** Danh mục sản phẩm cho dropdown "Cửa hàng #Halona". */
-  categories: NavCategory[]
+  /** Cây danh mục sản phẩm 2 cấp: mỗi gốc là một mục menu chính có dropdown danh mục con. */
+  categories: CategoryNode[]
   /** Tên người dùng đang đăng nhập, null nếu là khách. */
   userName: string | null
-  isAdmin: boolean
+  /** Nhân viên (mọi vai trò trừ khách hàng) thấy link vào khu quản trị. */
+  isStaff: boolean
 }
 
-export function Header({ categories, userName, isAdmin }: Props) {
+export function Header({ categories, userName, isStaff }: Props) {
   const router = useRouter()
   const { count, openCart } = useCart()
   const [stuck, setStuck] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [shopOpen, setShopOpen] = useState(false)
   const [query, setQuery] = useState('')
 
   // Bản gốc thu header từ 90px xuống 50px khi cuộn xuống.
@@ -78,7 +77,7 @@ export function Header({ categories, userName, isAdmin }: Props) {
             <Link href="/cua-hang" className="hover:underline">
               Cửa hàng
             </Link>
-            {isAdmin && (
+            {isStaff && (
               <Link href="/admin" className="rounded-full bg-white/20 px-3 py-0.5 hover:bg-white/30">
                 Quản trị
               </Link>
@@ -165,32 +164,32 @@ export function Header({ categories, userName, isAdmin }: Props) {
               </HeaderLink>
             ))}
 
-            <div
-              className="relative"
-              onMouseEnter={() => setShopOpen(true)}
-              onMouseLeave={() => setShopOpen(false)}
-            >
-              <Link
-                href="/cua-hang"
-                className="flex items-center gap-1 px-3 py-3 text-[13px] font-medium uppercase tracking-wide text-ink transition-colors hover:text-primary"
-              >
-                Cửa hàng #Halona
-                <ChevronDownIcon className="h-3 w-3" />
-              </Link>
-              {shopOpen && (
-                <div className="absolute left-0 top-full z-50 min-w-[240px] border border-line bg-white py-2 shadow-lg">
-                  {categories.map((c) => (
-                    <Link
-                      key={c.slug}
-                      href={`/danh-muc-san-pham/${c.slug}`}
-                      className="block px-4 py-2 text-sm text-ink transition-colors hover:bg-shell hover:text-primary"
-                    >
-                      {c.name}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Dropdown mở bằng CSS (hover / focus-within) nên dùng được bàn phím và link
+                con luôn có trong DOM; không cần state. */}
+            {categories.map((group) => (
+              <div key={group.slug} className="group relative">
+                <Link
+                  href={`/danh-muc-san-pham/${group.slug}`}
+                  className="flex items-center gap-1 px-3 py-3 text-[13px] font-medium uppercase tracking-wide text-ink transition-colors hover:text-primary"
+                >
+                  {group.name}
+                  {group.children.length > 0 && <ChevronDownIcon className="h-3 w-3" />}
+                </Link>
+                {group.children.length > 0 && (
+                  <div className="absolute left-0 top-full z-50 hidden min-w-[240px] border border-line bg-white py-2 shadow-lg group-hover:block group-focus-within:block">
+                    {group.children.map((c) => (
+                      <Link
+                        key={c.slug}
+                        href={`/danh-muc-san-pham/${c.slug}`}
+                        className="block px-4 py-2 text-sm text-ink transition-colors hover:bg-shell hover:text-primary"
+                      >
+                        {c.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
 
             {tailLinks.map((l) => (
               <HeaderLink key={l.href} href={l.href}>
@@ -242,18 +241,22 @@ export function Header({ categories, userName, isAdmin }: Props) {
                   {l.label}
                 </MobileLink>
               ))}
-              <MobileLink href="/cua-hang" onClick={() => setMobileOpen(false)}>
-                Cửa hàng #Halona
-              </MobileLink>
-              {categories.map((c) => (
-                <MobileLink
-                  key={c.slug}
-                  href={`/danh-muc-san-pham/${c.slug}`}
-                  onClick={() => setMobileOpen(false)}
-                  nested
-                >
-                  {c.name}
-                </MobileLink>
+              {categories.map((group) => (
+                <Fragment key={group.slug}>
+                  <MobileLink href={`/danh-muc-san-pham/${group.slug}`} onClick={() => setMobileOpen(false)}>
+                    {group.name}
+                  </MobileLink>
+                  {group.children.map((c) => (
+                    <MobileLink
+                      key={c.slug}
+                      href={`/danh-muc-san-pham/${c.slug}`}
+                      onClick={() => setMobileOpen(false)}
+                      nested
+                    >
+                      {c.name}
+                    </MobileLink>
+                  ))}
+                </Fragment>
               ))}
               {tailLinks.map((l) => (
                 <MobileLink key={l.href} href={l.href} onClick={() => setMobileOpen(false)}>
@@ -264,7 +267,7 @@ export function Header({ categories, userName, isAdmin }: Props) {
                 <MobileLink href="/tai-khoan" onClick={() => setMobileOpen(false)}>
                   {userName ? `Chào, ${userName}` : 'Tài khoản'}
                 </MobileLink>
-                {isAdmin && (
+                {isStaff && (
                   <MobileLink href="/admin" onClick={() => setMobileOpen(false)}>
                     Trang quản trị
                   </MobileLink>

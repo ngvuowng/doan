@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import aliased
 
 from app.deps import DbSession, or_404
 from app.models import Category, Post, Product, post_categories, product_categories
@@ -11,10 +12,14 @@ router = APIRouter(prefix="/api/categories", tags=["categories"])
 @router.get("", response_model=list[CategoryWithCount])
 def list_categories(db: DbSession, kind: str | None = Query(default=None)):
     """Danh mục kèm số sản phẩm/bài viết — thay cho `_count` của Prisma."""
+    # Sản phẩm của danh mục cha = sản phẩm *khác nhau* của chính nó hoặc bất kỳ con nào;
+    # với danh mục lá (không con) kết quả y như đếm trực tiếp.
+    member = aliased(Category)
     product_count = (
-        select(func.count())
+        select(func.count(func.distinct(product_categories.c.product_id)))
         .select_from(product_categories)
-        .where(product_categories.c.category_id == Category.id)
+        .join(member, member.id == product_categories.c.category_id)
+        .where(or_(member.id == Category.id, member.parent_id == Category.id))
         .correlate(Category)
         .scalar_subquery()
     )

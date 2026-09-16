@@ -52,7 +52,7 @@ export function AddToCartForm({ line, stock }: { line: Omit<CartLine, 'quantity'
         onClick={() => add(line, quantity)}
         className="btn-primary px-8"
       >
-        {soldOut ? 'Tạm hết hàng' : 'Thêm vào giỏ hàng'}
+        {soldOut ? 'Hết hàng' : 'Thêm vào giỏ hàng'}
       </button>
     </div>
   )

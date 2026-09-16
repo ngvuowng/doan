@@ -4,35 +4,93 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useActionState, useCallback, useState } from 'react'
 import { useCart } from '@/components/cart/CartProvider'
-import { placeOrder, type CheckoutState } from '@/actions/order'
+import { getShippingQuote, placeOrder, type CheckoutState } from '@/actions/order'
 import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
-import { formatPrice } from '@/lib/format'
+import type { StoreQuote } from '@/lib/api'
+import { formatDistance, formatPrice } from '@/lib/format'
 
 const initial: CheckoutState = {}
 
 type Props = {
   /** Điền sẵn thông tin nếu khách đã đăng nhập. */
   defaults: { name: string; email: string; phone: string; address: string } | null
+  /** Danh sách cửa hàng (chưa có khoảng cách) do trang server lấy từ API. */
+  stores: StoreQuote[]
 }
 
-export function CheckoutForm({ defaults }: Props) {
-  const { items, subtotal, isLoading, remove } = useCart()
+type LocateState = { status: 'idle' | 'loading' | 'done' | 'error'; message?: string }
+
+export function CheckoutForm({ defaults, stores: initialStores }: Props) {
+  const { items, subtotal, isLoading, remove, setQuantity } = useCart()
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD')
-  // Giỏ hàng nằm ở localStorage nên có thể chứa sản phẩm đã bị xoá trong CSDL.
-  // Khi backend báo, gỡ các dòng đó khỏi giỏ và nêu tên để khách biết vì sao.
+  // Cửa hàng giao hàng: mặc định cửa hàng đầu danh sách; sau khi khách chia sẻ vị trí
+  // thì danh sách được thay bằng bản có khoảng cách/phí và tự chọn cửa hàng gần nhất.
+  // Giữ ở state (controlled) để React không reset lựa chọn khi submit bị lỗi validate.
+  const [stores, setStores] = useState(initialStores)
+  const [storeId, setStoreId] = useState(initialStores[0]?.id ?? '')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [locate, setLocate] = useState<LocateState>({ status: 'idle' })
+  const shippingFee = stores.find((s) => s.id === storeId)?.shippingFee ?? 0
+
+  const locateMe = useCallback(() => {
+    const fallback = 'Hãy tự chọn cửa hàng; phí giao hàng áp dụng mức chuẩn.'
+    if (!navigator.geolocation) {
+      setLocate({ status: 'error', message: `Trình duyệt không hỗ trợ định vị. ${fallback}` })
+      return
+    }
+    setLocate({ status: 'loading' })
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude }
+        const quoted = await getShippingQuote(point.lat, point.lng)
+        if (!quoted || quoted.length === 0) {
+          setLocate({ status: 'error', message: `Không tính được phí theo vị trí. ${fallback}` })
+          return
+        }
+        setStores(quoted)
+        setStoreId(quoted[0].id)
+        setCoords(point)
+        setLocate({ status: 'done', message: `Đã chọn cửa hàng gần bạn nhất: ${quoted[0].name}.` })
+      },
+      (error) => {
+        const reason =
+          error.code === error.PERMISSION_DENIED
+            ? 'Bạn chưa cho phép chia sẻ vị trí.'
+            : 'Không lấy được vị trí của bạn.'
+        setLocate({ status: 'error', message: `${reason} ${fallback}` })
+      },
+      { timeout: 10000, maximumAge: 300000 },
+    )
+  }, [])
+  // Giỏ hàng nằm ở localStorage nên có thể chứa sản phẩm đã bị xoá trong CSDL hoặc
+  // vượt tồn kho hiện tại. Khi backend báo, sửa giỏ cho khớp và nêu tên để khách biết vì sao.
   const submit = useCallback(
     async (prev: CheckoutState, formData: FormData): Promise<CheckoutState> => {
       const result = await placeOrder(prev, formData)
       const missing = result.missingProductIds ?? []
-      if (missing.length === 0) return result
-      const names = items.filter((l) => missing.includes(l.productId)).map((l) => l.name)
-      missing.forEach(remove)
-      return {
-        ...result,
-        formError: `Sản phẩm không còn bán và đã được gỡ khỏi giỏ: ${names.join(', ')}. Vui lòng kiểm tra lại giỏ hàng trước khi đặt.`,
+      if (missing.length > 0) {
+        const names = items.filter((l) => missing.includes(l.productId)).map((l) => l.name)
+        missing.forEach(remove)
+        return {
+          ...result,
+          formError: `Sản phẩm không còn bán và đã được gỡ khỏi giỏ: ${names.join(', ')}. Vui lòng kiểm tra lại giỏ hàng trước khi đặt.`,
+        }
       }
+      const short = result.outOfStock ?? []
+      if (short.length > 0) {
+        // Hạ số lượng về mức còn lại; 0 thì setQuantity tự gỡ dòng.
+        short.forEach((l) => setQuantity(l.productId, l.stock))
+        const names = short.map((l) =>
+          l.stock > 0 ? `${l.name} (chỉ còn ${l.stock})` : `${l.name} (hết hàng)`,
+        )
+        return {
+          ...result,
+          formError: `Một số sản phẩm không đủ hàng nên giỏ đã được điều chỉnh: ${names.join(', ')}. Vui lòng kiểm tra lại giỏ hàng trước khi đặt.`,
+        }
+      }
+      return result
     },
-    [items, remove],
+    [items, remove, setQuantity],
   )
   const [state, action] = useActionState(submit, initial)
   // Giỏ hàng được dọn ở trang cảm ơn (<ClearCartOnMount />) sau khi đơn đã ghi vào CSDL.
@@ -135,6 +193,61 @@ export function CheckoutForm({ defaults }: Props) {
           </div>
         </div>
 
+        <h2 className="mb-1 mt-8 font-heading text-lg font-bold uppercase">Cửa hàng giao hàng</h2>
+        <p className="mb-3 text-sm text-muted">
+          Chọn cửa hàng gần bạn nhất để tối ưu phí giao hàng. Phí tính theo khoảng cách từ cửa
+          hàng tới vị trí của bạn.
+        </p>
+        <button
+          type="button"
+          onClick={locateMe}
+          disabled={locate.status === 'loading'}
+          className="btn-outline mb-3"
+        >
+          {locate.status === 'loading' ? 'Đang xác định vị trí...' : 'Dùng vị trí của tôi'}
+        </button>
+        {locate.message && (
+          <p className={`mb-3 text-xs ${locate.status === 'error' ? 'text-sale' : 'text-primary'}`}>
+            {locate.message}
+          </p>
+        )}
+        {/* Chỉ gửi toạ độ khi khách đã chia sẻ; backend tự tính khoảng cách và phí. */}
+        {coords && (
+          <>
+            <input type="hidden" name="lat" value={String(coords.lat)} />
+            <input type="hidden" name="lng" value={String(coords.lng)} />
+          </>
+        )}
+        <div className="space-y-2">
+          {stores.map((store) => (
+            <label
+              key={store.id}
+              className="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 has-checked:border-primary has-checked:bg-primary/5"
+            >
+              <input
+                type="radio"
+                name="storeId"
+                value={store.id}
+                checked={storeId === store.id}
+                onChange={() => setStoreId(store.id)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-medium">{store.name}</span>
+                <span className="block text-xs text-muted">{store.address}</span>
+                <span className="block text-xs text-muted">
+                  {store.distanceKm != null
+                    ? `Cách ${formatDistance(store.distanceKm)} · `
+                    : ''}
+                  Phí giao hàng {formatPrice(store.shippingFee)}
+                  {store.distanceKm == null && ' (mức chuẩn khi chưa xác định vị trí)'}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {state.errors?.storeId && <FieldError>{state.errors.storeId}</FieldError>}
+
         <h2 className="mb-3 mt-8 font-heading text-lg font-bold uppercase">
           Phương thức thanh toán
         </h2>
@@ -202,11 +315,13 @@ export function CheckoutForm({ defaults }: Props) {
           </div>
           <div className="flex justify-between">
             <dt className="text-muted">Phí giao hàng</dt>
-            <dd className="text-primary">Miễn phí</dd>
+            <dd>{formatPrice(shippingFee)}</dd>
           </div>
           <div className="flex justify-between border-t border-line pt-3 text-base font-medium">
             <dt>Tổng cộng</dt>
-            <dd className="font-heading text-xl font-bold text-primary">{formatPrice(subtotal)}</dd>
+            <dd className="font-heading text-xl font-bold text-primary">
+              {formatPrice(subtotal + shippingFee)}
+            </dd>
           </div>
         </dl>
 

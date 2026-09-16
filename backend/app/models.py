@@ -12,8 +12,10 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
+    Double,
     ForeignKey,
     Index,
     Integer,
@@ -68,7 +70,16 @@ class Category(Base):
     # Phụ đề hiển thị dưới tiêu đề section ở trang chủ.
     subtitle: Mapped[str | None] = mapped_column(String(500), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Danh mục cha (cây 2 cấp theo menu chính). NULL = danh mục gốc = một mục menu.
+    # SET NULL: xoá cha thì con nổi lên thành gốc, không kéo theo mất gán sản phẩm.
+    parent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
 
+    parent: Mapped["Category | None"] = relationship(back_populates="children", remote_side=[id])
+    children: Mapped[list["Category"]] = relationship(
+        back_populates="parent", order_by="Category.position"
+    )
     products: Mapped[list["Product"]] = relationship(
         secondary=product_categories, back_populates="categories"
     )
@@ -76,7 +87,10 @@ class Category(Base):
         secondary=post_categories, back_populates="categories"
     )
 
-    __table_args__ = (Index("ix_categories_kind", "kind"),)
+    __table_args__ = (
+        Index("ix_categories_kind", "kind"),
+        Index("ix_categories_parent_id", "parent_id"),
+    )
 
 
 class Product(Base):
@@ -129,12 +143,41 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(191), unique=True)
     name: Mapped[str] = mapped_column(String(255))
     password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(20), default="USER")  # "USER" | "ADMIN"
+    # USER (khách hàng) | ADMIN | STORE_MANAGER | CASHIER | SALES. Với nhân viên, vai trò
+    # chỉ là chức danh; quyền thật nằm ở `permissions` (xem app/permissions.py).
+    role: Mapped[str] = mapped_column(String(20), default="USER")
+    # Danh sách khoá quyền quản trị viên tick cho từng tài khoản. Cột JSON không theo dõi
+    # thay đổi tại chỗ nên luôn gán list mới, không append.
+    permissions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Cửa hàng nhân viên làm việc; NULL với ADMIN (thấy mọi cửa hàng) và khách hàng.
+    # SET NULL: xoá cửa hàng thì nhân viên mất phạm vi đơn hàng, admin phải gán lại.
+    store_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("stores.id", ondelete="SET NULL"), nullable=True
+    )
+    # False = bị khoá (nhân viên nghỉ việc): không đăng nhập được, token đang có vô hiệu ngay.
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow)
 
+    store: Mapped["Store | None"] = relationship()
     orders: Mapped[list["Order"]] = relationship(back_populates="user")
+
+    __table_args__ = (Index("ix_users_store_id", "store_id"),)
+
+
+class Store(Base):
+    """Điểm bán hàng thật; khách chọn một cửa hàng khi thanh toán để tính phí giao."""
+
+    __tablename__ = "stores"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(255))
+    address: Mapped[str] = mapped_column(String(500))
+    # DOUBLE chứ không FLOAT: FLOAT của MySQL chỉ giữ ~7 chữ số, toạ độ sẽ bị lệch.
+    lat: Mapped[float] = mapped_column(Double)
+    lng: Mapped[float] = mapped_column(Double)
+    position: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Order(Base):
@@ -160,18 +203,35 @@ class Order(Base):
     paid_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
     # Chỉ đặt cho đơn BANK: quá mốc này mà chưa trả thì đơn tự huỷ.
     payment_expires_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
-    # Tổng tiền chốt tại thời điểm đặt, đơn vị VND.
+    # Mốc đã trừ tồn kho: đặt khi admin nhận tiền (BANK) hoặc đơn hoàn thành (COD); NULL = chưa
+    # trừ. Là cờ để trừ đúng một lần và hoàn kho khi huỷ (xem app/inventory.py).
+    stock_deducted_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
+    # Cửa hàng giao đơn này. NULL với đơn đặt trước khi có tính năng chọn cửa hàng.
+    store_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("stores.id", ondelete="SET NULL"), nullable=True
+    )
+    # Phí giao hàng chốt lúc đặt (VND); đơn cũ là 0 (trước đây miễn phí).
+    shipping_fee: Mapped[int] = mapped_column(Integer, default=0)
+    # Khoảng cách khách → cửa hàng (km) dùng để tính phí; NULL khi khách không chia sẻ vị trí.
+    distance_km: Mapped[float | None] = mapped_column(Double, nullable=True)
+    # Tổng tiền khách phải trả chốt tại thời điểm đặt = tiền hàng + phí giao hàng, đơn vị VND.
     total: Mapped[int] = mapped_column(Integer)
 
     created_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(Timestamp, default=utcnow, onupdate=utcnow)
 
     user: Mapped[User | None] = relationship(back_populates="orders")
+    # Nạp kèm bằng JOIN để mọi truy vấn đơn hiện có (và db.refresh) tự có cửa hàng.
+    store: Mapped[Store | None] = relationship(lazy="joined")
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (Index("ix_orders_user_id", "user_id"), Index("ix_orders_status", "status"))
+    __table_args__ = (
+        Index("ix_orders_user_id", "user_id"),
+        Index("ix_orders_status", "status"),
+        Index("ix_orders_store_id", "store_id"),
+    )
 
 
 class OrderItem(Base):

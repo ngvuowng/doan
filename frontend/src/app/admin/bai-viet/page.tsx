@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { requirePermission } from '@/lib/auth'
 import { formatDate } from '@/lib/format'
 
 export const metadata: Metadata = { title: 'Quản lý bài viết' }
 
 export default async function AdminPostsPage() {
+  await requirePermission('posts.view')
   const posts = await api.admin.posts()
 
   return (

@@ -13,16 +13,19 @@ export type ProductCardData = {
   salePrice: number | null
   image: string
   hoverImage: string | null
+  stock: number
 }
 
 /**
  * Card sản phẩm theo bản gốc: badge giảm giá góc trái, ảnh đổi khi rê chuột,
  * giá gạch ngang khi có khuyến mãi, nút "Thêm vào giỏ hàng" bo tròn.
+ * Hết hàng: badge góc phải và nút bị khoá — backend cũng từ chối đặt nếu giỏ cũ còn giữ.
  */
 export function ProductCard({ product }: { product: ProductCardData }) {
   const { add } = useCart()
   const percent = discountPercent(product.price, product.salePrice)
   const price = effectivePrice(product)
+  const soldOut = product.stock <= 0
 
   return (
     <article className="group flex flex-col text-center">
@@ -30,6 +33,11 @@ export function ProductCard({ product }: { product: ProductCardData }) {
         {percent !== null && (
           <span className="absolute left-2 top-2 z-10 rounded-full bg-sale px-2 py-0.5 text-[11px] font-semibold text-white">
             -{percent}%
+          </span>
+        )}
+        {soldOut && (
+          <span className="absolute right-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-[11px] font-semibold text-white">
+            Hết hàng
           </span>
         )}
 
@@ -73,6 +81,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
       <button
         type="button"
+        disabled={soldOut}
         onClick={() =>
           add({
             productId: product.id,
@@ -82,9 +91,9 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             image: product.image,
           })
         }
-        className="mx-auto mt-3 rounded-full border border-line bg-white px-6 py-1.5 text-sm text-ink transition-colors hover:border-primary hover:bg-primary hover:text-white"
+        className="mx-auto mt-3 rounded-full border border-line bg-white px-6 py-1.5 text-sm text-ink transition-colors enabled:hover:border-primary enabled:hover:bg-primary enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Thêm vào giỏ hàng
+        {soldOut ? 'Hết hàng' : 'Thêm vào giỏ hàng'}
       </button>
     </article>
   )

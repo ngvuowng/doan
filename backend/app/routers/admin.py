@@ -1,8 +1,11 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import false, func, select, true
 from sqlalchemy.orm import Session, selectinload
 
-from app.deps import DbSession, admin_user, or_404
+from app.deps import DbSession, StaffUser, or_404, require, staff_user
+from app.inventory import deduct_stock, restore_stock
 from app.models import (
     Category,
     ChatMessage,
@@ -11,6 +14,7 @@ from app.models import (
     Order,
     Post,
     Product,
+    User,
     utcnow,
 )
 from app.routers.orders import expire_unpaid_orders
@@ -27,9 +31,32 @@ from app.schemas import (
     ProductOut,
 )
 
-# `admin_user` gắn ở cấp router nên mọi endpoint dưới đây — kể cả endpoint thêm
-# sau này — đều được bảo vệ: thiếu token → 401, sai quyền → 403.
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(admin_user)])
+# `staff_user` gắn ở cấp router nên mọi endpoint dưới đây — kể cả endpoint thêm
+# sau này — đều chặn khách hàng: thiếu token → 401, sai quyền → 403. Từng endpoint
+# đòi thêm khoá quyền cụ thể qua `require(...)`; ADMIN luôn qua.
+router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(staff_user)])
+
+
+def _store_scope(user: User):
+    """Điều kiện lọc đơn hàng theo phạm vi của người dùng.
+
+    ADMIN thấy mọi đơn; nhân viên chỉ thấy đơn của cửa hàng mình. Nhân viên chưa gắn
+    cửa hàng (vd. cửa hàng vừa bị xoá) không thấy đơn nào — không được để `store_id IS
+    NULL` khớp với các đơn cũ chưa gắn cửa hàng.
+    """
+    if user.role == "ADMIN":
+        return true()
+    if user.store_id is None:
+        return false()
+    return Order.store_id == user.store_id
+
+
+def _scoped_order(db: Session, user: User, order_id: str) -> Order:
+    """Đơn ngoài phạm vi trả 404 như không tồn tại, không lộ đơn của cửa hàng khác."""
+    order = db.get(Order, order_id)
+    if order is None or (user.role != "ADMIN" and order.store_id != user.store_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy đơn hàng.")
+    return order
 
 
 def _load_categories(db: Session, ids: list[str]) -> list[Category]:
@@ -54,24 +81,32 @@ def _assert_sale_price(data: ProductIn) -> None:
 
 
 @router.get("/stats", response_model=AdminStats)
-def stats(db: DbSession):
+def stats(db: DbSession, user: StaffUser):
     expire_unpaid_orders(db)
+    # Số đơn, doanh thu và đơn gần đây theo phạm vi cửa hàng; các con số còn lại toàn cục.
+    scope = _store_scope(user)
     recent = (
         db.execute(
-            select(Order).order_by(Order.created_at.desc()).limit(5).options(selectinload(Order.items))
+            select(Order)
+            .where(scope)
+            .order_by(Order.created_at.desc())
+            .limit(5)
+            .options(selectinload(Order.items))
         )
         .scalars()
         .all()
     )
     return AdminStats(
         product_count=db.execute(select(func.count()).select_from(Product)).scalar_one(),
-        order_count=db.execute(select(func.count()).select_from(Order)).scalar_one(),
+        order_count=db.execute(select(func.count()).select_from(Order).where(scope)).scalar_one(),
         post_count=db.execute(select(func.count()).select_from(Post)).scalar_one(),
         pending_contact_count=db.execute(
             select(func.count()).select_from(ContactMessage).where(ContactMessage.handled.is_(False))
         ).scalar_one(),
         revenue=db.execute(
-            select(func.coalesce(func.sum(Order.total), 0)).where(Order.status != "CANCELLED")
+            select(func.coalesce(func.sum(Order.total), 0))
+            .where(scope)
+            .where(Order.status != "CANCELLED")
         ).scalar_one(),
         recent_orders=[OrderOut.model_validate(o) for o in recent],
     )
@@ -80,7 +115,9 @@ def stats(db: DbSession):
 # ---------- Sản phẩm ----------
 
 
-@router.get("/products", response_model=list[ProductOut])
+@router.get(
+    "/products", response_model=list[ProductOut], dependencies=[Depends(require("products.view"))]
+)
 def list_products(db: DbSession):
     return list(
         db.execute(
@@ -91,12 +128,21 @@ def list_products(db: DbSession):
     )
 
 
-@router.get("/products/{product_id}", response_model=ProductOut)
+@router.get(
+    "/products/{product_id}",
+    response_model=ProductOut,
+    dependencies=[Depends(require("products.view"))],
+)
 def get_product(product_id: str, db: DbSession):
     return or_404(db.get(Product, product_id), "Không tìm thấy sản phẩm.")
 
 
-@router.post("/products", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/products",
+    response_model=ProductOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require("products.edit"))],
+)
 def create_product(data: ProductIn, db: DbSession):
     _assert_slug_free(db, data.slug, None)
     _assert_sale_price(data)
@@ -111,7 +157,11 @@ def create_product(data: ProductIn, db: DbSession):
     return product
 
 
-@router.put("/products/{product_id}", response_model=ProductOut)
+@router.put(
+    "/products/{product_id}",
+    response_model=ProductOut,
+    dependencies=[Depends(require("products.edit"))],
+)
 def update_product(product_id: str, data: ProductIn, db: DbSession):
     product = or_404(db.get(Product, product_id), "Không tìm thấy sản phẩm.")
 
@@ -130,7 +180,11 @@ def update_product(product_id: str, data: ProductIn, db: DbSession):
     return product
 
 
-@router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/products/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require("products.edit"))],
+)
 def delete_product(product_id: str, db: DbSession):
     product = or_404(db.get(Product, product_id), "Không tìm thấy sản phẩm.")
     db.delete(product)
@@ -141,11 +195,14 @@ def delete_product(product_id: str, db: DbSession):
 
 
 @router.get("/orders", response_model=list[OrderOut])
-def list_orders(db: DbSession):
+def list_orders(db: DbSession, user: Annotated[User, Depends(require("orders.view"))]):
     expire_unpaid_orders(db)
     orders = (
         db.execute(
-            select(Order).order_by(Order.created_at.desc()).options(selectinload(Order.items))
+            select(Order)
+            .where(_store_scope(user))
+            .order_by(Order.created_at.desc())
+            .options(selectinload(Order.items))
         )
         .scalars()
         .all()
@@ -154,9 +211,20 @@ def list_orders(db: DbSession):
 
 
 @router.patch("/orders/{order_id}", response_model=OrderOut)
-def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession):
-    order = or_404(db.get(Order, order_id), "Không tìm thấy đơn hàng.")
+def update_order_status(
+    order_id: str,
+    data: OrderStatusIn,
+    db: DbSession,
+    user: Annotated[User, Depends(require("orders.update"))],
+):
+    order = _scoped_order(db, user, order_id)
 
+    # Kho đi theo hai mốc: Hoàn thành (trừ nếu chưa trừ) và Huỷ (hoàn nếu đã trừ). Các
+    # trạng thái còn lại chỉ đổi nhãn. Thiếu hàng → 400, trạng thái giữ nguyên (chưa commit).
+    if data.status == "COMPLETED":
+        deduct_stock(db, order)
+    elif data.status == "CANCELLED":
+        restore_stock(db, order)
     order.status = data.status
     db.commit()
     db.refresh(order)
@@ -164,18 +232,22 @@ def update_order_status(order_id: str, data: OrderStatusIn, db: DbSession):
 
 
 @router.post("/orders/{order_id}/payment", response_model=OrderOut)
-def mark_order_paid(order_id: str, db: DbSession):
+def mark_order_paid(
+    order_id: str, db: DbSession, user: Annotated[User, Depends(require("orders.payment"))]
+):
     """Admin xác nhận đã thấy tiền chuyển khoản về tài khoản.
 
     Cho phép cả đơn đã bị tự huỷ vì quá hạn: tiền về muộn thì vẫn nhận và khôi phục
     đơn về CONFIRMED. Đơn đã giao/hoàn thành thì chỉ ghi nhận thanh toán, giữ trạng thái.
+    Tiền đã về là lúc trừ kho; thiếu hàng thì 400 và không ghi nhận thanh toán.
     """
-    order = or_404(db.get(Order, order_id), "Không tìm thấy đơn hàng.")
+    order = _scoped_order(db, user, order_id)
     if order.payment_method != "BANK":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Đơn này thanh toán khi nhận hàng.")
     if order.payment_status == "PAID":
         raise HTTPException(status.HTTP_409_CONFLICT, "Đơn này đã được ghi nhận thanh toán.")
 
+    deduct_stock(db, order)
     order.payment_status = "PAID"
     order.paid_at = utcnow()
     if order.status in ("PENDING", "CANCELLED"):
@@ -188,7 +260,7 @@ def mark_order_paid(order_id: str, db: DbSession):
 # ---------- Bài viết ----------
 
 
-@router.get("/posts", response_model=list[PostOut])
+@router.get("/posts", response_model=list[PostOut], dependencies=[Depends(require("posts.view"))])
 def list_posts(db: DbSession):
     return list(
         db.execute(
@@ -202,14 +274,20 @@ def list_posts(db: DbSession):
 # ---------- Tin nhắn liên hệ ----------
 
 
-@router.get("/contacts", response_model=list[ContactOut])
+@router.get(
+    "/contacts", response_model=list[ContactOut], dependencies=[Depends(require("contacts.manage"))]
+)
 def list_contacts(db: DbSession):
     return list(
         db.execute(select(ContactMessage).order_by(ContactMessage.created_at.desc())).scalars().all()
     )
 
 
-@router.patch("/contacts/{message_id}", response_model=ContactOut)
+@router.patch(
+    "/contacts/{message_id}",
+    response_model=ContactOut,
+    dependencies=[Depends(require("contacts.manage"))],
+)
 def toggle_contact_handled(message_id: str, db: DbSession):
     message = or_404(db.get(ContactMessage, message_id), "Không tìm thấy tin nhắn.")
 
@@ -236,7 +314,9 @@ def _summary_fields(session: ChatSession, message_count: int) -> dict:
     }
 
 
-@router.get("/chats", response_model=list[ChatSessionSummary])
+@router.get(
+    "/chats", response_model=list[ChatSessionSummary], dependencies=[Depends(require("chats.view"))]
+)
 def list_chats(db: DbSession):
     # Đếm bằng subquery thay vì nạp hết tin nhắn của từng phiên chỉ để lấy con số.
     message_count = (
@@ -255,7 +335,9 @@ def list_chats(db: DbSession):
     return [ChatSessionSummary(**_summary_fields(session, count)) for session, count in rows]
 
 
-@router.get("/chats/{session_id}", response_model=ChatTranscript)
+@router.get(
+    "/chats/{session_id}", response_model=ChatTranscript, dependencies=[Depends(require("chats.view"))]
+)
 def get_chat(session_id: str, db: DbSession):
     session = or_404(
         db.execute(

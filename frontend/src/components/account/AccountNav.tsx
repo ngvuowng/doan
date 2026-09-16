@@ -9,7 +9,7 @@ const LINKS = [
   { href: '/tai-khoan/don-hang', label: 'Đơn hàng của tôi' },
 ]
 
-export function AccountNav({ isAdmin }: { isAdmin: boolean }) {
+export function AccountNav({ isStaff }: { isStaff: boolean }) {
   const pathname = usePathname()
 
   return (
@@ -27,7 +27,7 @@ export function AccountNav({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           </li>
         ))}
-        {isAdmin && (
+        {isStaff && (
           <li>
             <Link
               href="/admin"

@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { requirePermission } from '@/lib/auth'
 import { chatModeInfo } from '@/lib/chatModes'
 import { formatDateTime } from '@/lib/format'
 
 export const metadata: Metadata = { title: 'Hội thoại trợ lý ảo' }
 
 export default async function AdminChatPage({ searchParams }: PageProps<'/admin/tro-ly-ao'>) {
+  await requirePermission('chats.view')
   const { id } = await searchParams
   const sessions = await api.admin.chats()
   const selected = typeof id === 'string' ? await api.admin.chat(id) : null

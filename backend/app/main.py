@@ -4,7 +4,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import CORS_ORIGINS
-from app.routers import admin, auth, categories, chat, contact, orders, posts, products
+from app.routers import (
+    admin,
+    auth,
+    categories,
+    chat,
+    contact,
+    orders,
+    posts,
+    products,
+    staff,
+    stores,
+)
 from app.schemas import HealthOut
 
 app = FastAPI(
@@ -23,7 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (products, categories, posts, auth, orders, contact, chat, admin):
+for module in (products, categories, posts, auth, orders, stores, contact, chat, admin, staff):
     app.include_router(module.router)
 
 

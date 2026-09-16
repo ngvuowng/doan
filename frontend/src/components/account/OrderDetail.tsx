@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import type { Order } from '@/lib/api'
-import { formatDateTime, formatPrice } from '@/lib/format'
+import { formatDateTime, formatDistance, formatPrice } from '@/lib/format'
 import { PAYMENT_LABEL, paymentStatusInfo } from '@/lib/orderStatus'
 
 /**
@@ -23,6 +23,15 @@ export function OrderDetail({ order, heading }: { order: Order; heading?: string
         <Row label="Email" value={order.email} />
         <Row label="Ngày đặt" value={formatDateTime(order.createdAt)} />
         <Row label="Địa chỉ" value={order.address} full />
+        {order.store && (
+          <Row
+            label="Cửa hàng giao"
+            value={`${order.store.name} — ${order.store.address}${
+              order.distanceKm != null ? ` (cách ${formatDistance(order.distanceKm)})` : ''
+            }`}
+            full
+          />
+        )}
         <Row
           label="Thanh toán"
           value={`${PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}${
@@ -50,12 +59,21 @@ export function OrderDetail({ order, heading }: { order: Order; heading?: string
         ))}
       </ul>
 
-      <div className="flex items-center justify-between border-t border-line px-5 py-4">
-        <span className="font-medium">Tổng cộng</span>
-        <span className="font-heading text-xl font-bold text-primary">
-          {formatPrice(order.total)}
-        </span>
-      </div>
+      <dl className="space-y-1.5 border-t border-line px-5 py-4 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-muted">Tạm tính</dt>
+          <dd>{formatPrice(order.total - order.shippingFee)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-muted">Phí giao hàng</dt>
+          {/* Đơn đặt trước khi có tính năng chọn cửa hàng không thu phí. */}
+          <dd>{order.shippingFee > 0 ? formatPrice(order.shippingFee) : 'Miễn phí'}</dd>
+        </div>
+        <div className="flex items-center justify-between pt-2 text-base font-medium">
+          <dt>Tổng cộng</dt>
+          <dd className="font-heading text-xl font-bold text-primary">{formatPrice(order.total)}</dd>
+        </div>
+      </dl>
     </section>
   )
 }

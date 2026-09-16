@@ -18,10 +18,12 @@ Tài liệu mô tả đầy đủ **những gì hệ thống làm** (yêu cầu 
 |---|---|
 | Trưng bày catalog sản phẩm: trang chủ, cửa hàng, danh mục, chi tiết, tìm kiếm | Cổng thanh toán trực tuyến thật (VNPay/Momo) — hệ thống chỉ ghi nhận **hình thức** thanh toán |
 | Giỏ hàng phía trình duyệt và luồng đặt hàng cho cả khách vãng lai lẫn thành viên | Gửi email/SMS xác nhận đơn |
-| Tài khoản: đăng ký, đăng nhập, hồ sơ, lịch sử đơn | Trừ tồn kho khi đặt hàng (cột `stock` chỉ mang tính hiển thị/quản trị) |
-| Nội dung: tin tức, chuyên mục, giới thiệu, form liên hệ | Vận chuyển, tính phí ship, mã giảm giá |
+| Tài khoản: đăng ký, đăng nhập, hồ sơ, lịch sử đơn | Giữ chỗ (reserve) tồn kho ngay lúc đặt — kho chỉ trừ khi thanh toán được xác nhận / đơn hoàn thành (UC-QT-03) |
+| Nội dung: tin tức, chuyên mục, giới thiệu, form liên hệ | Mã giảm giá |
+| Hệ thống cửa hàng: khách chọn cửa hàng giao, phí giao hàng theo khoảng cách (đường chim bay từ vị trí trình duyệt) | Tích hợp đơn vị vận chuyển thật, theo dõi hành trình giao hàng |
 | Khu quản trị: thống kê, sản phẩm, đơn hàng, bài viết, tin nhắn liên hệ | Đa ngôn ngữ, đa tiền tệ |
-| SEO: `sitemap.xml`, `robots.txt`, metadata theo trang | Quản lý người dùng từ giao diện quản trị (chỉ có sẵn qua CSDL/seed) |
+| Nhân sự: tạo tài khoản nhân viên, vai trò kèm bộ quyền tick riêng cho từng tài khoản, gắn cửa hàng, khoá khi nghỉ việc, đặt lại mật khẩu | Quản lý tài khoản **khách hàng** từ giao diện quản trị; quên mật khẩu qua email; nhật ký thao tác (audit log) |
+| SEO: `sitemap.xml`, `robots.txt`, metadata theo trang | |
 | Trợ lý ảo tư vấn bán hàng chạy trên Gemini: giải đáp về sản phẩm, tư vấn chọn hoa quả, hướng dẫn bảo quản, gợi ý công thức | Trợ lý **không** đặt hàng hộ, không sửa giỏ hàng, không tra cứu tình trạng đơn hộ khách (chỉ đọc tên hàng đã mua để gợi ý công thức); không có giọng nói, không streaming từng chữ |
 
 ### 0.3. Kiến trúc tổng thể
@@ -78,7 +80,7 @@ Hai ràng buộc kiến trúc quan trọng nhất:
 | **Server Action (SA)** | Hàm `'use server'` xử lý submit form: kiểm tra dữ liệu bằng `zod`, gọi API, rồi `redirect`/`revalidatePath`. |
 | **COD / BANK** | Hai hình thức thanh toán: nhận hàng trả tiền / chuyển khoản ngân hàng. |
 | **Mã đơn (`code`)** | Mã hiển thị cho khách, dạng `HL-XXXXXX`, sinh bằng `secrets.token_hex(3)`. Khác với khoá chính `id` (UUID). |
-| **Tồn theo báo cáo (`stock`)** | Số tồn do quản trị viên khai báo. Hệ thống **không** tự trừ khi có đơn. |
+| **Tồn kho (`stock`)** | Số tồn do quản trị viên khai báo. Hệ thống **trừ** khi quản trị viên xác nhận đã nhận tiền (đơn BANK) hoặc đưa đơn về `COMPLETED` (đơn COD), **hoàn** lại khi đơn đã trừ bị huỷ; mốc trừ lưu ở `orders.stock_deducted_at`. `stock = 0` → hiển thị "Hết hàng" và chặn đặt. |
 | **`utf8mb4_unicode_ci`** | Đối chiếu ký tự của MySQL bỏ qua cả hoa/thường lẫn **dấu tiếng Việt** — nền tảng cho tìm kiếm không dấu. |
 | **UI / SA / API / DB / LS** | Ký hiệu participant dùng thống nhất ở mục 5 (xem bảng quy ước đầu mục 5). |
 
@@ -92,15 +94,17 @@ Tên bảng và cột trong CSDL viết `snake_case` không dấu; JSON trả v�
 |---|---|---|
 | **Khách vãng lai** (Guest) | Người truy cập chưa đăng nhập. | Xem toàn bộ catalog và tin tức; tìm kiếm; thêm/sửa giỏ hàng; **đặt hàng không cần tài khoản**; tra cứu đơn theo mã; gửi tin nhắn liên hệ; đăng ký/đăng nhập. |
 | **Khách hàng** (`role = USER`) | Người dùng đã đăng ký và đăng nhập. | Toàn bộ quyền của Khách vãng lai, cộng thêm: form thanh toán **tự điền sẵn** thông tin hồ sơ; xem danh sách đơn của mình; xem chi tiết đơn của mình; cập nhật hồ sơ (họ tên, điện thoại, địa chỉ). |
-| **Quản trị viên** (`role = ADMIN`) | Người vận hành cửa hàng. | Toàn bộ quyền của Khách hàng, cộng thêm khu `/admin`: xem bảng điều khiển, thêm/sửa/xoá sản phẩm và gán danh mục, đổi trạng thái đơn hàng, xem bài viết, đánh dấu tin nhắn liên hệ đã xử lý. Xem được chi tiết đơn của **mọi** khách. |
+| **Nhân viên cửa hàng** (`role = STORE_MANAGER` / `CASHIER` / `SALES`) | Nhân sự của **một** cửa hàng (`users.store_id`), do quản trị viên tạo tài khoản. | Vào khu `/admin` nhưng chỉ thấy các mục ứng với **bộ quyền được tick riêng** cho tài khoản mình (`users.permissions`, 8 khoá — xem UC-QT-07). Đơn hàng và số liệu doanh thu chỉ trong **phạm vi cửa hàng mình**. Vai trò chỉ là chức danh gợi ý bộ quyền mặc định, không tự sinh quyền. |
+| **Quản trị viên** (`role = ADMIN`) | Chủ hệ thống. | Toàn bộ quyền của Khách hàng, cộng thêm **toàn quyền** khu `/admin` trên **mọi** cửa hàng: bảng điều khiển, thêm/sửa/xoá sản phẩm và gán danh mục, đổi trạng thái đơn hàng, xem bài viết, đánh dấu tin nhắn liên hệ đã xử lý, giám sát trợ lý ảo, và **quản lý nhân sự** (tạo tài khoản, phân quyền, gắn cửa hàng, khoá/mở khoá, đặt lại mật khẩu). Xem được chi tiết đơn của **mọi** khách. |
 | **Gemini API** (tác nhân ngoài, thứ cấp) | Dịch vụ mô hình ngôn ngữ của Google, do backend gọi qua REST. | Sinh câu trả lời tư vấn từ system prompt (đã nhồi sẵn danh mục sản phẩm) và ngữ cảnh hội thoại. **Không** truy cập CSDL, không biết gì ngoài những gì backend gửi trong mỗi request. |
 | **Hệ thống** (tác nhân thứ cấp) | Các xử lý tự động, không do người dùng bấm. | Sinh mã đơn `HL-XXXXXX`; **tính lại tổng tiền từ CSDL** khi tạo đơn; chụp tên/giá/ảnh sản phẩm vào dòng đơn hàng; cấp và thẩm định JWT; chọn sản phẩm liên quan; sinh `sitemap.xml` và `robots.txt`; quy đổi thời điểm sang ISO UTC có hậu tố `Z`; nhồi danh mục sản phẩm vào system prompt và dò tên sản phẩm trong câu trả lời của trợ lý để gắn thẻ liên kết. |
 
 **Ghi chú:**
-- Hệ thống **không có** vai trò riêng cho bộ phận kho hay biên tập viên — mọi thao tác quản trị đều thuộc về `ADMIN`. Cột `role` chỉ nhận hai giá trị `USER` và `ADMIN`.
-- Tài khoản mới đăng ký luôn nhận `role = USER`; **không có giao diện nào thăng quyền** — muốn tạo `ADMIN` phải sửa trực tiếp trong CSDL hoặc chạy `python seed.py`.
+- Cột `role` nhận 5 giá trị: `USER`, `ADMIN`, `STORE_MANAGER`, `CASHIER`, `SALES`. Với nhân viên, **quyền thật nằm ở `users.permissions`** (danh sách khoá do quản trị viên tick), `role` chỉ là chức danh kèm bộ quyền tick sẵn trên form; `ADMIN` có toàn quyền không cần liệt kê.
+- Tài khoản mới đăng ký luôn nhận `role = USER`; **không có cách tự thăng quyền** — tài khoản nhân viên chỉ do `ADMIN` tạo ở `/admin/nhan-su` (UC-QT-07). Không có thao tác nào biến khách hàng thành nhân viên hay ngược lại.
+- Nhân viên nghỉ việc thì **khoá** (`is_active = FALSE`), không xoá — đơn hàng, hội thoại vẫn giữ nguyên liên kết. Tài khoản bị khoá không đăng nhập được và token đang có **vô hiệu ngay**.
 - Khách vãng lai đặt hàng thành công sẽ tạo đơn có `user_id = NULL`; đơn này **không** được gắn về tài khoản sau này kể cả khi khách dùng cùng email đăng ký.
-- **Gemini API là tác nhân ngoài, có thể vắng mặt.** Thiếu `GEMINI_API_KEY` thì toàn bộ 25 use case còn lại vẫn chạy bình thường, chỉ UC-TL-01 trả 503 kèm thông báo tiếng Việt. Đây là lựa chọn có chủ đích để tính năng này phát triển và bàn giao được trước khi có khoá thật.
+- **Gemini API là tác nhân ngoài, có thể vắng mặt.** Thiếu `GEMINI_API_KEY` thì toàn bộ 26 use case còn lại vẫn chạy bình thường, chỉ UC-TL-01 trả 503 kèm thông báo tiếng Việt. Đây là lựa chọn có chủ đích để tính năng này phát triển và bàn giao được trước khi có khoá thật.
 
 ---
 
@@ -265,10 +269,10 @@ flowchart LR
 |---|---|
 | **Mã UC** | UC-CT-02 |
 | **Tác nhân** | Khách vãng lai, Khách hàng, Quản trị viên |
-| **Mô tả** | Hai trang dùng chung một cơ chế: `/cua-hang` liệt kê **toàn bộ** sản phẩm, `/danh-muc-san-pham/{slug}` liệt kê sản phẩm của **một danh mục**. Cả hai đều có thanh bên danh mục (kèm số lượng sản phẩm), ô sắp xếp và thanh phân trang. |
+| **Mô tả** | Hai trang dùng chung một cơ chế: `/cua-hang` liệt kê **toàn bộ** sản phẩm, `/danh-muc-san-pham/{slug}` liệt kê sản phẩm của **một danh mục**. Danh mục là **cây hai cấp** (3 danh mục gốc = 3 mục của menu chính, mỗi gốc xổ các danh mục con); trang của danh mục cha liệt kê sản phẩm của chính nó và mọi danh mục con. Cả hai trang đều có thanh bên danh mục dạng cây (kèm số lượng sản phẩm), ô sắp xếp và thanh phân trang. |
 | **Tiền điều kiện** | Không. |
 | **Luồng chính** | 1. Người dùng mở `/cua-hang` hoặc bấm vào một danh mục ở thanh bên.<br>2. Hệ thống đọc tham số URL `?sap-xep=` và `?trang=`.<br>3. Hệ thống gọi song song: danh sách danh mục (kèm số đếm), (với trang danh mục) thông tin danh mục theo slug, và trang sản phẩm tương ứng.<br>4. Hệ thống hiển thị "Hiển thị *n* trên *tổng* sản phẩm", lưới sản phẩm và thanh phân trang. |
-| **Luồng thay thế / Quy tắc** | - **Phân trang cố định 12 sản phẩm/trang** (`PAGE_SIZE` trong `src/lib/catalog.ts`), thực hiện bằng `OFFSET/LIMIT` phía CSDL.<br>- `?trang=` không phải số nguyên dương → hệ thống **âm thầm quay về trang 1** (`parsePage`), không báo lỗi.<br>- Ba giá trị sắp xếp hợp lệ: `gia-tang`, `gia-giam`, `ten`. Giá trị lạ → dùng **thứ tự mặc định** `created_at` tăng dần (`SORTS.get(sort or "", ...)`), không báo lỗi.<br>- Sắp xếp theo giá dùng cột `price` (**giá niêm yết**), không dùng `sale_price` — sản phẩm đang giảm giá vẫn xếp theo giá gốc.<br>- Slug danh mục không tồn tại → trang 404 (UC-HT-02). Ba lời gọi API vẫn chạy **song song** rồi mới kiểm tra 404, vì lời gọi lọc sản phẩm chỉ cần slug trên URL.<br>- Số đếm ở thanh bên (`productCount`, `postCount`) do backend tính bằng truy vấn con tương quan, thay cho `_count` của Prisma ở bản trước. |
+| **Luồng thay thế / Quy tắc** | - **Phân trang cố định 12 sản phẩm/trang** (`PAGE_SIZE` trong `src/lib/catalog.ts`), thực hiện bằng `OFFSET/LIMIT` phía CSDL.<br>- `?trang=` không phải số nguyên dương → hệ thống **âm thầm quay về trang 1** (`parsePage`), không báo lỗi.<br>- Ba giá trị sắp xếp hợp lệ: `gia-tang`, `gia-giam`, `ten`. Giá trị lạ → dùng **thứ tự mặc định** `created_at` tăng dần (`SORTS.get(sort or "", ...)`), không báo lỗi.<br>- Sắp xếp theo giá dùng cột `price` (**giá niêm yết**), không dùng `sale_price` — sản phẩm đang giảm giá vẫn xếp theo giá gốc.<br>- Slug danh mục không tồn tại → trang 404 (UC-HT-02). Ba lời gọi API vẫn chạy **song song** rồi mới kiểm tra 404, vì lời gọi lọc sản phẩm chỉ cần slug trên URL.<br>- Số đếm ở thanh bên (`productCount`, `postCount`) do backend tính bằng truy vấn con tương quan, thay cho `_count` của Prisma ở bản trước; `productCount` của danh mục cha là số sản phẩm **khác nhau** của cha và các con.<br>- Lọc theo danh mục cha dùng `IN` trên bảng nối `product_categories` (không `JOIN`) nên sản phẩm thuộc hai danh mục con chỉ được đếm **một lần** trong `total`.<br>- Breadcrumb ở trang danh mục con: Trang chủ / Cửa hàng / *cha* / *con* — tên cha tra trong danh sách danh mục đã tải, không gọi API thêm. Menu chính và thanh bên dựng cây bằng `buildCategoryTree` (`src/lib/catalog.ts`) từ danh sách phẳng có `parentId`. |
 | **Hậu điều kiện** | Người dùng chọn được sản phẩm để xem chi tiết. |
 
 #### UC-CT-03 — Xem chi tiết sản phẩm
@@ -280,7 +284,7 @@ flowchart LR
 | **Mô tả** | Trang `/san-pham/{slug}` hiển thị ảnh, tên, giá (kèm giá gạch ngang nếu đang khuyến mãi), mô tả ngắn, mô tả chi tiết, danh mục, ô chọn số lượng, nút thêm vào giỏ và **tối đa 4 sản phẩm liên quan**. |
 | **Tiền điều kiện** | Sản phẩm tồn tại trong CSDL. |
 | **Luồng chính** | 1. Người dùng bấm vào một sản phẩm ở bất kỳ lưới nào.<br>2. Hệ thống truy vấn sản phẩm theo slug, nạp kèm danh mục.<br>3. Hệ thống chọn **sản phẩm liên quan**: cùng **danh mục đầu tiên** của sản phẩm, loại chính nó, giới hạn 4.<br>4. Người dùng chọn số lượng rồi bấm "Thêm vào giỏ" → chuyển sang UC-GH-01. |
-| **Luồng thay thế / Quy tắc** | - Slug không tồn tại → API trả 404, lớp `api.ts` đổi thành `null`, trang gọi `notFound()` → giao diện 404.<br>- Sản phẩm **không thuộc danh mục nào** → danh sách liên quan rỗng, khối liên quan không hiển thị.<br>- Danh mục của sản phẩm được sắp theo `Category.position`, nên "danh mục đầu tiên" là danh mục có `position` nhỏ nhất.<br>- Giá đưa vào giỏ là **giá thực tế** `sale_price` nếu có, ngược lại `price`; con số này chỉ để hiển thị — khi đặt hàng backend tính lại (UC-GH-02).<br>- `stock` được hiển thị ở khu quản trị nhưng **không chặn** việc thêm vào giỏ hay đặt hàng. |
+| **Luồng thay thế / Quy tắc** | - Slug không tồn tại → API trả 404, lớp `api.ts` đổi thành `null`, trang gọi `notFound()` → giao diện 404.<br>- Sản phẩm **không thuộc danh mục nào** → danh sách liên quan rỗng, khối liên quan không hiển thị.<br>- Danh mục của sản phẩm được sắp theo `Category.position`, nên "danh mục đầu tiên" là danh mục có `position` nhỏ nhất.<br>- Giá đưa vào giỏ là **giá thực tế** `sale_price` nếu có, ngược lại `price`; con số này chỉ để hiển thị — khi đặt hàng backend tính lại (UC-GH-02).<br>- `stock = 0` → card và trang chi tiết hiện nhãn **"Hết hàng"**, nút thêm vào giỏ bị vô hiệu; ô số lượng ở trang chi tiết chặn trên tại `stock`. Giỏ cũ (localStorage) còn giữ sản phẩm đã hết thì bị chặn ở bước đặt hàng (UC-GH-02). |
 | **Hậu điều kiện** | Sản phẩm được thêm vào giỏ hàng, hoặc người dùng chuyển sang sản phẩm liên quan. |
 
 #### UC-CT-04 — Tìm kiếm sản phẩm
@@ -314,6 +318,8 @@ flowchart LR
         B2(["UC-GH-02<br/>Thanh toán và tạo đơn hàng"])
         B2a(["Điền sẵn thông tin<br/>từ hồ sơ"])
         B2b(["Chọn COD hoặc<br/>Chuyển khoản"])
+        B2f(["Chọn cửa hàng giao /<br/>Dùng vị trí của tôi"])
+        B2g(["Tính phí giao hàng<br/>theo khoảng cách"])
         B2c(["Tính lại tổng tiền<br/>từ CSDL"])
         B2d(["Sinh mã đơn HL-XXXXXX"])
         B2e(["Dọn giỏ hàng<br/>ở trang cảm ơn"])
@@ -333,9 +339,12 @@ flowchart LR
     B1 -. "«include»" .-> B1c
     B2a -. "«extend»" .-> B2
     B2 -. "«include»" .-> B2b
+    B2 -. "«include»" .-> B2f
+    B2f -. "«include»" .-> B2g
     B2 -. "«include»" .-> B2c
     B2 -. "«include»" .-> B2d
     B2 -. "«include»" .-> B2e
+    B2g --- SYS
     B2c --- SYS
     B2d --- SYS
 ```
@@ -357,12 +366,12 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | **Mã UC** | UC-GH-02 |
-| **Tác nhân** | Khách vãng lai, Khách hàng; Hệ thống (tính tiền, sinh mã đơn) |
-| **Mô tả** | Trang `/thanh-toan` thu thập thông tin người nhận (họ tên, email, điện thoại, địa chỉ, ghi chú), hình thức thanh toán (COD hoặc chuyển khoản) và tóm tắt giỏ hàng, rồi tạo đơn hàng trong CSDL. |
+| **Tác nhân** | Khách vãng lai, Khách hàng; Hệ thống (tính tiền, tính phí giao hàng, sinh mã đơn) |
+| **Mô tả** | Trang `/thanh-toan` thu thập thông tin người nhận (họ tên, email, điện thoại, địa chỉ, ghi chú), **cửa hàng giao hàng** (khách tự chọn hoặc để hệ thống gợi ý cửa hàng gần nhất theo vị trí trình duyệt), hình thức thanh toán (COD hoặc chuyển khoản) và tóm tắt giỏ hàng kèm phí giao hàng, rồi tạo đơn hàng trong CSDL. |
 | **Tiền điều kiện** | Giỏ hàng có ít nhất một dòng. |
-| **Luồng chính** | 1. Người dùng mở `/thanh-toan`. Nếu **đã đăng nhập**, hệ thống điền sẵn họ tên, email, điện thoại, địa chỉ từ hồ sơ.<br>2. Người dùng điền/sửa thông tin, chọn hình thức thanh toán, bấm "Đặt hàng".<br>3. Trình duyệt gửi kèm **trường ẩn `items`** chứa JSON `[{productId, quantity}]` lấy từ giỏ.<br>4. Server Action kiểm tra dữ liệu bằng `zod`; hợp lệ thì gọi `POST /api/orders`.<br>5. Backend **đọc lại từng sản phẩm trong CSDL**, lấy `sale_price` nếu có, ngược lại `price`, rồi tính `total = Σ(giá × số lượng)`.<br>6. Backend chụp `name`, `price`, `image` của từng sản phẩm vào `order_items`, sinh mã `HL-XXXXXX`, gán `user_id` nếu có token, lưu đơn với trạng thái `PENDING`.<br>7. Server Action chuyển hướng: đơn COD tới `/dat-hang-thanh-cong/{code}`; đơn chuyển khoản tới trang thanh toán `/thanh-toan/{code}` (UC-GH-02b).<br>8. Trang cảm ơn hiển thị mã đơn, chi tiết đơn và **dọn sạch giỏ hàng** (`ClearCartOnMount`). |
-| **Luồng thay thế / Quy tắc** | - **Giá luôn được tính lại ở backend.** Client chỉ gửi `productId` và `quantity`; kể cả có sửa payload cũng không ảnh hưởng tổng tiền. Đây là quy tắc bảo mật cốt lõi của phân hệ.<br>- **Kiểm tra dữ liệu hai lớp có chủ đích**: `zod` ở Server Action sinh lỗi tiếng Việt **theo từng ô nhập** cho `useActionState`; `pydantic` chặn lại ở biên API để cả request không đi qua giao diện cũng bị lọc. Ví dụ điện thoại `^0\d{9,10}$` xuất hiện ở cả hai nơi.<br>- Ràng buộc dữ liệu: họ tên ≥ 2 ký tự · email đúng định dạng · điện thoại bắt đầu bằng `0`, 10–11 chữ số · địa chỉ ≥ 8 ký tự · ghi chú ≤ 500 ký tự · số lượng mỗi dòng 1–999 · ít nhất 1 dòng.<br>- Một `productId` **không còn tồn tại** → backend trả 400 "Một số sản phẩm không còn tồn tại. Vui lòng kiểm tra lại giỏ hàng."<br>- Trường ẩn `items` hỏng hoặc rỗng → Server Action trả lỗi chung "Giỏ hàng trống hoặc không hợp lệ." mà không gọi API.<br>- Hệ thống **không** tích hợp cổng thanh toán. Đơn chuyển khoản được xác nhận **thủ công** bởi quản trị viên (UC-GH-02b, UC-QT-03); đơn COD giữ `payment_status = UNPAID`.<br>- Đơn chuyển khoản được gán `payment_expires_at = now + PAYMENT_TIMEOUT_MINUTES` (mặc định 15 phút).<br>- Hệ thống **không trừ `stock`** khi tạo đơn.<br>- Đơn của khách vãng lai có `user_id = NULL` nên **không xuất hiện** ở "Đơn hàng của tôi" (UC-GH-04), nhưng vẫn tra cứu được bằng mã (UC-GH-03).<br>- Mã đơn sinh bằng `secrets.token_hex(3)` (24 bit ≈ 16,7 triệu tổ hợp) và cột `code` có ràng buộc UNIQUE — xác suất trùng cực thấp nhưng khi trùng sẽ là lỗi 500; hệ thống **không thử lại**.<br>- `redirect()` của Next ném lỗi để điều hướng nên phải gọi **ngoài** khối `try/catch` bắt `ApiError`. |
-| **Hậu điều kiện** | Đơn hàng tồn tại trong CSDL ở trạng thái `PENDING`; giỏ hàng đã được dọn; khách có mã đơn để tra cứu. |
+| **Luồng chính** | 1. Người dùng mở `/thanh-toan`. Trang server gọi `GET /api/stores` lấy danh sách cửa hàng (chưa có khoảng cách, phí ở mức chuẩn) và chọn sẵn cửa hàng đầu danh sách. Nếu **đã đăng nhập**, hệ thống điền sẵn họ tên, email, điện thoại, địa chỉ từ hồ sơ.<br>2. (Tuỳ chọn) Người dùng bấm **"Dùng vị trí của tôi"**: trình duyệt xin quyền định vị (`navigator.geolocation`), client gọi Server Action `getShippingQuote(lat, lng)` → `GET /api/stores?lat&lng`; backend tính khoảng cách đường chim bay tới từng cửa hàng, trả danh sách **gần nhất lên đầu** kèm phí; giao diện tự chọn cửa hàng gần nhất và giữ toạ độ trong 2 trường ẩn `lat`, `lng`.<br>3. Người dùng điền/sửa thông tin, chọn (hoặc đổi) cửa hàng giao, chọn hình thức thanh toán, bấm "Đặt hàng". Ô tóm tắt hiển thị Tạm tính, Phí giao hàng của cửa hàng đang chọn và Tổng cộng.<br>4. Trình duyệt gửi kèm **trường ẩn `items`** chứa JSON `[{productId, quantity}]` lấy từ giỏ, `storeId` và (nếu có) `lat`, `lng`.<br>5. Server Action kiểm tra dữ liệu bằng `zod`; hợp lệ thì gọi `POST /api/orders`.<br>6. Backend **đọc lại từng sản phẩm trong CSDL**, lấy `sale_price` nếu có, ngược lại `price`; nạp cửa hàng theo `store_id`, tính `distance_km` (nếu có toạ độ) và `shipping_fee` theo bậc, rồi tính `total = Σ(giá × số lượng) + shipping_fee`.<br>7. Backend chụp `name`, `price`, `image` của từng sản phẩm vào `order_items`, lưu `store_id`, `shipping_fee`, `distance_km`, sinh mã `HL-XXXXXX`, gán `user_id` nếu có token, lưu đơn với trạng thái `PENDING`.<br>8. Server Action chuyển hướng: đơn COD tới `/dat-hang-thanh-cong/{code}`; đơn chuyển khoản tới trang thanh toán `/thanh-toan/{code}` (UC-GH-02b).<br>9. Trang cảm ơn hiển thị mã đơn, chi tiết đơn (gồm cửa hàng giao, tạm tính, phí giao hàng) và **dọn sạch giỏ hàng** (`ClearCartOnMount`). |
+| **Luồng thay thế / Quy tắc** | - **Giá luôn được tính lại ở backend.** Client chỉ gửi `productId` và `quantity`; kể cả có sửa payload cũng không ảnh hưởng tổng tiền. Đây là quy tắc bảo mật cốt lõi của phân hệ.<br>- **Phí giao hàng cũng do backend tính** (`app/shipping.py`) theo khoảng cách đường chim bay (haversine, làm tròn 1 chữ số thập phân) từ vị trí khách tới cửa hàng đã chọn: ≤ 3 km → 15.000₫ · ≤ 10 km → 25.000₫ · ≤ 30 km → 40.000₫ · xa hơn → 60.000₫. Khách **không chia sẻ vị trí** (từ chối quyền, trình duyệt không hỗ trợ, ngữ cảnh không an toàn) → áp **phí chuẩn 30.000₫**, không phụ thuộc cửa hàng.<br>- **Toạ độ do trình duyệt khách gửi lên được tin ở mức như địa chỉ tự nhập**: khách có thể giả toạ độ để hưởng bậc phí thấp. Hệ thống chấp nhận hạn chế này (không geocode địa chỉ, không dùng dịch vụ bản đồ ngoài); nhân viên giao hàng đối chiếu khi giao. `distance_km` được lưu vào đơn làm bằng chứng vì sao phí như vậy.<br>- `store_id` không tồn tại → backend trả 400 "Cửa hàng giao hàng không hợp lệ. Vui lòng chọn lại."; thiếu `storeId` → `zod` báo "Vui lòng chọn cửa hàng giao hàng".<br>- `getShippingQuote` trả `null` (không ném lỗi) khi backend lỗi để nút định vị không kẹt ở trạng thái đang tải; giao diện báo lỗi và khách chọn cửa hàng tay.<br>- **Kiểm tra dữ liệu hai lớp có chủ đích**: `zod` ở Server Action sinh lỗi tiếng Việt **theo từng ô nhập** cho `useActionState`; `pydantic` chặn lại ở biên API để cả request không đi qua giao diện cũng bị lọc. Ví dụ điện thoại `^0\d{9,10}$` xuất hiện ở cả hai nơi.<br>- Ràng buộc dữ liệu: họ tên ≥ 2 ký tự · email đúng định dạng · điện thoại bắt đầu bằng `0`, 10–11 chữ số · địa chỉ ≥ 8 ký tự · ghi chú ≤ 500 ký tự · `storeId` bắt buộc · `lat` ∈ [-90, 90], `lng` ∈ [-180, 180] (tuỳ chọn, phải có cả hai mới tính khoảng cách) · số lượng mỗi dòng 1–999 · ít nhất 1 dòng.<br>- Một `productId` **không còn tồn tại** → backend trả 400 "Một số sản phẩm không còn tồn tại. Vui lòng kiểm tra lại giỏ hàng."<br>- Trường ẩn `items` hỏng hoặc rỗng → Server Action trả lỗi chung "Giỏ hàng trống hoặc không hợp lệ." mà không gọi API.<br>- Hệ thống **không** tích hợp cổng thanh toán. Đơn chuyển khoản được xác nhận **thủ công** bởi quản trị viên (UC-GH-02b, UC-QT-03); đơn COD giữ `payment_status = UNPAID`.<br>- Đơn chuyển khoản được gán `payment_expires_at = now + PAYMENT_TIMEOUT_MINUTES` (mặc định 15 phút).<br>- Hệ thống **không trừ `stock` khi tạo đơn** nhưng **chặn** đơn có dòng `quantity > stock` (gộp số lượng theo sản phẩm): 400 `{message, out_of_stock: [{product_id, name, stock}]}`; client hạ số lượng dòng đó về tồn còn lại (0 = gỡ dòng), nêu tên và yêu cầu đặt lại. Kiểm tra này chỉ mang tính **tư vấn** (hai khách tranh đơn vị cuối vẫn cùng đặt được); lớp chặn cứng nằm ở lúc trừ kho (UC-QT-03). Kho thật sự trừ ở UC-GH-02b / UC-QT-03.<br>- Đơn của khách vãng lai có `user_id = NULL` nên **không xuất hiện** ở "Đơn hàng của tôi" (UC-GH-04), nhưng vẫn tra cứu được bằng mã (UC-GH-03).<br>- Mã đơn sinh bằng `secrets.token_hex(3)` (24 bit ≈ 16,7 triệu tổ hợp) và cột `code` có ràng buộc UNIQUE — xác suất trùng cực thấp nhưng khi trùng sẽ là lỗi 500; hệ thống **không thử lại**.<br>- `redirect()` của Next ném lỗi để điều hướng nên phải gọi **ngoài** khối `try/catch` bắt `ApiError`. |
+| **Hậu điều kiện** | Đơn hàng tồn tại trong CSDL ở trạng thái `PENDING`, gắn với một cửa hàng giao và phí giao hàng đã chốt; giỏ hàng đã được dọn; khách có mã đơn để tra cứu. |
 
 #### UC-GH-02b — Thanh toán chuyển khoản qua mã QR
 
@@ -370,10 +379,10 @@ flowchart LR
 |---|---|
 | **Mã UC** | UC-GH-02b |
 | **Tác nhân** | Khách vãng lai, Khách hàng; Quản trị viên (xác nhận đã nhận tiền); Hệ thống |
-| **Mô tả** | Trang `/thanh-toan/{code}` hiển thị mã VietQR động (số tiền = tổng đơn, nội dung = mã đơn) cho đơn chọn hình thức chuyển khoản, tự phát hiện khi quản trị viên xác nhận đã nhận tiền và chuyển khách sang trang cảm ơn. |
+| **Mô tả** | Trang `/thanh-toan/{code}` hiển thị mã VietQR động (số tiền = tổng đơn **đã gồm phí giao hàng**, nội dung = mã đơn) cho đơn chọn hình thức chuyển khoản, tự phát hiện khi quản trị viên xác nhận đã nhận tiền và chuyển khách sang trang cảm ơn. |
 | **Tiền điều kiện** | Đơn tồn tại, `payment_method = BANK`, `payment_status = UNPAID`, `status = PENDING`. |
-| **Luồng chính** | 1. Sau UC-GH-02, khách được đưa tới `/thanh-toan/{code}`; giỏ hàng được dọn tại đây.<br>2. Trang hiển thị ảnh VietQR sinh bởi `img.vietqr.io` (tài khoản MB cố định trong `BANK_ACCOUNT`), thông tin tài khoản, số tiền, nội dung chuyển khoản và **đếm ngược** tới `payment_expires_at`.<br>3. Khách quét mã bằng ứng dụng ngân hàng và chuyển tiền.<br>4. Client **polling** Server Action `getPaymentState(code)` (gọi `GET /api/orders/{code}`) mỗi ~4 giây; tạm dừng khi tab bị ẩn.<br>5. Quản trị viên thấy tiền về, bấm **"Đã nhận tiền"** (`POST /api/admin/orders/{id}/payment`): backend đặt `payment_status = PAID`, `paid_at = now`, và chuyển `status` từ `PENDING`/`CANCELLED` sang `CONFIRMED`.<br>6. Lượt polling kế tiếp thấy `PAID` → client `router.replace` sang `/dat-hang-thanh-cong/{code}`; trang cảm ơn hiển thị "Đã nhận thanh toán". |
-| **Luồng thay thế / Quy tắc** | - **Hết hạn**: mỗi lần đọc đơn (`GET /api/orders/{code}`, `GET /api/orders`, `GET /api/admin/orders`, `GET /api/admin/stats`) backend chạy một câu `UPDATE` có điều kiện huỷ (`CANCELLED`) các đơn `BANK` + `UNPAID` + `PENDING` đã quá `payment_expires_at`. Không có scheduler; vì khách đang polling nên đơn hết hạn bị huỷ gần như tức thì và trang QR hiển thị "hết hạn".<br>- Tiền về **muộn** sau khi đơn đã tự huỷ: quản trị viên vẫn bấm "Đã nhận tiền" được, đơn được khôi phục về `CONFIRMED`.<br>- Quản trị viên tự đổi trạng thái một đơn `BANK` sang `CONFIRMED` (không bấm "Đã nhận tiền") → đơn không còn `PENDING` nên **không bị tự huỷ**; trang cảm ơn hiện ghi chú "chưa ghi nhận thanh toán" kèm liên kết về trang QR.<br>- Mở `/thanh-toan/{code}` của đơn COD hoặc đơn đã `PAID` → chuyển hướng sang trang cảm ơn. Mở trang cảm ơn của đơn `BANK` còn chờ thanh toán → chuyển hướng về trang QR.<br>- Bấm "Đã nhận tiền" lần hai → backend trả **409**, Server Action bỏ qua. Đơn COD → **400**.<br>- Trang thanh toán **không** kiểm tra chủ đơn (giống UC-GH-03): mã đơn là bí mật chia sẻ. |
+| **Luồng chính** | 1. Sau UC-GH-02, khách được đưa tới `/thanh-toan/{code}`; giỏ hàng được dọn tại đây.<br>2. Trang hiển thị ảnh VietQR sinh bởi `img.vietqr.io` (tài khoản MB cố định trong `BANK_ACCOUNT`), thông tin tài khoản, số tiền, nội dung chuyển khoản và **đếm ngược** tới `payment_expires_at`.<br>3. Khách quét mã bằng ứng dụng ngân hàng và chuyển tiền.<br>4. Client **polling** Server Action `getPaymentState(code)` (gọi `GET /api/orders/{code}`) mỗi ~4 giây; tạm dừng khi tab bị ẩn.<br>5. Quản trị viên thấy tiền về, bấm **"Đã nhận tiền"** (`POST /api/admin/orders/{id}/payment`): backend **trừ tồn kho** cho từng dòng (đặt `stock_deducted_at`), đặt `payment_status = PAID`, `paid_at = now`, và chuyển `status` từ `PENDING`/`CANCELLED` sang `CONFIRMED`.<br>6. Lượt polling kế tiếp thấy `PAID` → client `router.replace` sang `/dat-hang-thanh-cong/{code}`; trang cảm ơn hiển thị "Đã nhận thanh toán". |
+| **Luồng thay thế / Quy tắc** | - **Hết hạn**: mỗi lần đọc đơn (`GET /api/orders/{code}`, `GET /api/orders`, `GET /api/admin/orders`, `GET /api/admin/stats`) backend chạy một câu `UPDATE` có điều kiện huỷ (`CANCELLED`) các đơn `BANK` + `UNPAID` + `PENDING` đã quá `payment_expires_at`. Không có scheduler; vì khách đang polling nên đơn hết hạn bị huỷ gần như tức thì và trang QR hiển thị "hết hạn".<br>- Tiền về **muộn** sau khi đơn đã tự huỷ: quản trị viên vẫn bấm "Đã nhận tiền" được, đơn được khôi phục về `CONFIRMED` (đơn tự huỷ chưa từng bị trừ kho nên trừ như bình thường).<br>- **Không đủ tồn kho** lúc bấm "Đã nhận tiền" → 400 kèm `out_of_stock`, **không** ghi nhận thanh toán, trạng thái giữ nguyên; Server Action đưa thông báo lên `/admin/don-hang?loi=` để hiện banner đỏ. Quản trị viên nhập thêm hàng (UC-QT-02) rồi bấm lại.<br>- Quản trị viên tự đổi trạng thái một đơn `BANK` sang `CONFIRMED` (không bấm "Đã nhận tiền") → đơn không còn `PENDING` nên **không bị tự huỷ**; trang cảm ơn hiện ghi chú "chưa ghi nhận thanh toán" kèm liên kết về trang QR.<br>- Mở `/thanh-toan/{code}` của đơn COD hoặc đơn đã `PAID` → chuyển hướng sang trang cảm ơn. Mở trang cảm ơn của đơn `BANK` còn chờ thanh toán → chuyển hướng về trang QR.<br>- Bấm "Đã nhận tiền" lần hai → backend trả **409**, Server Action bỏ qua. Đơn COD → **400**.<br>- Trang thanh toán **không** kiểm tra chủ đơn (giống UC-GH-03): mã đơn là bí mật chia sẻ. |
 | **Hậu điều kiện** | Đơn `PAID` + `CONFIRMED` và khách ở trang cảm ơn; hoặc đơn `CANCELLED` vì quá hạn. |
 
 #### UC-GH-03 — Tra cứu đơn hàng theo mã
@@ -384,7 +393,7 @@ flowchart LR
 | **Tác nhân** | Khách vãng lai, Khách hàng |
 | **Mô tả** | Trang cảm ơn `/dat-hang-thanh-cong/{code}` hiển thị chi tiết đơn theo **mã đơn**, không yêu cầu đăng nhập. |
 | **Tiền điều kiện** | Đơn hàng với mã tương ứng tồn tại. |
-| **Luồng chính** | 1. Hệ thống chuyển hướng tới trang này ngay sau khi đặt hàng thành công (hoặc khách mở lại đường dẫn đã lưu).<br>2. Hệ thống gọi `GET /api/orders/{code}`, nạp kèm các dòng đơn hàng.<br>3. Hệ thống hiển thị mã đơn, thông tin người nhận, danh sách sản phẩm, hình thức thanh toán và tổng tiền. |
+| **Luồng chính** | 1. Hệ thống chuyển hướng tới trang này ngay sau khi đặt hàng thành công (hoặc khách mở lại đường dẫn đã lưu).<br>2. Hệ thống gọi `GET /api/orders/{code}`, nạp kèm các dòng đơn hàng.<br>3. Hệ thống hiển thị mã đơn, thông tin người nhận, cửa hàng giao (kèm khoảng cách nếu có), danh sách sản phẩm, hình thức thanh toán, tạm tính, phí giao hàng và tổng tiền. |
 | **Luồng thay thế / Quy tắc** | - **Endpoint này công khai có chủ đích** — khách vãng lai không có tài khoản nào để đối chiếu chủ đơn. Đổi lại, ai biết mã đơn đều xem được nội dung đơn. Rủi ro được chấp nhận vì mã sinh ngẫu nhiên 6 ký tự hex và không hiển thị công khai ở đâu.<br>- Mã không tồn tại → `notFound()` → trang 404.<br>- Trang này chỉ **hiển thị**, không cho sửa hay huỷ đơn. |
 | **Hậu điều kiện** | Khách xác nhận được đơn đã ghi nhận và có mã để đối chiếu khi liên hệ. |
 
@@ -482,10 +491,10 @@ flowchart LR
 |---|---|
 | **Mã UC** | UC-TK-04 |
 | **Tác nhân** | Hệ thống (chính); mọi tác nhân người dùng (chịu tác động) |
-| **Mô tả** | Cơ chế nền cho toàn hệ thống: giữ phiên bằng JWT trong cookie `httpOnly`, xác định người dùng hiện tại ở mỗi request, và chặn khu quản trị ở **cả frontend lẫn backend**. |
+| **Mô tả** | Cơ chế nền cho toàn hệ thống: giữ phiên bằng JWT trong cookie `httpOnly`, xác định người dùng hiện tại ở mỗi request, chặn khu quản trị ở **cả frontend lẫn backend**, và xét **từng khoá quyền** cho nhân viên. |
 | **Tiền điều kiện** | `AUTH_SECRET` được cấu hình giống nhau cho mọi tiến trình backend. |
-| **Luồng chính** | 1. Server Component / Server Action gọi `getCurrentUser()`.<br>2. Lớp `api.ts` đọc token từ cookie và gắn header `Authorization: Bearer <token>`.<br>3. Backend giải mã token; hợp lệ thì **đọc lại bản ghi `users` từ CSDL** theo `sub`.<br>4. Người dùng được gắn vào request cho các dependency `current_user` / `admin_user` / `optional_user`.<br>5. Router `/api/admin/*` gắn `Depends(admin_user)` ở **cấp router**, nên mọi endpoint dưới đó — kể cả endpoint thêm về sau — đều được bảo vệ. |
-| **Luồng thay thế / Quy tắc** | - **Đọc lại CSDL mỗi request thay vì tin payload token**: quyền bị đổi hoặc tài khoản bị xoá **có hiệu lực ngay**, không phải chờ token hết hạn. Đổi lại là thêm một truy vấn cho mỗi request cần xác thực.<br>- Thiếu token hoặc token hỏng/hết hạn → **401**; đúng token nhưng `role != ADMIN` → **403**.<br>- Frontend chặn **sớm** để báo lỗi thân thiện: `AdminLayout` chuyển hướng (chưa đăng nhập → `/tai-khoan/dang-nhap`, `USER` → `/tai-khoan`) và `assertAdmin()` trong các Server Action quản trị. Đây **không phải** lớp bảo vệ duy nhất — backend vẫn kiểm lại.<br>- `getCurrentUser()` coi lỗi **401 là "chưa đăng nhập"** và trả `null`; các lỗi khác được ném tiếp để không che giấu sự cố thật.<br>- `HTTPBearer(auto_error=False)` để endpoint tạo đơn hàng vẫn chạy được khi **không có** token (khách vãng lai). |
+| **Luồng chính** | 1. Server Component / Server Action gọi `getCurrentUser()`.<br>2. Lớp `api.ts` đọc token từ cookie và gắn header `Authorization: Bearer <token>`.<br>3. Backend giải mã token; hợp lệ thì **đọc lại bản ghi `users` từ CSDL** theo `sub`.<br>4. Tài khoản bị khoá (`is_active = FALSE`) bị coi như **không có token**.<br>5. Người dùng được gắn vào request cho các dependency `current_user` / `optional_user` / `staff_user` (mọi vai trò trừ `USER`) / `admin_user` (chỉ `ADMIN`) / `require("<khoá>")` (nhân viên có khoá đó trong `permissions`, hoặc `ADMIN`).<br>6. Router `/api/admin/*` gắn `Depends(staff_user)` ở **cấp router** nên khách hàng không vào được endpoint nào; từng endpoint gắn thêm `require(...)` với khoá tương ứng (vd. `PUT /api/admin/products/{id}` đòi `products.edit`). Router `/api/admin/staff/*` gắn `Depends(admin_user)`. |
+| **Luồng thay thế / Quy tắc** | - **Đọc lại CSDL mỗi request thay vì tin payload token**: quyền bị đổi hoặc tài khoản bị xoá **có hiệu lực ngay**, không phải chờ token hết hạn. Đổi lại là thêm một truy vấn cho mỗi request cần xác thực.<br>- Thiếu token, token hỏng/hết hạn, hoặc **tài khoản đã bị khoá** → **401**; đúng token nhưng là khách hàng, hoặc nhân viên thiếu khoá quyền → **403**.<br>- **Phạm vi cửa hàng**: nhân viên không phải `ADMIN` chỉ thấy/đổi được đơn có `orders.store_id = users.store_id` (đơn khác cửa hàng trả **404** như không tồn tại); số đơn, doanh thu, đơn gần đây ở bảng điều khiển cũng lọc theo đó. Nhân viên chưa gắn cửa hàng (cửa hàng bị xoá → `SET NULL`) không thấy đơn nào.<br>- Frontend chặn **sớm** để báo lỗi thân thiện: `AdminLayout` chuyển hướng (chưa đăng nhập → `/tai-khoan/dang-nhap`, `USER` → `/tai-khoan`), chỉ hiện mục menu/nút có quyền (`can()` trong `src/lib/permissions.ts`), mỗi trang gọi `requirePermission()` (thiếu quyền → về `/admin`), và `assertPermission()` trong các Server Action. Đây **không phải** lớp bảo vệ duy nhất — backend vẫn kiểm lại.<br>- `getCurrentUser()` coi lỗi **401 là "chưa đăng nhập"** và trả `null`; các lỗi khác được ném tiếp để không che giấu sự cố thật.<br>- `HTTPBearer(auto_error=False)` để endpoint tạo đơn hàng vẫn chạy được khi **không có** token (khách vãng lai). |
 | **Hậu điều kiện** | Mỗi request được gắn đúng danh tính và quyền; khu quản trị không thể truy cập bằng cách gọi thẳng API. |
 
 ---
@@ -547,7 +556,7 @@ flowchart LR
 |---|---|
 | **Mã UC** | UC-ND-03 |
 | **Tác nhân** | Khách vãng lai, Khách hàng |
-| **Mô tả** | Form liên hệ (ở trang `/lien-he` và ở khối liên hệ cuối trang chủ) ghi tin nhắn vào CSDL để quản trị viên xử lý sau (UC-QT-05). |
+| **Mô tả** | Form liên hệ (ở trang `/lien-he` và ở khối liên hệ cuối trang chủ) ghi tin nhắn vào CSDL để quản trị viên xử lý sau (UC-QT-05). Trang `/lien-he` đồng thời liệt kê **hệ thống cửa hàng** (`GET /api/stores`: tên, địa chỉ, liên kết "Chỉ đường" tới Google Maps theo toạ độ). |
 | **Tiền điều kiện** | Không cần đăng nhập. |
 | **Luồng chính** | 1. Người dùng điền họ tên, email, điện thoại (tuỳ chọn), tiêu đề (tuỳ chọn), nội dung.<br>2. Server Action kiểm tra bằng `zod`, gọi `POST /api/contact`.<br>3. Backend lưu bản ghi `contact_messages` với `handled = FALSE`.<br>4. Giao diện hiển thị thông báo đã gửi thành công. |
 | **Luồng thay thế / Quy tắc** | - Ràng buộc: họ tên ≥ 2 ký tự · email hợp lệ · điện thoại để trống được, nếu nhập thì `^0\d{9,10}$` · tiêu đề ≤ 150 ký tự · nội dung ≥ 10 ký tự.<br>- Lỗi API **không bị nuốt** — được hiển thị thành lỗi chung trên form thay vì im lặng báo thành công.<br>- Chuỗi rỗng của điện thoại/tiêu đề được quy về `NULL`.<br>- Hệ thống **không gửi email** cho quản trị viên; tin nhắn chỉ nằm trong CSDL và hiện ở bảng điều khiển dưới dạng số "Liên hệ chưa xử lý".<br>- **Không có** captcha hay chống spam. |
@@ -579,14 +588,28 @@ flowchart LR
         E5(["UC-QT-05<br/>Xử lý tin nhắn liên hệ"])
         E5a(["Đánh dấu đã xử lý /<br/>bỏ đánh dấu"])
 
-        E6(["UC-TK-04<br/>Kiểm tra quyền ADMIN"])
+        E7(["UC-QT-07<br/>Quản lý nhân sự"])
+        E7a(["Tạo tài khoản nhân viên"])
+        E7b(["Phân quyền & gắn cửa hàng"])
+        E7c(["Khoá / mở khoá"])
+        E7d(["Đặt lại mật khẩu"])
+
+        E6(["UC-TK-04<br/>Kiểm tra quyền<br/>(khoá quyền + phạm vi cửa hàng)"])
     end
+
+    NV["👤 Nhân viên cửa hàng"]
 
     AD --- E1
     AD --- E2
     AD --- E3
     AD --- E4
     AD --- E5
+    AD --- E7
+    NV -- "theo quyền được tick" --- E1
+    NV -- "theo quyền được tick" --- E2
+    NV -- "theo quyền được tick" --- E3
+    NV -- "theo quyền được tick" --- E4
+    NV -- "theo quyền được tick" --- E5
 
     E1 -. "«include»" .-> E1a
     E1 -. "«include»" .-> E1b
@@ -596,11 +619,16 @@ flowchart LR
     E2 -. "«include»" .-> E2d
     E3 -. "«extend»" .-> E3a
     E5 -. "«extend»" .-> E5a
+    E7 -. "«include»" .-> E7a
+    E7 -. "«extend»" .-> E7b
+    E7 -. "«extend»" .-> E7c
+    E7 -. "«extend»" .-> E7d
     E1 -. "«include»" .-> E6
     E2 -. "«include»" .-> E6
     E3 -. "«include»" .-> E6
     E4 -. "«include»" .-> E6
     E5 -. "«include»" .-> E6
+    E7 -. "«include»" .-> E6
 ```
 
 #### UC-QT-01 — Bảng điều khiển
@@ -608,11 +636,11 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | **Mã UC** | UC-QT-01 |
-| **Tác nhân** | Quản trị viên |
+| **Tác nhân** | Quản trị viên, Nhân viên cửa hàng |
 | **Mô tả** | Trang `/admin` tổng hợp **5 chỉ số** (số sản phẩm, số đơn hàng, số bài viết, số liên hệ chưa xử lý, doanh thu) và bảng **5 đơn hàng gần đây nhất**. |
-| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Tiền điều kiện** | Đăng nhập bằng tài khoản nhân viên (mọi vai trò trừ `USER`); không cần khoá quyền riêng. |
 | **Luồng chính** | 1. Quản trị viên mở `/admin`.<br>2. `AdminLayout` xác nhận quyền; nếu không đủ quyền thì chuyển hướng.<br>3. Hệ thống gọi `GET /api/admin/stats` — một lời gọi trả về cả 5 chỉ số lẫn danh sách đơn gần đây.<br>4. Mỗi ô chỉ số là một liên kết tới trang quản lý tương ứng. |
-| **Luồng thay thế / Quy tắc** | - **Doanh thu = tổng `total` của mọi đơn có `status != 'CANCELLED'`** — nghĩa là đơn `PENDING` (chưa xác nhận) **đã được tính vào** doanh thu. Đây là quy ước cần biết khi đọc con số này.<br>- "Liên hệ chưa xử lý" đếm bản ghi `contact_messages` có `handled = FALSE`.<br>- Ô "Doanh thu" **không** có liên kết đi tiếp.<br>- Chưa có đơn nào → bảng đơn gần đây hiển thị trạng thái rỗng.<br>- Các chỉ số được tính trực tiếp bằng `COUNT`/`SUM` mỗi lần tải trang, không có cache hay bảng tổng hợp. |
+| **Luồng thay thế / Quy tắc** | - **Doanh thu = tổng `total` của mọi đơn có `status != 'CANCELLED'`** — nghĩa là đơn `PENDING` (chưa xác nhận) **đã được tính vào** doanh thu, và vì `total` đã gồm `shipping_fee` nên **phí giao hàng cũng nằm trong doanh thu**. Đây là quy ước cần biết khi đọc con số này.<br>- "Liên hệ chưa xử lý" đếm bản ghi `contact_messages` có `handled = FALSE`.<br>- Ô "Doanh thu" **không** có liên kết đi tiếp; các ô khác chỉ là liên kết khi người xem có quyền vào trang đó.<br>- **Nhân viên cửa hàng** thấy số đơn, doanh thu và đơn gần đây **của cửa hàng mình**; số sản phẩm, bài viết, liên hệ là toàn cục.<br>- Chưa có đơn nào → bảng đơn gần đây hiển thị trạng thái rỗng.<br>- Các chỉ số được tính trực tiếp bằng `COUNT`/`SUM` mỗi lần tải trang, không có cache hay bảng tổng hợp. |
 | **Hậu điều kiện** | Quản trị viên nắm được tình hình chung và có lối vào từng khu quản lý. |
 
 #### UC-QT-02 — Quản lý sản phẩm
@@ -620,11 +648,11 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | **Mã UC** | UC-QT-02 |
-| **Tác nhân** | Quản trị viên |
+| **Tác nhân** | Quản trị viên; Nhân viên có `products.view` (xem) / `products.edit` (thêm, sửa, xoá) |
 | **Mô tả** | Danh sách sản phẩm tại `/admin/san-pham`, form thêm mới tại `/admin/san-pham/moi`, form sửa tại `/admin/san-pham/{id}`, kèm nút xoá trên từng dòng. Form gồm: tên, slug, giá, giá khuyến mãi, tồn kho, đường dẫn ảnh, mô tả ngắn, mô tả chi tiết và **các danh mục** (chọn nhiều). |
-| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Tiền điều kiện** | Có quyền `products.view`; thêm/sửa/xoá cần `products.edit` (nhân viên chỉ có `view` không thấy nút "Thêm sản phẩm", "Sửa", "Xoá"). |
 | **Luồng chính** | 1. Quản trị viên mở danh sách sản phẩm (`GET /api/admin/products`, sắp theo `created_at` tăng dần).<br>2. Bấm "Thêm sản phẩm" hoặc "Sửa" trên một dòng.<br>3. Server Action `saveProduct` kiểm tra quyền, kiểm tra dữ liệu bằng `zod`, rồi gọi `POST` (tạo) hoặc `PUT` (sửa).<br>4. Backend kiểm tra slug chưa trùng và giá khuyến mãi hợp lệ, lưu sản phẩm, gán lại danh mục.<br>5. Hệ thống `revalidatePath('/admin/san-pham')` và `revalidatePath('/')` rồi chuyển về danh sách. |
-| **Luồng thay thế / Quy tắc** | - **Slug trùng** → backend trả **409**; Server Action gắn lỗi vào **đúng ô slug** để sửa tại chỗ. Khi sửa, chính sản phẩm đang sửa được loại khỏi phép kiểm (`Product.id != product_id`).<br>- **Giá khuyến mãi phải nhỏ hơn giá gốc**, vi phạm → **422**. Quy tắc này được kiểm ở **cả hai phía** (`.refine()` của zod và `_assert_sale_price` của backend).<br>- Slug phải khớp `^[a-z0-9-]+$`; giá > 0; tồn kho ≥ 0; mô tả ngắn và chi tiết ≥ 5 ký tự.<br>- **`hover_image` bị loại khỏi thao tác sửa** một cách có chủ đích: form quản trị không có ô này nên `ProductIn` luôn mang `None`, ghi đè vào sẽ **xoá mất ảnh hover đang lưu**. Muốn đổi ảnh hover phải sửa trực tiếp trong CSDL.<br>- **Xoá sản phẩm là xoá cứng.** Các dòng `order_items` trỏ tới nó được đặt `product_id = NULL` (`ON DELETE SET NULL`) — đơn hàng cũ **vẫn giữ nguyên** tên, giá và ảnh vì đã được chụp lại lúc đặt.<br>- Xoá hai lần (bấm nút liên tiếp) → backend trả 404, Server Action **coi như thành công** và không ném lỗi.<br>- `categoryIds` chứa id không tồn tại → dòng đó **bị bỏ qua âm thầm** (`_load_categories` chỉ nạp những id tìm thấy).<br>- Ảnh nhập bằng **đường dẫn văn bản**, hệ thống **không** có chức năng tải ảnh lên.<br>- Không có phân trang ở danh sách quản trị — toàn bộ sản phẩm được trả về một lần. |
+| **Luồng thay thế / Quy tắc** | - **Slug trùng** → backend trả **409**; Server Action gắn lỗi vào **đúng ô slug** để sửa tại chỗ. Khi sửa, chính sản phẩm đang sửa được loại khỏi phép kiểm (`Product.id != product_id`).<br>- **Giá khuyến mãi phải nhỏ hơn giá gốc**, vi phạm → **422**. Quy tắc này được kiểm ở **cả hai phía** (`.refine()` của zod và `_assert_sale_price` của backend).<br>- Slug phải khớp `^[a-z0-9-]+$`; giá > 0; tồn kho ≥ 0; mô tả ngắn và chi tiết ≥ 5 ký tự.<br>- **Tồn kho trong form là ảnh chụp lúc mở form**; bấm Lưu ghi đè con số hiện tại, kể cả phần vừa bị một đơn trừ trong lúc form đang mở. Chấp nhận vì hệ thống chỉ có một quản trị viên thao tác.<br>- **`hover_image` bị loại khỏi thao tác sửa** một cách có chủ đích: form quản trị không có ô này nên `ProductIn` luôn mang `None`, ghi đè vào sẽ **xoá mất ảnh hover đang lưu**. Muốn đổi ảnh hover phải sửa trực tiếp trong CSDL.<br>- **Xoá sản phẩm là xoá cứng.** Các dòng `order_items` trỏ tới nó được đặt `product_id = NULL` (`ON DELETE SET NULL`) — đơn hàng cũ **vẫn giữ nguyên** tên, giá và ảnh vì đã được chụp lại lúc đặt.<br>- Xoá hai lần (bấm nút liên tiếp) → backend trả 404, Server Action **coi như thành công** và không ném lỗi.<br>- `categoryIds` chứa id không tồn tại → dòng đó **bị bỏ qua âm thầm** (`_load_categories` chỉ nạp những id tìm thấy).<br>- Ảnh nhập bằng **đường dẫn văn bản**, hệ thống **không** có chức năng tải ảnh lên.<br>- Không có phân trang ở danh sách quản trị — toàn bộ sản phẩm được trả về một lần. |
 | **Hậu điều kiện** | Catalog phía khách hàng phản ánh thay đổi ngay sau khi `revalidatePath` chạy. |
 
 #### UC-QT-03 — Quản lý đơn hàng
@@ -632,12 +660,12 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | **Mã UC** | UC-QT-03 |
-| **Tác nhân** | Quản trị viên |
-| **Mô tả** | `/admin/don-hang` liệt kê toàn bộ đơn hàng (mới nhất trước) kèm ô chọn cho phép đổi trạng thái. |
-| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
-| **Luồng chính** | 1. Quản trị viên mở danh sách đơn (`GET /api/admin/orders`, nạp kèm dòng đơn hàng).<br>2. Chọn trạng thái mới cho một đơn.<br>3. Server Action kiểm tra quyền và **đối chiếu giá trị trạng thái với danh sách hợp lệ** trước khi gọi `PATCH /api/admin/orders/{id}`.<br>4. Backend cập nhật `status`, `updated_at` tự động đổi theo `onupdate`.<br>5. Hệ thống `revalidatePath('/admin/don-hang')`. |
+| **Tác nhân** | Quản trị viên (mọi cửa hàng); Nhân viên có `orders.view` (đơn của cửa hàng mình) / `orders.update` (đổi trạng thái) / `orders.payment` (nút "Đã nhận tiền") |
+| **Mô tả** | `/admin/don-hang` liệt kê toàn bộ đơn hàng (mới nhất trước) — mỗi đơn hiện người nhận, địa chỉ, **cửa hàng giao kèm khoảng cách và phí giao hàng** — cùng ô chọn cho phép đổi trạng thái. |
+| **Tiền điều kiện** | Có quyền `orders.view`; đổi trạng thái cần `orders.update`, xác nhận thanh toán cần `orders.payment`. Nhân viên chỉ thấy đơn có `store_id` trùng cửa hàng mình. |
+| **Luồng chính** | 1. Quản trị viên mở danh sách đơn (`GET /api/admin/orders`, nạp kèm dòng đơn hàng).<br>2. Chọn trạng thái mới cho một đơn.<br>3. Server Action kiểm tra quyền và **đối chiếu giá trị trạng thái với danh sách hợp lệ** trước khi gọi `PATCH /api/admin/orders/{id}`.<br>4. Backend cập nhật `status` (`updated_at` tự đổi theo `onupdate`); chuyển sang `COMPLETED` thì **trừ tồn kho** nếu đơn chưa trừ, chuyển sang `CANCELLED` thì **hoàn kho** nếu đơn đã trừ.<br>5. Server Action `revalidatePath('/admin/don-hang')` và `/admin/san-pham` (cột tồn kho đổi), rồi `redirect` về `/admin/don-hang` — kèm `?loi=<thông báo>` nếu API trả lỗi, để trang hiện banner đỏ. |
 | **Vòng đời trạng thái** | `PENDING` (Chờ xác nhận — mặc định khi tạo đơn) → `CONFIRMED` (Đã xác nhận) → `SHIPPING` (Đang giao) → `COMPLETED` (Hoàn thành); nhánh `CANCELLED` (Đã huỷ) có thể xảy ra từ bất kỳ trạng thái nào. Riêng đơn chuyển khoản có thêm `payment_status` (`UNPAID`/`PAID`) và nút **"Đã nhận tiền"** — xem UC-GH-02b. |
-| **Luồng thay thế / Quy tắc** | - **Hệ thống không ràng buộc thứ tự chuyển trạng thái.** Quản trị viên có thể nhảy thẳng từ `PENDING` sang `COMPLETED`, hoặc đưa một đơn `CANCELLED` trở lại `PENDING`. Enum chỉ giới hạn **tập giá trị**, không giới hạn **đường đi**.<br>- Trạng thái không nằm trong 5 giá trị hợp lệ → Server Action **im lặng bỏ qua**; nếu gọi thẳng API thì `Literal` của Pydantic trả **422**.<br>- Nhãn tiếng Việt và màu hiển thị khai báo tập trung tại `ORDER_STATUSES` (`src/lib/orderStatus.ts`); trạng thái lạ được hiển thị nguyên văn với màu xám thay vì làm hỏng giao diện.<br>- Quản trị viên **không sửa được** nội dung đơn (sản phẩm, số lượng, tổng tiền, thông tin người nhận) và **không xoá được** đơn.<br>- Huỷ đơn chỉ đổi trạng thái — không hoàn kho (hệ thống vốn không trừ kho) và không hoàn tiền. |
+| **Luồng thay thế / Quy tắc** | - **Hệ thống không ràng buộc thứ tự chuyển trạng thái.** Quản trị viên có thể nhảy thẳng từ `PENDING` sang `COMPLETED`, hoặc đưa một đơn `CANCELLED` trở lại `PENDING`. Enum chỉ giới hạn **tập giá trị**, không giới hạn **đường đi**.<br>- Trạng thái không nằm trong 5 giá trị hợp lệ → Server Action **im lặng bỏ qua**; nếu gọi thẳng API thì `Literal` của Pydantic trả **422**.<br>- Nhãn tiếng Việt và màu hiển thị khai báo tập trung tại `ORDER_STATUSES` (`src/lib/orderStatus.ts`); trạng thái lạ được hiển thị nguyên văn với màu xám thay vì làm hỏng giao diện.<br>- Quản trị viên **không sửa được** nội dung đơn (sản phẩm, số lượng, tổng tiền, thông tin người nhận) và **không xoá được** đơn.<br>- **Tồn kho đi theo hai mốc, trừ đúng một lần** (`app/inventory.py`, cờ `orders.stock_deducted_at`):<br>&nbsp;&nbsp;· "Đã nhận tiền" (đơn BANK) hoặc `→ COMPLETED` (mọi đơn, chủ yếu là COD) khi cờ còn NULL → trừ `stock` từng sản phẩm (gộp theo `product_id`, bỏ dòng có `product_id = NULL`) và đặt cờ. Đã có cờ → không trừ lại (`COMPLETED → PENDING → COMPLETED` vẫn chỉ trừ một lần).<br>&nbsp;&nbsp;· `→ CANCELLED` khi đã có cờ → cộng trả `stock` và xoá cờ; sau đó xác nhận lại sẽ trừ lại từ đầu. Huỷ đơn chưa trừ chỉ đổi trạng thái.<br>&nbsp;&nbsp;· `→ PENDING / CONFIRMED / SHIPPING` không đụng kho. Đơn `BANK` tự huỷ vì quá hạn (`expire_unpaid_orders`) chỉ đụng đơn `PENDING + UNPAID` — tập này chưa bao giờ bị trừ nên hàm đó không sửa.<br>&nbsp;&nbsp;· **Không đủ tồn kho** khi trừ → 400 `{message, out_of_stock}`; không có gì được ghi (ném lỗi trước `commit`), trạng thái/thanh toán giữ nguyên, banner đỏ hiện ở đầu trang. Dòng sản phẩm được khoá bằng `SELECT … FOR UPDATE` tới khi commit nên hai request song song không làm kho âm.<br>- Huỷ đơn **không hoàn tiền** (ngoài phạm vi); đơn BANK đã `PAID` bị huỷ vẫn giữ `payment_status = PAID`, mốc trừ kho kế tiếp của nó là `COMPLETED`. |
 | **Hậu điều kiện** | Trạng thái mới hiển thị ngay cho khách ở UC-GH-04, và đơn `CANCELLED` bị loại khỏi doanh thu ở UC-QT-01. |
 
 #### UC-QT-04 — Quản lý bài viết
@@ -645,9 +673,9 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | **Mã UC** | UC-QT-04 |
-| **Tác nhân** | Quản trị viên |
+| **Tác nhân** | Quản trị viên; Nhân viên có `posts.view` |
 | **Mô tả** | `/admin/bai-viet` liệt kê toàn bộ bài viết (mới nhất trước) kèm chuyên mục, dùng để **tra soát** nội dung. |
-| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Tiền điều kiện** | Có quyền `posts.view`. |
 | **Luồng chính** | 1. Quản trị viên mở `/admin/bai-viet`.<br>2. Hệ thống gọi `GET /api/admin/posts`, nạp kèm chuyên mục.<br>3. Bảng hiển thị tiêu đề, chuyên mục, ngày đăng và liên kết xem bài trên trang công khai. |
 | **Luồng thay thế / Quy tắc** | - **Chỉ đọc.** Hệ thống **không có** thêm/sửa/xoá bài viết — nội dung được nạp một lần từ RSS lưu trữ qua `seed.py`, đúng tinh thần của một bản clone.<br>- Vì vậy phân hệ này chỉ có **một** endpoint (`GET`), khác với sản phẩm (đủ CRUD). |
 | **Hậu điều kiện** | Quản trị viên đối chiếu được nội dung đang xuất bản. |
@@ -657,12 +685,26 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | **Mã UC** | UC-QT-05 |
-| **Tác nhân** | Quản trị viên |
+| **Tác nhân** | Quản trị viên; Nhân viên có `contacts.manage` |
 | **Mô tả** | `/admin/lien-he` liệt kê tin nhắn liên hệ (mới nhất trước) và cho phép **bật/tắt** cờ "đã xử lý". |
-| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Tiền điều kiện** | Có quyền `contacts.manage` (xem và đánh dấu dùng chung một khoá). |
 | **Luồng chính** | 1. Quản trị viên mở `/admin/lien-he`.<br>2. Đọc nội dung tin nhắn, liên hệ khách qua email/điện thoại ghi trong tin.<br>3. Bấm nút đánh dấu → `PATCH /api/admin/contacts/{id}`.<br>4. Backend **đảo giá trị** `handled` và trả bản ghi mới; hệ thống `revalidatePath('/admin/lien-he')`. |
 | **Luồng thay thế / Quy tắc** | - Endpoint là **toggle**, không nhận giá trị mong muốn — bấm hai lần sẽ quay về trạng thái cũ. Hệ quả: hai quản trị viên bấm gần như đồng thời có thể **triệt tiêu lẫn nhau**; hệ thống không có cơ chế khoá lạc quan.<br>- Tin nhắn **không xoá được** từ giao diện.<br>- Việc trả lời khách diễn ra **ngoài hệ thống** (email/điện thoại); cờ `handled` chỉ để đánh dấu nội bộ.<br>- Số "Liên hệ chưa xử lý" ở bảng điều khiển (UC-QT-01) cập nhật theo cờ này. |
 | **Hậu điều kiện** | Hàng chờ liên hệ phản ánh đúng công việc còn lại. |
+
+#### UC-QT-07 — Quản lý nhân sự và phân quyền
+
+| Mục | Nội dung |
+|---|---|
+| **Mã UC** | UC-QT-07 |
+| **Tác nhân** | Quản trị viên (chỉ `ADMIN`) |
+| **Mô tả** | `/admin/nhan-su` liệt kê mọi tài khoản không phải khách hàng (họ tên, email, vai trò, cửa hàng, trạng thái); form thêm tại `/admin/nhan-su/moi`, form sửa + đặt lại mật khẩu tại `/admin/nhan-su/{id}`; nút **Khoá / Mở khoá** trên từng dòng. Form gồm: họ tên, email (không đổi được sau khi tạo), số điện thoại, mật khẩu (chỉ khi tạo), vai trò, cửa hàng và **8 ô tick quyền**. |
+| **Bộ quyền** | `products.view`, `products.edit`, `orders.view`, `orders.update`, `orders.payment`, `posts.view`, `contacts.manage`, `chats.view` — khai báo ở `backend/app/permissions.py` và `src/lib/permissions.ts` (hai danh sách phải khớp). Trang tổng quan không cần khoá riêng. |
+| **Vai trò** | `STORE_MANAGER` (tick sẵn cả 8), `CASHIER` (`orders.view`, `orders.update`, `orders.payment`), `SALES` (`products.view`, `orders.view`, `orders.update`, `contacts.manage`, `chats.view`), `ADMIN` (toàn quyền, không gắn cửa hàng, ô tick bị khoá). Chọn vai trò trên form chỉ **tick sẵn** bộ mặc định; quản trị viên sửa tuỳ ý trước khi lưu — quyền thật là những ô đã tick. |
+| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Luồng chính** | 1. Quản trị viên mở `/admin/nhan-su` (`GET /api/admin/staff`, sắp theo `created_at`).<br>2. Bấm "Thêm nhân viên", điền form, chọn vai trò (bộ quyền tự tick), chọn cửa hàng, chỉnh ô tick nếu cần.<br>3. Server Action `saveStaff` kiểm quyền, kiểm dữ liệu bằng `zod`, gọi `POST /api/admin/staff` (tạo) hoặc `PUT /api/admin/staff/{id}` (sửa họ tên, SĐT, vai trò, cửa hàng, quyền).<br>4. Backend băm mật khẩu bằng bcrypt, kiểm email chưa dùng, kiểm cửa hàng tồn tại, bỏ trùng khoá quyền rồi lưu.<br>5. Khi nhân viên nghỉ việc: bấm **Khoá** → `PATCH /api/admin/staff/{id}/active` `{isActive: false}`; mở lại bằng **Mở khoá**.<br>6. Nhân viên quên mật khẩu: quản trị viên vào form sửa, nhập mật khẩu mới hai lần → `POST /api/admin/staff/{id}/password`. |
+| **Luồng thay thế / Quy tắc** | - **Email trùng** (kể cả trùng với khách hàng) → **409**, lỗi gắn vào ô email.<br>- Vai trò khác `ADMIN` mà **thiếu cửa hàng** hoặc cửa hàng không tồn tại → **422**. Chọn `ADMIN` thì `store_id = NULL`, `permissions = []` bất kể form gửi gì.<br>- Khoá quyền lạ hoặc `role = USER` bị `Literal` chặn ở biên API (**422**) — không thể tạo khách hàng hay biến nhân viên thành khách qua nhóm endpoint này; id của khách hàng trả **404** như không tồn tại.<br>- **Không tự sửa/khoá chính mình** (backend **400**, giao diện ẩn nút) để không tự khoá khỏi hệ thống. Không có ràng buộc "phải còn ít nhất một ADMIN" — hai quản trị viên vẫn có thể khoá lẫn nhau.<br>- **Khoá có hiệu lực ngay**: `deps.py` đọc lại `users` mỗi request và coi tài khoản `is_active = FALSE` như không có token (401); đăng nhập lại trả **403** "Tài khoản đã bị khoá". Đổi quyền cũng có hiệu lực ngay, không cần đăng nhập lại.<br>- Không có xoá tài khoản; không có luồng quên mật khẩu qua email (ngoài phạm vi).<br>- `permissions` là cột JSON; backend luôn gán list mới thay vì sửa tại chỗ vì SQLAlchemy không theo dõi thay đổi bên trong JSON. |
+| **Hậu điều kiện** | Nhân viên đăng nhập được, thấy đúng mục menu và đúng đơn hàng của cửa hàng mình; nhân viên đã khoá bị chặn ở mọi endpoint từ request kế tiếp. |
 
 ---
 
@@ -815,36 +857,37 @@ flowchart LR
 
 ## 4. Ma trận Tác nhân × Use Case
 
-| Use Case | Khách vãng lai | Khách hàng | Quản trị viên | Hệ thống |
-|---|:---:|:---:|:---:|---|
-| UC-CT-01 Xem trang chủ | ✅ | ✅ | ✅ | bỏ qua khối có danh mục không tồn tại |
-| UC-CT-02 Duyệt cửa hàng và danh mục | ✅ | ✅ | ✅ | phân trang 12/trang, chuẩn hoá tham số sai |
-| UC-CT-03 Xem chi tiết sản phẩm | ✅ | ✅ | ✅ | chọn tối đa 4 sản phẩm liên quan |
-| UC-CT-04 Tìm kiếm sản phẩm | ✅ | ✅ | ✅ | so khớp bỏ dấu qua `utf8mb4_unicode_ci` |
-| UC-GH-01 Quản lý giỏ hàng | ✅ | ✅ | ✅ | lưu/khôi phục `localStorage`, lọc bản ghi hỏng |
-| UC-GH-02 Thanh toán và tạo đơn | ✅ | ✅ điền sẵn hồ sơ | ✅ | **tính lại tổng tiền**, chụp giá vào dòng đơn, sinh mã `HL-XXXXXX` |
-| UC-GH-03 Tra cứu đơn theo mã | ✅ | ✅ | ✅ | — |
-| UC-GH-04 Xem lịch sử đơn hàng | | ✅ đơn của mình | ✅ xem được đơn mọi khách | lọc theo `user_id`, suy ra `itemCount` |
-| UC-TK-01 Đăng ký | ✅ | | | băm bcrypt, cấp JWT, gán `role = USER` |
-| UC-TK-02 Đăng nhập / Đăng xuất | ✅ đăng nhập | ✅ | ✅ | ký JWT HS256 7 ngày, điều hướng theo vai trò |
-| UC-TK-03 Cập nhật hồ sơ | | ✅ | ✅ | quy chuỗi rỗng về `NULL` |
-| UC-TK-04 Phân quyền và phiên | chịu tác động | chịu tác động | chịu tác động | ✅ thẩm định token, đọc lại người dùng từ CSDL, chặn `/api/admin/*` |
-| UC-ND-01 Xem tin tức và chuyên mục | ✅ | ✅ | ✅ | sắp mới nhất trước |
-| UC-ND-02 Xem trang giới thiệu | ✅ | ✅ | ✅ | — |
-| UC-ND-03 Gửi tin nhắn liên hệ | ✅ | ✅ | ✅ | lưu với `handled = FALSE` |
-| UC-QT-01 Bảng điều khiển | | | ✅ | tính 5 chỉ số, loại đơn `CANCELLED` khỏi doanh thu |
-| UC-QT-02 Quản lý sản phẩm | | | ✅ | kiểm slug trùng (409), giá KM (422), giữ `hover_image` |
-| UC-QT-03 Quản lý đơn hàng | | | ✅ | cập nhật `updated_at` tự động |
-| UC-QT-04 Quản lý bài viết | | | ✅ chỉ đọc | — |
-| UC-QT-05 Xử lý tin nhắn liên hệ | | | ✅ | đảo cờ `handled` |
-| UC-QT-06 Giám sát hội thoại trợ lý ảo | | | ✅ chỉ đọc | đếm tin bằng subquery, giới hạn 200 phiên |
-| UC-TL-01 Hỏi trợ lý tư vấn | ✅ | ✅ gắn phiên vào tài khoản | ẩn trong khu `/admin` | nhồi danh mục vào prompt, gọi Gemini, dò tên SP để gắn thẻ, chặn hạn mức |
-| UC-TL-02 Xem lại lịch sử trò chuyện | ✅ theo `client_key` | ✅ | — | trả danh sách rỗng thay vì 404; 403 nếu phiên của người khác |
-| UC-TL-03 Xoá cuộc trò chuyện | ✅ | ✅ | — | `ON DELETE CASCADE`; xoá lặp vẫn 204 |
-| UC-HT-01 SEO | gián tiếp | gián tiếp | gián tiếp | ✅ sinh sitemap/robots/metadata |
-| UC-HT-02 Xử lý lỗi | chịu tác động | chịu tác động | chịu tác động | ✅ đổi lỗi mạng thành thông báo tiếng Việt, 404, ranh giới lỗi |
+| Use Case | Khách vãng lai | Khách hàng | Nhân viên cửa hàng | Quản trị viên | Hệ thống |
+|---|:---:|:---:|:---:|:---:|---|
+| UC-CT-01 Xem trang chủ | ✅ | ✅ | ✅ | ✅ | bỏ qua khối có danh mục không tồn tại |
+| UC-CT-02 Duyệt cửa hàng và danh mục | ✅ | ✅ | ✅ | ✅ | phân trang 12/trang, chuẩn hoá tham số sai |
+| UC-CT-03 Xem chi tiết sản phẩm | ✅ | ✅ | ✅ | ✅ | chọn tối đa 4 sản phẩm liên quan |
+| UC-CT-04 Tìm kiếm sản phẩm | ✅ | ✅ | ✅ | ✅ | so khớp bỏ dấu qua `utf8mb4_unicode_ci` |
+| UC-GH-01 Quản lý giỏ hàng | ✅ | ✅ | ✅ | ✅ | lưu/khôi phục `localStorage`, lọc bản ghi hỏng |
+| UC-GH-02 Thanh toán và tạo đơn | ✅ | ✅ điền sẵn hồ sơ | ✅ | ✅ | **tính lại tổng tiền**, **tính phí giao hàng theo khoảng cách tới cửa hàng đã chọn**, chụp giá vào dòng đơn, sinh mã `HL-XXXXXX` |
+| UC-GH-03 Tra cứu đơn theo mã | ✅ | ✅ | ✅ | ✅ | — |
+| UC-GH-04 Xem lịch sử đơn hàng | | ✅ đơn của mình | ✅ đơn của cửa hàng mình (`orders.view`) | ✅ xem được đơn mọi khách | lọc theo `user_id`, suy ra `itemCount` |
+| UC-TK-01 Đăng ký | ✅ | |  | | băm bcrypt, cấp JWT, gán `role = USER` |
+| UC-TK-02 Đăng nhập / Đăng xuất | ✅ đăng nhập | ✅ | ✅ vào `/admin` | ✅ | ký JWT HS256 7 ngày, điều hướng theo vai trò |
+| UC-TK-03 Cập nhật hồ sơ | | ✅ | ✅ | ✅ | quy chuỗi rỗng về `NULL` |
+| UC-TK-04 Phân quyền và phiên | chịu tác động | chịu tác động | chịu tác động | chịu tác động | ✅ thẩm định token, đọc lại người dùng từ CSDL, chặn `/api/admin/*` |
+| UC-ND-01 Xem tin tức và chuyên mục | ✅ | ✅ | ✅ | ✅ | sắp mới nhất trước |
+| UC-ND-02 Xem trang giới thiệu | ✅ | ✅ | ✅ | ✅ | — |
+| UC-ND-03 Gửi tin nhắn liên hệ | ✅ | ✅ | ✅ | ✅ | lưu với `handled = FALSE` |
+| UC-QT-01 Bảng điều khiển | | | ✅ số liệu theo cửa hàng | ✅ | tính 5 chỉ số, loại đơn `CANCELLED` khỏi doanh thu |
+| UC-QT-02 Quản lý sản phẩm | | | ✅ theo `products.view` / `products.edit` | ✅ | kiểm slug trùng (409), giá KM (422), giữ `hover_image` |
+| UC-QT-03 Quản lý đơn hàng | | | ✅ đơn của cửa hàng, theo `orders.*` | ✅ | cập nhật `updated_at` tự động |
+| UC-QT-04 Quản lý bài viết | | | ✅ `posts.view` | ✅ chỉ đọc | — |
+| UC-QT-05 Xử lý tin nhắn liên hệ | | | ✅ `contacts.manage` | ✅ | đảo cờ `handled` |
+| UC-QT-06 Giám sát hội thoại trợ lý ảo | | | ✅ `chats.view` | ✅ chỉ đọc | đếm tin bằng subquery, giới hạn 200 phiên |
+| UC-QT-07 Quản lý nhân sự | | | | ✅ | băm mật khẩu, kiểm email trùng (409), kiểm cửa hàng (422), chặn tự khoá (400) |
+| UC-TL-01 Hỏi trợ lý tư vấn | ✅ | ✅ gắn phiên vào tài khoản | ẩn trong khu `/admin` | ẩn trong khu `/admin` | nhồi danh mục vào prompt, gọi Gemini, dò tên SP để gắn thẻ, chặn hạn mức |
+| UC-TL-02 Xem lại lịch sử trò chuyện | ✅ theo `client_key` | ✅ | — | — | trả danh sách rỗng thay vì 404; 403 nếu phiên của người khác |
+| UC-TL-03 Xoá cuộc trò chuyện | ✅ | ✅ | — | — | `ON DELETE CASCADE`; xoá lặp vẫn 204 |
+| UC-HT-01 SEO | gián tiếp | gián tiếp | gián tiếp | gián tiếp | ✅ sinh sitemap/robots/metadata |
+| UC-HT-02 Xử lý lỗi | chịu tác động | chịu tác động | chịu tác động | chịu tác động | ✅ đổi lỗi mạng thành thông báo tiếng Việt, 404, ranh giới lỗi |
 
-**Tổng cộng 26 use case** trên 7 phân hệ.
+**Tổng cộng 27 use case** trên 7 phân hệ.
 
 ---
 
@@ -1077,14 +1120,26 @@ sequenceDiagram
     participant DB as MySQL
 
     U->>UI: Mở "/thanh-toan"
+    UI->>AC: stores.list() (trang server)
+    AC->>API: GET /api/stores
+    API-->>UI: Danh sách cửa hàng, phí ở mức chuẩn → chọn sẵn cửa hàng đầu
     opt Đã đăng nhập
         UI->>AC: auth.me() qua getCurrentUser()
         AC-->>UI: Hồ sơ → điền sẵn tên, email, SĐT, địa chỉ
     end
-    U->>UI: Điền thông tin, chọn COD hoặc BANK, bấm "Đặt hàng"
-    UI->>SA: FormData + trường ẩn items = JSON[{productId, quantity}]
+    opt Bấm "Dùng vị trí của tôi"
+        UI->>U: navigator.geolocation xin quyền định vị
+        U-->>UI: Toạ độ (lat, lng) hoặc từ chối
+        UI->>SA: getShippingQuote(lat, lng)
+        SA->>AC: stores.list({lat, lng})
+        AC->>API: GET /api/stores?lat&lng
+        API->>API: haversine tới từng cửa hàng → phí theo bậc km,<br/>sắp cửa hàng gần nhất lên đầu
+        API-->>UI: StoreQuote[] → tự chọn cửa hàng gần nhất,<br/>giữ toạ độ trong trường ẩn lat, lng
+    end
+    U->>UI: Điền thông tin, chọn/đổi cửa hàng giao, chọn COD hoặc BANK, bấm "Đặt hàng"
+    UI->>SA: FormData + storeId (+ lat, lng nếu có) + trường ẩn items = JSON[{productId, quantity}]
 
-    SA->>SA: zod kiểm tra tên, email, SĐT bắt đầu bằng 0 (10-11 số),<br/>địa chỉ tối thiểu 8 ký tự, ghi chú tối đa 500 ký tự
+    SA->>SA: zod kiểm tra tên, email, SĐT bắt đầu bằng 0 (10-11 số),<br/>địa chỉ tối thiểu 8 ký tự, ghi chú tối đa 500 ký tự,<br/>storeId bắt buộc, lat/lng trong khoảng hợp lệ
     alt Dữ liệu không hợp lệ
         SA-->>UI: {errors} theo từng ô
         UI-->>U: Hiển thị lỗi tại đúng ô nhập, không gọi API
@@ -1103,7 +1158,14 @@ sequenceDiagram
                 AC-->>SA: ApiError
                 SA-->>UI: {formError}
             else Đủ sản phẩm
-                API->>API: Giá = sale_price nếu có, ngược lại price<br/>total = Σ(giá × số lượng) — KHÔNG tin số client gửi
+                API->>DB: SELECT cửa hàng theo store_id
+                alt Không có cửa hàng
+                    API-->>AC: 400 "Cửa hàng giao hàng không hợp lệ..."
+                    AC-->>SA: ApiError
+                    SA-->>UI: {formError}
+                end
+                API->>API: distance_km = haversine(khách, cửa hàng) nếu có toạ độ<br/>shipping_fee = bậc theo km, hoặc phí chuẩn nếu không có toạ độ
+                API->>API: Giá = sale_price nếu có, ngược lại price<br/>total = Σ(giá × số lượng) + shipping_fee — KHÔNG tin số client gửi
                 API->>API: Chụp name/price/image vào order_items<br/>Sinh mã HL-XXXXXX
                 API->>DB: INSERT orders + order_items (một transaction)
                 DB-->>API: Đơn đã lưu, trạng thái PENDING
@@ -1852,8 +1914,12 @@ flowchart TD
     S([Bắt đầu]) --> A{"Đã đăng nhập?"}
     A -- Có --> B["Điền sẵn tên, email,<br/>SĐT, địa chỉ từ hồ sơ"]
     A -- Không --> C["Form trống"]
-    B --> D
-    C --> D["Người dùng điền thông tin,<br/>chọn COD hoặc chuyển khoản"]
+    B --> D0
+    C --> D0{"Bấm 'Dùng vị trí<br/>của tôi'?"}
+    D0 -- Có, cho phép định vị --> D1["GET /api/stores?lat&lng:<br/>tính khoảng cách, phí từng cửa hàng;<br/>tự chọn cửa hàng gần nhất"]
+    D0 -- Không / từ chối --> D2["Giữ danh sách cửa hàng<br/>với phí chuẩn, tự chọn tay"]
+    D1 --> D
+    D2 --> D["Người dùng điền thông tin, chọn cửa hàng giao,<br/>chọn COD hoặc chuyển khoản"]
 
     subgraph SA["Server Action — placeOrder"]
         D --> E["zod kiểm tra từng ô nhập"]
@@ -1869,8 +1935,11 @@ flowchart TD
         K --> L["SELECT sản phẩm theo danh sách id"]
         L --> M{"Đủ tất cả<br/>sản phẩm?"}
         M -- Không --> N["400: Một số sản phẩm<br/>không còn tồn tại"] --> Z
-        M -- Có --> O["Giá = sale_price nếu có,<br/>ngược lại price"]
-        O --> P["total = tổng (giá × số lượng)<br/>KHÔNG tin số client gửi"]
+        M -- Có --> M1{"store_id tồn tại?"}
+        M1 -- Không --> M2["400: Cửa hàng giao hàng<br/>không hợp lệ"] --> Z
+        M1 -- Có --> M3["distance_km = haversine nếu có toạ độ<br/>shipping_fee = bậc theo km hoặc phí chuẩn"]
+        M3 --> O["Giá = sale_price nếu có,<br/>ngược lại price"]
+        O --> P["total = tổng (giá × số lượng) + shipping_fee<br/>KHÔNG tin số client gửi"]
         P --> Q["Chụp name/price/image<br/>vào order_items"]
         Q --> R["Sinh mã HL-XXXXXX"]
         R --> T{"Có token<br/>đăng nhập?"}
@@ -2210,6 +2279,7 @@ classDiagram
         +kind: CategoryKind
         +subtitle: string?
         +position: int
+        +parentId: string?
         +productCount: int «computed»
         +postCount: int «computed»
     }
@@ -2265,11 +2335,12 @@ classDiagram
 |---|---|
 | `Category.kind` | **Một bảng dùng chung** cho danh mục sản phẩm và chuyên mục bài viết. Mọi truy vấn phải kèm `kind` để không trộn lẫn hai loại. |
 | `Category.subtitle` | Phụ đề hiển thị dưới tiêu đề khối ở trang chủ; chỉ danh mục sản phẩm dùng tới. |
-| `Category.position` | Quyết định thứ tự hiển thị và **danh mục nào là "danh mục đầu tiên"** khi chọn sản phẩm liên quan. |
+| `Category.position` | Quyết định thứ tự hiển thị và **danh mục nào là "danh mục đầu tiên"** khi chọn sản phẩm liên quan. Đánh số toàn cục theo hàng chục (cha 10/20/30, con 11, 12…) nên danh sách phẳng `ORDER BY position` đã đúng thứ tự cha-rồi-con. |
+| `Category.parentId` | Danh mục cha, tự tham chiếu, chỉ **hai cấp**. `NULL` = danh mục gốc = một mục của menu chính. `ON DELETE SET NULL`: xoá cha thì con nổi lên thành gốc, không mất gán sản phẩm. Sản phẩm chỉ gán vào danh mục lá; trang danh mục cha gom sản phẩm của các con lúc truy vấn. |
 | `Product.price` | Đơn vị **VND**, kiểu **số nguyên** — tiền Việt không có phần lẻ nên không cần `DECIMAL`. |
 | `Product.salePrice` | `NULL` nghĩa là **không giảm giá**. `giaThucTe()` trả `salePrice` nếu có, ngược lại `price`. |
 | `Product.hoverImage` | Ảnh thứ hai hiện khi rê chuột lên card. **Không có ô nhập trong form quản trị** nên bị loại khỏi thao tác sửa (UC-QT-02). |
-| `Product.stock` | Chỉ để hiển thị/quản trị; **không** bị trừ khi đặt hàng và **không** chặn việc mua. |
+| `Product.stock` | Trừ khi xác nhận thanh toán (BANK) / hoàn thành đơn (COD), hoàn lại khi huỷ đơn đã trừ; `0` → "Hết hàng", khoá nút mua và chặn đặt hàng. |
 | `Post.content` | HTML lấy nguyên từ RSS lưu trữ của site gốc, nạp qua `seed.py`. |
 | `ProductPage` | Kết quả phân trang; `pageSize = null` nghĩa là **không phân trang** (trang chủ, tìm kiếm, sitemap dùng chế độ này). |
 
@@ -2313,6 +2384,13 @@ classDiagram
         +note: string?
         +paymentMethod: PaymentMethod
         +status: OrderStatus
+        +paymentStatus: PaymentStatus
+        +paidAt: datetime?
+        +paymentExpiresAt: datetime?
+        +stockDeductedAt: datetime?
+        +storeId: string?
+        +shippingFee: int
+        +distanceKm: float?
         +total: int
         +createdAt: datetime
         +updatedAt: datetime
@@ -2330,6 +2408,17 @@ classDiagram
         +thanhTien() int
     }
 
+    class Store {
+        +id: string
+        +name: string
+        +address: string
+        +lat: float
+        +lng: float
+        +position: int
+        +khoangCachToi(lat, lng) float
+        +phiGiaoHang(distanceKm) int
+    }
+
     class OrderStatus {
         <<enumeration>>
         PENDING
@@ -2345,8 +2434,15 @@ classDiagram
         BANK
     }
 
+    class PaymentStatus {
+        <<enumeration>>
+        UNPAID
+        PAID
+    }
+
     Cart "1" *-- "*" CartLine
     Order "1" *-- "1..*" OrderItem
+    Store "0..1" <-- "*" Order : giao từ
     Order --> OrderStatus
     Order --> PaymentMethod
     Order ..> Cart : sinh ra từ
@@ -2356,7 +2452,10 @@ classDiagram
 |---|---|
 | `Order.code` | Mã hiển thị cho khách, sinh bằng `secrets.token_hex(3)` → 6 ký tự hex viết hoa. Là **khoá tra cứu công khai** (UC-GH-03). |
 | `Order.userId` | `NULL` khi khách vãng lai đặt hàng. Khoá ngoại dùng `ON DELETE SET NULL` — xoá tài khoản **không** xoá đơn. |
-| `Order.total` | **Chốt tại thời điểm đặt**, do backend tính từ CSDL. Không bao giờ lấy từ client. |
+| `Order.total` | **Chốt tại thời điểm đặt**, do backend tính từ CSDL = Σ(giá × số lượng) + `shippingFee`. Không bao giờ lấy từ client. |
+| `Order.storeId` / `shippingFee` / `distanceKm` | Cửa hàng giao đơn, phí giao hàng chốt lúc đặt và khoảng cách (km) dùng để tính phí. `storeId` `NULL` và phí `0` với đơn đặt trước khi có tính năng; `distanceKm` `NULL` khi khách không chia sẻ vị trí (phí chuẩn). |
+| `Store` | Điểm bán hàng thật, seed 3 bản ghi (Tân Bình, 120 Yên Lãng, ngõ 38 Yên Lãng). Toạ độ lưu `DOUBLE`; không có CRUD ở giao diện quản trị. Logic khoảng cách/phí nằm trong `app/shipping.py`. |
+| `Order.stockDeductedAt` | Mốc đã trừ tồn kho; `NULL` = chưa trừ. Là cờ để trừ đúng một lần và hoàn kho khi huỷ (UC-QT-03). Không trả ra API. |
 | `Order.itemCount` | Trường **suy ra** bằng `@computed_field` của Pydantic từ độ dài `items` — không có cột trong CSDL. |
 | `OrderItem` | **Ảnh chụp** tên, giá, ảnh sản phẩm tại thời điểm đặt. Nhờ vậy đơn cũ không đổi khi sản phẩm đổi giá hoặc bị xoá. |
 | `OrderItem.productId` | `NULL` khi sản phẩm gốc đã bị xoá (`ON DELETE SET NULL`) — dòng đơn vẫn hiển thị đầy đủ nhờ dữ liệu đã chụp. |
@@ -2375,16 +2474,36 @@ classDiagram
         +name: string
         +passwordHash: string
         +role: Role
+        +permissions: Permission[]
+        +storeId: string?
+        +isActive: bool
         +phone: string?
         +address: string?
         +createdAt: datetime
         +laQuanTri() bool
+        +laNhanVien() bool
+        +coQuyen(Permission) bool
     }
 
     class Role {
         <<enumeration>>
         USER
         ADMIN
+        STORE_MANAGER
+        CASHIER
+        SALES
+    }
+
+    class Permission {
+        <<enumeration>>
+        products.view
+        products.edit
+        orders.view
+        orders.update
+        orders.payment
+        posts.view
+        contacts.manage
+        chats.view
     }
 
     class Session {
@@ -2421,6 +2540,8 @@ classDiagram
     }
 
     User --> Role
+    User "0..*" --> "0..1" Store : store_id, SET NULL
+    User ..> Permission : tick riêng từng tài khoản
     Session ..> User : giải mã sub rồi đọc lại CSDL
     AdminStats ..> ContactMessage : đếm handled = false
 ```
@@ -2428,7 +2549,9 @@ classDiagram
 | Lớp / thuộc tính | Ghi chú |
 |---|---|
 | `User.passwordHash` | Chuỗi bcrypt `$2b$...`, **cùng định dạng** với `bcryptjs` của bản Next.js cũ nên dữ liệu người dùng cũ vẫn đăng nhập được. |
-| `User.role` | Chỉ hai giá trị; **không có giao diện đổi vai trò** — phải sửa trực tiếp trong CSDL hoặc chạy `seed.py`. |
+| `User.role` | Với nhân viên chỉ là **chức danh**; quyền thật là `permissions`. `ADMIN` bỏ qua `permissions` (`coQuyen()` luôn đúng). Quản trị viên đổi vai trò/quyền ở `/admin/nhan-su` (UC-QT-07). |
+| `User.permissions` | Cột JSON chứa danh sách khoá thuộc `Permission`; rỗng với khách hàng và `ADMIN`. |
+| `User.storeId` / `isActive` | Cửa hàng nhân viên làm việc (NULL với `ADMIN` và khách) và cờ khoá tài khoản; `isActive = false` → 401 ở mọi request, 403 khi đăng nhập. |
 | `Session` | Không lưu ở đâu ngoài cookie của trình duyệt. Backend **giải mã `sub` rồi đọc lại bảng `users`** mỗi request, nên `role` trong token chỉ mang tính tham khảo. |
 | `ContactMessage.handled` | Cờ nội bộ. Endpoint cập nhật là **toggle** (đảo giá trị), không nhận giá trị mong muốn. |
 | `AdminStats.revenue` | `SUM(total)` của các đơn có `status != 'CANCELLED'` — **bao gồm cả đơn chưa xác nhận**. |
@@ -2542,6 +2665,7 @@ Bốn lớp `<<computed>>` ở mục 7 (`Cart`, `AdminStats`, `Session`, `ChatRe
 
 ```mermaid
 erDiagram
+    CATEGORIES |o--o{ CATEGORIES : "danh mục con"
     CATEGORIES ||--o{ PRODUCT_CATEGORIES : "phân loại sản phẩm"
     PRODUCTS   ||--o{ PRODUCT_CATEGORIES : "thuộc danh mục"
     CATEGORIES ||--o{ POST_CATEGORIES : "phân loại bài viết"
@@ -2568,6 +2692,7 @@ erDiagram
         varchar20 kind "product hoặc post"
         varchar500 subtitle "NULL được"
         int position "thứ tự hiển thị"
+        varchar36 parent_id FK "NULL = danh mục gốc; ON DELETE SET NULL"
     }
     PRODUCTS {
         varchar36 id PK
@@ -2579,7 +2704,7 @@ erDiagram
         varchar500 hover_image "NULL được"
         varchar500 short_description
         text description
-        int stock "không tự trừ khi đặt hàng"
+        int stock "trừ khi xác nhận thanh toán/hoàn thành, hoàn khi huỷ"
         datetime6 created_at
         datetime6 updated_at
     }
@@ -2601,6 +2726,7 @@ erDiagram
         varchar36 category_id PK "FK, ON DELETE CASCADE"
     }
 
+    CATEGORIES |o--o{ CATEGORIES : "danh mục con"
     CATEGORIES ||--o{ PRODUCT_CATEGORIES : ""
     PRODUCTS   ||--o{ PRODUCT_CATEGORIES : ""
     CATEGORIES ||--o{ POST_CATEGORIES : ""
@@ -2616,7 +2742,10 @@ erDiagram
         varchar191 email UK
         varchar255 name
         varchar255 password_hash "bcrypt"
-        varchar20 role "USER hoặc ADMIN"
+        varchar20 role "USER ADMIN STORE_MANAGER CASHIER SALES"
+        json permissions "mảng khoá quyền, rỗng với USER/ADMIN"
+        varchar36 store_id FK "NULL với ADMIN/USER, ON DELETE SET NULL"
+        boolean is_active "FALSE = đã khoá"
         varchar30 phone "NULL được"
         varchar500 address "NULL được"
         datetime6 created_at
@@ -2632,9 +2761,24 @@ erDiagram
         varchar500 note "NULL được"
         varchar20 payment_method "COD hoặc BANK"
         varchar20 status "PENDING CONFIRMED SHIPPING COMPLETED CANCELLED"
-        int total "backend tính lại từ CSDL"
+        varchar20 payment_status "UNPAID hoặc PAID"
+        datetime6 paid_at "NULL được"
+        datetime6 payment_expires_at "chỉ đơn BANK"
+        datetime6 stock_deducted_at "NULL = chưa trừ kho"
+        varchar36 store_id FK "NULL với đơn cũ, ON DELETE SET NULL"
+        int shipping_fee "backend tính theo khoảng cách, đơn cũ = 0"
+        double distance_km "NULL khi khách không chia sẻ vị trí"
+        int total "backend tính lại từ CSDL, đã gồm shipping_fee"
         datetime6 created_at
         datetime6 updated_at
+    }
+    STORES {
+        varchar36 id PK
+        varchar255 name
+        varchar500 address
+        double lat "toạ độ, DOUBLE để không mất chữ số"
+        double lng
+        int position "thứ tự hiển thị, cửa hàng đầu được chọn sẵn"
     }
     ORDER_ITEMS {
         varchar36 id PK
@@ -2647,6 +2791,7 @@ erDiagram
     }
 
     USERS    ||--o{ ORDERS : "đặt"
+    STORES   ||--o{ ORDERS : "giao"
     ORDERS   ||--|{ ORDER_ITEMS : "gồm"
     PRODUCTS ||--o{ ORDER_ITEMS : "tham chiếu"
 ```
@@ -2748,9 +2893,14 @@ CREATE TABLE categories (
     -- phụ đề hiển thị dưới tiêu đề khối ở trang chủ
     subtitle  VARCHAR(500) NULL,
     position  INT          NOT NULL,
+    -- danh mục cha (cây 2 cấp theo menu chính); NULL = danh mục gốc
+    parent_id VARCHAR(36)  NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uq_categories_slug (slug),
-    KEY ix_categories_kind (kind)
+    KEY ix_categories_kind (kind),
+    KEY ix_categories_parent_id (parent_id),
+    CONSTRAINT fk_categories_parent_id_categories
+        FOREIGN KEY (parent_id) REFERENCES categories (id) ON DELETE SET NULL
 );
 
 CREATE TABLE products (
@@ -2766,7 +2916,7 @@ CREATE TABLE products (
     hover_image       VARCHAR(500) NULL,
     short_description VARCHAR(500) NOT NULL,
     description       TEXT         NOT NULL,
-    -- chỉ để hiển thị/quản trị; hệ thống KHÔNG trừ khi có đơn hàng
+    -- trừ khi admin xác nhận đã nhận tiền (BANK) hoặc đơn COMPLETED (COD), hoàn khi huỷ; 0 = hết hàng
     stock             INT          NOT NULL,
     created_at        DATETIME(6)  NOT NULL,
     updated_at        DATETIME(6)  NOT NULL,
@@ -2820,16 +2970,40 @@ CREATE TABLE users (
     name          VARCHAR(255) NOT NULL,
     -- chuỗi bcrypt dạng $2b$..., tương thích với bcryptjs của bản Next.js cũ
     password_hash VARCHAR(255) NOT NULL,
-    -- 'USER' hoặc 'ADMIN' — ràng buộc ở tầng ứng dụng
+    -- 'USER' | 'ADMIN' | 'STORE_MANAGER' | 'CASHIER' | 'SALES' — ràng buộc ở tầng ứng dụng
     role          VARCHAR(20)  NOT NULL,
+    -- mảng khoá quyền của nhân viên, vd. ["orders.view","orders.update"]; [] với USER/ADMIN
+    permissions   JSON         NOT NULL,
+    -- cửa hàng nhân viên làm việc; NULL với ADMIN (mọi cửa hàng) và khách hàng
+    store_id      VARCHAR(36)  NULL,
+    -- FALSE = tài khoản bị khoá (nhân viên nghỉ việc)
+    is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
     phone         VARCHAR(30)  NULL,
     address       VARCHAR(500) NULL,
     created_at    DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_users_email (email)
+    UNIQUE KEY uq_users_email (email),
+    KEY ix_users_store_id (store_id),
+    CONSTRAINT fk_users_store_id_stores FOREIGN KEY (store_id)
+        REFERENCES stores (id) ON DELETE SET NULL
 );
 
 -- ---------------------------------------------
+-- Hệ thống cửa hàng: khách chọn cửa hàng giao khi thanh toán,
+-- phí giao hàng tính theo khoảng cách tới cửa hàng đó.
+-- ---------------------------------------------
+CREATE TABLE stores (
+    id       VARCHAR(36)  NOT NULL,
+    name     VARCHAR(255) NOT NULL,
+    address  VARCHAR(500) NOT NULL,
+    -- DOUBLE chứ không FLOAT: FLOAT chỉ giữ ~7 chữ số, toạ độ sẽ lệch
+    lat      DOUBLE       NOT NULL,
+    lng      DOUBLE       NOT NULL,
+    -- thứ tự hiển thị; cửa hàng đầu được chọn sẵn ở trang thanh toán
+    position INT          NOT NULL,
+    PRIMARY KEY (id)
+);
+
 -- Đơn hàng
 -- ---------------------------------------------
 CREATE TABLE orders (
@@ -2847,7 +3021,20 @@ CREATE TABLE orders (
     payment_method VARCHAR(20)  NOT NULL,
     -- PENDING | CONFIRMED | SHIPPING | COMPLETED | CANCELLED
     status         VARCHAR(20)  NOT NULL,
-    -- tổng tiền chốt lúc đặt, do backend tính lại từ CSDL
+    -- UNPAID | PAID — admin đánh dấu tay khi thấy tiền về; đơn COD giữ UNPAID
+    payment_status VARCHAR(20)  NOT NULL DEFAULT 'UNPAID',
+    paid_at        DATETIME(6)  NULL,
+    -- chỉ đơn BANK: quá mốc này mà chưa trả thì tự huỷ
+    payment_expires_at DATETIME(6) NULL,
+    -- mốc đã trừ tồn kho; NULL = chưa trừ (trừ đúng một lần, hoàn khi huỷ)
+    stock_deducted_at DATETIME(6) NULL,
+    -- NULL với đơn đặt trước khi có tính năng chọn cửa hàng
+    store_id       VARCHAR(36)  NULL,
+    -- phí giao hàng chốt lúc đặt, backend tính theo khoảng cách; đơn cũ = 0
+    shipping_fee   INT          NOT NULL DEFAULT 0,
+    -- khoảng cách khách → cửa hàng (km); NULL khi khách không chia sẻ vị trí
+    distance_km    DOUBLE       NULL,
+    -- tổng tiền chốt lúc đặt = tiền hàng + shipping_fee, do backend tính lại từ CSDL
     total          INT          NOT NULL,
     created_at     DATETIME(6)  NOT NULL,
     updated_at     DATETIME(6)  NOT NULL,
@@ -2855,8 +3042,11 @@ CREATE TABLE orders (
     UNIQUE KEY uq_orders_code (code),
     KEY ix_orders_user_id (user_id),
     KEY ix_orders_status (status),
+    KEY ix_orders_store_id (store_id),
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
-        REFERENCES users (id) ON DELETE SET NULL
+        REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT fk_orders_store_id_stores FOREIGN KEY (store_id)
+        REFERENCES stores (id) ON DELETE SET NULL
 );
 
 -- Chụp lại tên/giá/ảnh tại thời điểm đặt, để đơn cũ không đổi
@@ -2940,6 +3130,7 @@ CREATE TABLE chat_messages (
 |---|---|
 | `uq_products_slug`, `uq_posts_slug`, `uq_categories_slug` UNIQUE | Tra cứu theo slug ở mọi trang chi tiết (`/san-pham/{slug}`, `/tin-tuc/{slug}`, `/danh-muc-san-pham/{slug}`) — đường vào chính của toàn site. Đồng thời chặn slug trùng ở UC-QT-02 (lỗi 409). |
 | `ix_categories_kind` | Mọi truy vấn danh mục đều lọc `kind = 'product'` hoặc `kind = 'post'` (thanh bên cửa hàng, thanh bên tin tức, trang chủ, sitemap). |
+| `ix_categories_parent_id` | Gom danh mục con của một danh mục cha: lọc sản phẩm ở trang danh mục cha và đếm `productCount` (cha + con) ở thanh bên. |
 | `uq_users_email` UNIQUE | Đăng nhập tra theo email; chặn đăng ký trùng (lỗi 409). Độ dài 191 ký tự là giới hạn an toàn cho chỉ mục `utf8mb4` trên các phiên bản MySQL cũ. |
 | `uq_orders_code` UNIQUE | Tra cứu đơn theo mã ở trang cảm ơn và trang chi tiết đơn; đồng thời chặn mã trùng do `secrets.token_hex` sinh ra. |
 | `ix_orders_user_id` | Trang "Đơn hàng của tôi" lọc theo `user_id`. |
@@ -2953,7 +3144,7 @@ CREATE TABLE chat_messages (
 **Điểm chưa tối ưu, cần biết khi dữ liệu lớn lên:**
 
 - Tìm kiếm dùng `LIKE '%q%'` trên ba cột (`name`, `short_description`, `description`) — **không dùng được chỉ mục**, MySQL phải quét toàn bảng. Với vài trăm sản phẩm thì không đáng kể; muốn mở rộng cần `FULLTEXT INDEX` hoặc công cụ tìm kiếm riêng.
-- Đếm sản phẩm/bài viết theo danh mục dùng **truy vấn con tương quan** cho từng dòng danh mục — chấp nhận được vì số danh mục nhỏ và cố định.
+- Đếm sản phẩm/bài viết theo danh mục dùng **truy vấn con tương quan** cho từng dòng danh mục (đếm sản phẩm còn JOIN thêm `categories` để gom con) — chấp nhận được vì số danh mục nhỏ và cố định.
 - Các trang quản trị (`/admin/san-pham`, `/admin/don-hang`, `/admin/bai-viet`, `/admin/lien-he`) **không phân trang** — trả toàn bộ bảng về một lần.
 - Tổng số đơn và doanh thu tính lại bằng `COUNT`/`SUM` mỗi lần mở bảng điều khiển, không có cache.
 
@@ -2962,12 +3153,16 @@ CREATE TABLE chat_messages (
 Những ràng buộc sau vượt khả năng của constraint trong một dòng/bảng, hoặc được cố ý đặt ở tầng ứng dụng:
 
 - **Tính lại tổng tiền khi tạo đơn** (UC-GH-02): backend đọc lại `products`, chọn `sale_price` nếu có, rồi `total = Σ(giá × số lượng)`. **Không bao giờ** tin số tiền do client gửi.
+- **Tính phí giao hàng khi tạo đơn** (UC-GH-02): backend nạp `stores` theo `store_id`, tính `distance_km` bằng haversine từ toạ độ khách gửi (nếu có) tới cửa hàng, tra bậc phí trong `app/shipping.py` (không có toạ độ → phí chuẩn), rồi cộng vào `total`. Client chỉ gửi `store_id`, `lat`, `lng` — không gửi phí. Toạ độ được tin ở mức như địa chỉ tự nhập (khách có thể giả).
+- **Trừ / hoàn tồn kho đúng một lần** (UC-GH-02b, UC-QT-03): `app/inventory.py` dùng cờ `orders.stock_deducted_at` (NULL = chưa trừ) và `SELECT … FOR UPDATE` trên `products` để hai request song song không làm kho âm; thiếu hàng → 400 trước khi `commit` nên không có gì được ghi. Lúc đặt hàng chỉ **kiểm tra** `quantity ≤ stock`, không giữ chỗ. CSDL **không** có `CHECK (stock >= 0)`.
 - **Chụp dữ liệu sản phẩm vào `order_items`**: `name`, `price`, `image` được sao chép lúc đặt, nên đơn cũ bất biến trước mọi thay đổi sau đó của sản phẩm.
 - **Sinh mã đơn duy nhất**: `secrets.token_hex(3)` + ràng buộc UNIQUE trên `code`. Hệ thống **không thử lại** khi trùng — sẽ là lỗi 500 (xác suất rất thấp).
 - **Giá khuyến mãi phải nhỏ hơn giá gốc** (UC-QT-02): kiểm ở cả `zod` (frontend) lẫn `_assert_sale_price` (backend). CSDL **không** có CHECK constraint cho việc này.
 - **Slug duy nhất khi sửa sản phẩm**: `_assert_slug_free` loại chính sản phẩm đang sửa ra khỏi phép kiểm trước khi báo 409.
 - **Giữ `hover_image` khi cập nhật sản phẩm**: cột này bị loại khỏi payload `PUT` vì form quản trị không có ô nhập tương ứng.
-- **Ràng buộc tập giá trị enum** (`role`, `status`, `payment_method`, `kind`): do `Literal` của Pydantic đảm nhiệm; CSDL chỉ thấy `VARCHAR`.
+- **Ràng buộc tập giá trị enum** (`role`, `status`, `payment_method`, `kind`, khoá trong `permissions`): do `Literal` của Pydantic đảm nhiệm; CSDL chỉ thấy `VARCHAR`/`JSON`.
+- **Nhân viên phải thuộc một cửa hàng, ADMIN thì không** (UC-QT-07): `store_id NULL` là hợp lệ ở CSDL cho cả hai trường hợp nên router `staff.py` kiểm theo `role`. Bộ quyền tick sẵn theo vai trò chỉ tồn tại ở frontend; backend chỉ kiểm khoá hợp lệ và bỏ trùng.
+- **Phạm vi cửa hàng của nhân viên** (UC-TK-04): điều kiện `orders.store_id = users.store_id` được ghép vào truy vấn ở `admin.py`; nhân viên có `store_id NULL` nhận điều kiện `FALSE` chứ không phải `IS NULL` để không thấy nhầm các đơn cũ chưa gắn cửa hàng.
 - **Giá trị mặc định khi tạo bản ghi**: gán ở tầng SQLAlchemy, không có `DEFAULT` trong DDL.
 - **Cắt mật khẩu còn 72 byte trước khi băm**: để `bcrypt` của Python hành xử giống `bcryptjs` và tương thích với dữ liệu người dùng cũ.
 - **Quy chuỗi rỗng về `NULL`** ở hồ sơ người dùng và tin nhắn liên hệ, tránh hai cách biểu diễn cùng một ý nghĩa.
@@ -3059,15 +3254,17 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Mật khẩu không được lưu dạng rõ | Băm bằng **bcrypt** với salt ngẫu nhiên; mật khẩu cắt còn 72 byte để tương thích `bcryptjs` | `backend/app/security.py` |
 | Token phiên không được lộ ra JavaScript trong trình duyệt | JWT chỉ nằm trong cookie `httpOnly`, `sameSite=lax`, `secure` khi production; lớp gọi API đánh dấu `server-only` | `src/lib/session.ts`, `src/lib/api.ts` |
 | Khoá ký phải bắt buộc cấu hình | Thiếu `AUTH_SECRET` (hoặc `DATABASE_URL`) thì API **không khởi động được**, thay vì chạy với khoá mặc định | `backend/app/config.py` |
-| Quyền bị thu hồi phải có hiệu lực ngay | Mỗi request xác thực đều **đọc lại bảng `users`** thay vì tin payload token | `backend/app/deps.py` |
-| Khu quản trị không truy cập được bằng cách gọi thẳng API | `Depends(admin_user)` gắn ở **cấp router** `/api/admin/*` (401 thiếu token, 403 sai quyền); frontend chỉ chặn sớm cho thân thiện | `backend/app/routers/admin.py`, `src/app/admin/layout.tsx` |
-| Số tiền không được client quyết định | Backend đọc lại giá từ CSDL và tính lại `total`; client chỉ gửi `productId` và `quantity` | `backend/app/routers/orders.py` |
+| Quyền bị thu hồi / tài khoản bị khoá phải có hiệu lực ngay | Mỗi request xác thực đều **đọc lại bảng `users`** thay vì tin payload token; `is_active = FALSE` bị coi như không có token | `backend/app/deps.py` |
+| Khu quản trị không truy cập được bằng cách gọi thẳng API | `Depends(staff_user)` gắn ở **cấp router** `/api/admin/*` (401 thiếu token, 403 khách hàng) và `require("<khoá>")` trên từng endpoint; `/api/admin/staff/*` chỉ `admin_user`; frontend chỉ chặn sớm cho thân thiện | `backend/app/routers/admin.py`, `backend/app/routers/staff.py`, `src/app/admin/layout.tsx` |
+| Nhân viên không thấy dữ liệu cửa hàng khác | Truy vấn đơn hàng và thống kê ghép điều kiện `store_id`; đơn ngoài phạm vi trả 404 như không tồn tại | `backend/app/routers/admin.py` |
+| Không tự thăng quyền / không biến khách thành nhân viên | Đăng ký luôn `USER`; nhóm `/api/admin/staff` chỉ `ADMIN`, `Literal` loại `USER` khỏi vai trò hợp lệ, id khách trả 404; không tự sửa/khoá chính mình (400) | `backend/app/routers/staff.py`, `backend/app/permissions.py` |
+| Số tiền không được client quyết định | Backend đọc lại giá từ CSDL, tính phí giao hàng theo khoảng cách và tính lại `total`; client chỉ gửi `productId`, `quantity`, `storeId` và toạ độ (tuỳ chọn) | `backend/app/routers/orders.py`, `backend/app/shipping.py` |
 | Không để lộ email nào đã đăng ký | Sai email và sai mật khẩu trả **cùng một thông báo 401** | `backend/app/routers/auth.py` |
 | Dữ liệu vào phải được kiểm ở biên hệ thống | `pydantic` kiểm mọi payload tại biên API, độc lập với `zod` ở frontend | `backend/app/schemas.py` |
 | Giới hạn nguồn gọi API từ trình duyệt | CORS chỉ mở cho các origin liệt kê trong `CORS_ORIGINS` | `backend/app/main.py` |
 | Trang riêng tư không bị lập chỉ mục | `robots.txt` chặn `/admin`, `/tai-khoan`, `/thanh-toan`, `/gio-hang`, `/dat-hang-thanh-cong` | `src/app/robots.ts` |
 
-**Rủi ro đã biết, chấp nhận trong phạm vi đồ án:** endpoint tra đơn theo mã là công khai (ai biết mã đều xem được đơn); không có giới hạn số lần đăng nhập sai, captcha, xác minh email, đổi/quên mật khẩu, hay cơ chế thu hồi token trước hạn. Với trợ lý ảo, `chat_sessions.client_key` đóng vai trò "vé" — ai biết chuỗi UUID đó thì đọc được lịch sử của phiên **vô danh** tương ứng (122 bit ngẫu nhiên nên không đoán được); phiên đã gắn tài khoản thì có kiểm chủ sở hữu và trả **403**. Hạn mức chống spam đếm bằng truy vấn CSDL nên một loạt request đồng thời vẫn có thể lọt qua trước khi commit.
+**Rủi ro đã biết, chấp nhận trong phạm vi đồ án:** endpoint tra đơn theo mã là công khai (ai biết mã đều xem được đơn); không có giới hạn số lần đăng nhập sai, captcha, xác minh email, quên mật khẩu tự phục vụ (chỉ quản trị viên đặt lại hộ), hay cơ chế thu hồi token trước hạn ngoài việc khoá tài khoản. Với trợ lý ảo, `chat_sessions.client_key` đóng vai trò "vé" — ai biết chuỗi UUID đó thì đọc được lịch sử của phiên **vô danh** tương ứng (122 bit ngẫu nhiên nên không đoán được); phiên đã gắn tài khoản thì có kiểm chủ sở hữu và trả **403**. Hạn mức chống spam đếm bằng truy vấn CSDL nên một loạt request đồng thời vẫn có thể lọt qua trước khi commit.
 
 ### 10.2. Hiệu năng
 
@@ -3137,28 +3334,28 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Dựng môi trường nhanh | `docker compose up -d` cho MySQL + phpMyAdmin; `python seed.py` nạp dữ liệu mẫu |
 | Không đụng MySQL sẵn có trên máy dev | Container ánh xạ cổng **3307** thay vì 3306 |
 | Tài liệu API luôn khớp mã nguồn | FastAPI tự sinh Swagger tại `/docs` từ chính các lớp Pydantic |
-| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 48 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, mục 11 (trợ lý ảo, 10 kiểm tra gồm chọn chủ đề và đổi chủ đề) thêm sau và chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
+| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 83 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
 
 ---
 
 ## Phụ lục A — Danh mục API endpoint
 
-Toàn bộ **31 endpoint** của backend FastAPI. Tài liệu tương tác được sinh tự động tại `http://localhost:8000/docs`.
+Toàn bộ **39 endpoint** của backend FastAPI. Tài liệu tương tác được sinh tự động tại `http://localhost:8000/docs`.
 
-**Cột "Quyền"**: *Công khai* = không cần token · *Đăng nhập* = cần token hợp lệ (401 nếu thiếu) · *ADMIN* = cần token và `role = ADMIN` (401 nếu thiếu token, 403 nếu sai quyền).
+**Cột "Quyền"**: *Công khai* = không cần token · *Đăng nhập* = cần token hợp lệ (401 nếu thiếu) · *Nhân viên* = tài khoản không phải `USER` · *`<khoá>`* = nhân viên có khoá đó trong `permissions` (hoặc `ADMIN`) · *ADMIN* = chỉ `role = ADMIN`. Thiếu token hoặc tài khoản bị khoá → 401, sai quyền → 403.
 
 ### A.1. Sản phẩm — `products` (2)
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `GET /api/products` | Công khai | Danh sách sản phẩm; tham số `category`, `q`, `sort`, `page`, `page_size`. Bỏ trống `page_size` thì trả tất cả | UC-CT-01, UC-CT-02, UC-CT-04, UC-HT-01 |
+| `GET /api/products` | Công khai | Danh sách sản phẩm; tham số `category`, `q`, `sort`, `page`, `page_size`. `category` là slug danh mục cha thì gom cả sản phẩm của các danh mục con, mỗi sản phẩm một lần. Bỏ trống `page_size` thì trả tất cả | UC-CT-01, UC-CT-02, UC-CT-04, UC-HT-01 |
 | `GET /api/products/{slug}` | Công khai | Chi tiết sản phẩm kèm danh mục và tối đa 4 sản phẩm liên quan; 404 nếu không có | UC-CT-03 |
 
 ### A.2. Danh mục — `categories` (2)
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `GET /api/categories` | Công khai | Danh mục kèm `productCount` và `postCount`; lọc bằng `kind` | UC-CT-01, UC-CT-02, UC-ND-01, UC-HT-01 |
+| `GET /api/categories` | Công khai | Danh mục (phẳng, kèm `parentId`) với `productCount` và `postCount`; `productCount` của danh mục cha đã gom các con; lọc bằng `kind` | UC-CT-01, UC-CT-02, UC-ND-01, UC-HT-01 |
 | `GET /api/categories/{slug}` | Công khai | Một danh mục theo slug; lọc thêm bằng `kind`; 404 nếu không có | UC-CT-02, UC-ND-01 |
 
 ### A.3. Bài viết — `posts` (2)
@@ -3172,7 +3369,7 @@ Toàn bộ **31 endpoint** của backend FastAPI. Tài liệu tương tác đư�
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `POST /api/auth/login` | Công khai | Đăng nhập, trả `{token, user}`; 401 khi sai email **hoặc** mật khẩu (cùng một thông báo) | UC-TK-02 |
+| `POST /api/auth/login` | Công khai | Đăng nhập, trả `{token, user}` (user kèm `permissions`, `storeId`); 401 khi sai email **hoặc** mật khẩu (cùng một thông báo); 403 khi tài khoản đã bị khoá | UC-TK-02 |
 | `POST /api/auth/register` | Công khai | Đăng ký (201) rồi cấp token luôn; 409 khi email đã dùng | UC-TK-01 |
 | `GET /api/auth/me` | Đăng nhập | Hồ sơ người dùng hiện tại; là nguồn của `getCurrentUser()` | UC-TK-04 |
 | `PATCH /api/auth/me` | Đăng nhập | Cập nhật họ tên, điện thoại, địa chỉ | UC-TK-03 |
@@ -3181,9 +3378,15 @@ Toàn bộ **31 endpoint** của backend FastAPI. Tài liệu tương tác đư�
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `POST /api/orders` | Công khai (token **tuỳ chọn**) | Tạo đơn (201); backend tính lại tổng tiền; có token thì gán `user_id`; 400 khi sản phẩm không còn tồn tại | UC-GH-02 |
+| `POST /api/orders` | Công khai (token **tuỳ chọn**) | Tạo đơn (201); body có thêm `storeId` (bắt buộc) và `lat`, `lng` (tuỳ chọn); backend tính lại tổng tiền và phí giao hàng theo khoảng cách; có token thì gán `user_id`; 400 khi sản phẩm không còn tồn tại (`missing_product_ids`), vượt tồn kho (`out_of_stock`) hoặc cửa hàng không hợp lệ | UC-GH-02 |
 | `GET /api/orders` | Đăng nhập | Đơn hàng của chính người đang đăng nhập, mới nhất trước | UC-GH-04 |
 | `GET /api/orders/{code}` | **Công khai** | Chi tiết đơn theo mã — công khai có chủ đích để khách vãng lai xem trang cảm ơn | UC-GH-03 |
+
+### A.5b. Cửa hàng — `stores` (1)
+
+| Phương thức & đường dẫn | Quyền | Mô tả | Use case |
+|---|---|---|---|
+| `GET /api/stores` | Công khai | Danh sách cửa hàng theo `position` kèm `shippingFee` mức chuẩn; truyền `?lat=&lng=` thì tính `distanceKm` tới từng cửa hàng, phí theo bậc km và sắp cửa hàng gần nhất lên đầu. Trang thanh toán và trang liên hệ dùng chung | UC-GH-02, UC-ND-03 |
 
 ### A.6. Liên hệ — `contact` (1)
 
@@ -3191,25 +3394,39 @@ Toàn bộ **31 endpoint** của backend FastAPI. Tài liệu tương tác đư�
 |---|---|---|---|
 | `POST /api/contact` | Công khai | Gửi tin nhắn liên hệ (201), lưu với `handled = FALSE` | UC-ND-03 |
 
-### A.7. Quản trị — `admin` (13)
+### A.7. Quản trị — `admin` (14)
 
-Toàn bộ nhóm này được bảo vệ bằng `dependencies=[Depends(admin_user)]` gắn ở **cấp router**.
+Toàn bộ nhóm này được bảo vệ bằng `dependencies=[Depends(staff_user)]` gắn ở **cấp router** (khách hàng → 403); từng endpoint đòi thêm khoá quyền ghi ở cột "Quyền". Với nhân viên không phải `ADMIN`, đơn hàng và số liệu đơn/doanh thu chỉ trong cửa hàng của họ.
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `GET /api/admin/stats` | ADMIN | 5 chỉ số + 5 đơn hàng gần đây | UC-QT-01 |
-| `GET /api/admin/products` | ADMIN | Toàn bộ sản phẩm kèm danh mục (không phân trang) | UC-QT-02 |
-| `GET /api/admin/products/{id}` | ADMIN | Một sản phẩm theo **id** (không phải slug), dùng cho form sửa | UC-QT-02 |
-| `POST /api/admin/products` | ADMIN | Tạo sản phẩm (201); 409 slug trùng, 422 giá khuyến mãi sai | UC-QT-02 |
-| `PUT /api/admin/products/{id}` | ADMIN | Cập nhật sản phẩm; **bỏ qua `hover_image`** để không xoá ảnh đang lưu | UC-QT-02 |
-| `DELETE /api/admin/products/{id}` | ADMIN | Xoá cứng sản phẩm (204); dòng đơn hàng liên quan được đặt `product_id = NULL` | UC-QT-02 |
-| `GET /api/admin/orders` | ADMIN | Toàn bộ đơn hàng kèm dòng đơn, mới nhất trước | UC-QT-03 |
-| `PATCH /api/admin/orders/{id}` | ADMIN | Đổi trạng thái đơn; `Literal` chặn giá trị lạ (422) | UC-QT-03 |
-| `GET /api/admin/posts` | ADMIN | Toàn bộ bài viết kèm chuyên mục (chỉ đọc) | UC-QT-04 |
-| `GET /api/admin/contacts` | ADMIN | Toàn bộ tin nhắn liên hệ, mới nhất trước | UC-QT-05 |
-| `PATCH /api/admin/contacts/{id}` | ADMIN | **Đảo** cờ `handled` của một tin nhắn | UC-QT-05 |
-| `GET /api/admin/chats` | ADMIN | 200 phiên trò chuyện gần nhất kèm tên khách và số tin (chỉ đọc) | UC-QT-06 |
-| `GET /api/admin/chats/{id}` | ADMIN | Toàn văn một cuộc trò chuyện; 404 nếu không có | UC-QT-06 |
+| `GET /api/admin/stats` | Nhân viên | 5 chỉ số + 5 đơn hàng gần đây | UC-QT-01 |
+| `GET /api/admin/products` | `products.view` | Toàn bộ sản phẩm kèm danh mục (không phân trang) | UC-QT-02 |
+| `GET /api/admin/products/{id}` | `products.view` | Một sản phẩm theo **id** (không phải slug), dùng cho form sửa | UC-QT-02 |
+| `POST /api/admin/products` | `products.edit` | Tạo sản phẩm (201); 409 slug trùng, 422 giá khuyến mãi sai | UC-QT-02 |
+| `PUT /api/admin/products/{id}` | `products.edit` | Cập nhật sản phẩm; **bỏ qua `hover_image`** để không xoá ảnh đang lưu | UC-QT-02 |
+| `DELETE /api/admin/products/{id}` | `products.edit` | Xoá cứng sản phẩm (204); dòng đơn hàng liên quan được đặt `product_id = NULL` | UC-QT-02 |
+| `GET /api/admin/orders` | `orders.view` | Đơn hàng kèm dòng đơn, mới nhất trước; nhân viên chỉ thấy đơn của cửa hàng mình | UC-QT-03 |
+| `PATCH /api/admin/orders/{id}` | `orders.update` | Đổi trạng thái đơn (404 nếu đơn ngoài cửa hàng của nhân viên); `Literal` chặn giá trị lạ (422); `COMPLETED` trừ tồn kho (nếu chưa trừ), `CANCELLED` hoàn kho (nếu đã trừ); 400 `out_of_stock` khi thiếu hàng | UC-QT-03 |
+| `POST /api/admin/orders/{id}/payment` | `orders.payment` | Ghi nhận đã nhận tiền chuyển khoản: trừ tồn kho, `payment_status = PAID`, `PENDING`/`CANCELLED` → `CONFIRMED`; 400 đơn COD hoặc thiếu hàng (`out_of_stock`), 409 đã ghi nhận rồi | UC-GH-02b |
+| `GET /api/admin/posts` | `posts.view` | Toàn bộ bài viết kèm chuyên mục (chỉ đọc) | UC-QT-04 |
+| `GET /api/admin/contacts` | `contacts.manage` | Toàn bộ tin nhắn liên hệ, mới nhất trước | UC-QT-05 |
+| `PATCH /api/admin/contacts/{id}` | `contacts.manage` | **Đảo** cờ `handled` của một tin nhắn | UC-QT-05 |
+| `GET /api/admin/chats` | `chats.view` | 200 phiên trò chuyện gần nhất kèm tên khách và số tin (chỉ đọc) | UC-QT-06 |
+| `GET /api/admin/chats/{id}` | `chats.view` | Toàn văn một cuộc trò chuyện; 404 nếu không có | UC-QT-06 |
+
+### A.7b. Nhân sự — `staff` (6)
+
+Nhóm này gắn `dependencies=[Depends(admin_user)]` ở **cấp router**: chỉ `ADMIN`. Không bao giờ chạm tới tài khoản khách hàng (id của `USER` → 404).
+
+| Phương thức & đường dẫn | Quyền | Mô tả | Use case |
+|---|---|---|---|
+| `GET /api/admin/staff` | ADMIN | Mọi tài khoản không phải `USER`, kèm cửa hàng, sắp theo `created_at` | UC-QT-07 |
+| `POST /api/admin/staff` | ADMIN | Tạo nhân viên (201): họ tên, email, mật khẩu ≥ 6, SĐT, vai trò, cửa hàng, quyền; 409 email trùng, 422 thiếu/sai cửa hàng hoặc khoá quyền lạ | UC-QT-07 |
+| `GET /api/admin/staff/{id}` | ADMIN | Một nhân viên cho form sửa; 404 nếu không có hoặc là khách hàng | UC-QT-07 |
+| `PUT /api/admin/staff/{id}` | ADMIN | Sửa họ tên, SĐT, vai trò, cửa hàng, quyền (không đổi email); 400 nếu là chính mình | UC-QT-07 |
+| `PATCH /api/admin/staff/{id}/active` | ADMIN | `{isActive}` — khoá (nghỉ việc) hoặc mở khoá; 400 nếu là chính mình | UC-QT-07 |
+| `POST /api/admin/staff/{id}/password` | ADMIN | Đặt lại mật khẩu (204) | UC-QT-07 |
 
 ### A.8. Trợ lý ảo — `chat` (3)
 

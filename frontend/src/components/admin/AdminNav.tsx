@@ -4,22 +4,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/actions/auth'
 
-const LINKS = [
-  { href: '/admin', label: 'Tổng quan' },
-  { href: '/admin/san-pham', label: 'Sản phẩm' },
-  { href: '/admin/don-hang', label: 'Đơn hàng' },
-  { href: '/admin/bai-viet', label: 'Bài viết' },
-  { href: '/admin/lien-he', label: 'Liên hệ' },
-  { href: '/admin/tro-ly-ao', label: 'Trợ lý ảo' },
-]
+type NavLink = { href: string; label: string }
 
-export function AdminNav() {
+/** Danh sách mục do layout tính theo quyền của người đang đăng nhập. */
+export function AdminNav({ links }: { links: NavLink[] }) {
   const pathname = usePathname()
 
   return (
     <nav className="lg:w-56 lg:shrink-0">
       <ul className="flex gap-1 overflow-x-auto text-sm lg:flex-col lg:overflow-visible">
-        {LINKS.map((l) => {
+        {links.map((l) => {
           const active = l.href === '/admin' ? pathname === l.href : pathname.startsWith(l.href)
           return (
             <li key={l.href}>

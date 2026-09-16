@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/lib/auth'
+import { isStaff } from '@/lib/permissions'
 import { AccountNav } from '@/components/account/AccountNav'
 import { PageHeader } from '@/components/site/PageHeader'
 
@@ -16,7 +17,7 @@ export default async function AccountLayout({ children }: LayoutProps<'/tai-khoa
     <>
       <PageHeader title="Tài khoản" crumbs={[{ label: 'Tài khoản' }]} />
       <div className="container-site flex flex-col gap-8 py-10 lg:flex-row">
-        <AccountNav isAdmin={user.role === 'ADMIN'} />
+        <AccountNav isStaff={isStaff(user)} />
         <div className="flex-1">{children}</div>
       </div>
     </>

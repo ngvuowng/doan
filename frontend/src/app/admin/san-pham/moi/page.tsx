@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import { api } from '@/lib/api'
+import { requirePermission } from '@/lib/auth'
 import { ProductForm } from '@/components/admin/ProductForm'
 
 export const metadata: Metadata = { title: 'Thêm sản phẩm' }
 
 export default async function NewProductPage() {
+  await requirePermission('products.edit')
   const categories = await api.categories.list('product')
 
   return (

@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer, co
 from pydantic.alias_generators import to_camel
 
 from app.chat_modes import ChatMode
+from app.permissions import PermissionKey, StaffRole
 
 
 def _iso_utc(value: datetime) -> str:
@@ -47,6 +48,8 @@ class CategoryOut(ApiModel):
     kind: str
     subtitle: str | None = None
     position: int
+    # Danh mục cha; None = danh mục gốc (mục menu chính).
+    parent_id: str | None = None
 
 
 class CategoryWithCount(CategoryOut):
@@ -65,13 +68,14 @@ class ProductCard(ApiModel):
     sale_price: int | None = None
     image: str
     hover_image: str | None = None
+    # Card cũng cần tồn kho để hiện "Hết hàng" và khoá nút thêm vào giỏ.
+    stock: int
     updated_at: UtcDatetime
 
 
 class ProductOut(ProductCard):
     short_description: str
     description: str
-    stock: int
     created_at: UtcDatetime
     categories: list[CategoryOut] = []
 
@@ -125,6 +129,10 @@ class UserOut(ApiModel):
     email: str
     name: str
     role: str
+    # Khoá quyền của nhân viên (rỗng với khách hàng và ADMIN — ADMIN có toàn quyền).
+    permissions: list[str] = []
+    # Cửa hàng nhân viên làm việc; None với ADMIN và khách hàng.
+    store_id: str | None = None
     phone: str | None = None
     address: str | None = None
 
@@ -149,6 +157,25 @@ class ProfileIn(ApiModel):
     name: str = Field(min_length=2)
     phone: str | None = None
     address: str | None = None
+
+
+# ---------- Cửa hàng ----------
+
+
+class StoreOut(ApiModel):
+    id: str
+    name: str
+    address: str
+    lat: float
+    lng: float
+
+
+class StoreQuote(StoreOut):
+    """Cửa hàng kèm khoảng cách và phí giao hàng ứng với vị trí khách gửi lên."""
+
+    # None khi khách chưa chia sẻ vị trí; khi đó shipping_fee là mức phí chuẩn.
+    distance_km: float | None = None
+    shipping_fee: int
 
 
 # ---------- Đơn hàng ----------
@@ -178,6 +205,10 @@ class OrderOut(ApiModel):
     payment_status: str
     paid_at: UtcDatetime | None = None
     payment_expires_at: UtcDatetime | None = None
+    store_id: str | None = None
+    store: StoreOut | None = None
+    shipping_fee: int = 0
+    distance_km: float | None = None
     total: int
     created_at: UtcDatetime
     updated_at: UtcDatetime
@@ -202,6 +233,11 @@ class OrderIn(ApiModel):
     address: str = Field(min_length=8)
     note: str | None = Field(default=None, max_length=500)
     payment_method: Literal["COD", "BANK"] = "COD"
+    store_id: str = Field(min_length=1)
+    # Toạ độ do trình duyệt khách cung cấp (tuỳ chọn). Backend tự tính khoảng cách và
+    # phí từ đây; client không bao giờ gửi số tiền.
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
     items: list[OrderLineIn] = Field(min_length=1)
 
 
@@ -297,6 +333,38 @@ class AdminStats(ApiModel):
     pending_contact_count: int
     revenue: int
     recent_orders: list[OrderOut] = []
+
+
+# ---------- Nhân sự ----------
+
+
+class StaffUpdateIn(ApiModel):
+    name: str = Field(min_length=2)
+    phone: str | None = None
+    role: StaffRole
+    # Bắt buộc với mọi vai trò trừ ADMIN; router kiểm tra vì phụ thuộc vào `role`.
+    store_id: str | None = None
+    # `Literal` chặn khoá lạ ngay ở biên API (422).
+    permissions: list[PermissionKey] = []
+
+
+class StaffCreateIn(StaffUpdateIn):
+    email: EmailStr
+    password: str = Field(min_length=6)
+
+
+class StaffActiveIn(ApiModel):
+    is_active: bool
+
+
+class StaffPasswordIn(ApiModel):
+    password: str = Field(min_length=6)
+
+
+class StaffOut(UserOut):
+    is_active: bool
+    created_at: UtcDatetime
+    store: StoreOut | None = None
 
 
 # ---------- Tình trạng ----------

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { api } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { OrderDetail } from '@/components/account/OrderDetail'
 import { PaymentBadge, StatusBadge } from '@/components/account/StatusBadge'
 import { needsBankPayment } from '@/lib/orderStatus'
@@ -18,8 +19,14 @@ export default async function MyOrderDetailPage({
   const { code } = await params
   const order = await api.orders.get(code)
 
-  // Chỉ chủ đơn (hoặc quản trị viên) mới xem được chi tiết.
-  if (!order || (order.userId !== session.id && session.role !== 'ADMIN')) notFound()
+  if (!order) notFound()
+  // Chủ đơn, ADMIN, hoặc nhân viên có quyền xem đơn của đúng cửa hàng mình (trang
+  // quản trị đơn hàng dẫn tới đây).
+  const isOwner = order.userId === session.id
+  const isStoreStaff =
+    session.role === 'ADMIN' ||
+    (can(session, 'orders.view') && order.storeId !== null && order.storeId === session.storeId)
+  if (!isOwner && !isStoreStaff) notFound()
 
   return (
     <>

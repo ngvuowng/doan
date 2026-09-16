@@ -2,21 +2,27 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { requirePermission } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { formatPrice } from '@/lib/format'
 import { deleteProduct } from '@/actions/admin'
 
 export const metadata: Metadata = { title: 'Quản lý sản phẩm' }
 
 export default async function AdminProductsPage() {
+  const user = await requirePermission('products.view')
+  const canEdit = can(user, 'products.edit')
   const products = await api.admin.products()
 
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-lg font-bold uppercase">Sản phẩm ({products.length})</h2>
-        <Link href="/admin/san-pham/moi" className="btn-primary">
-          + Thêm sản phẩm
-        </Link>
+        {canEdit && (
+          <Link href="/admin/san-pham/moi" className="btn-primary">
+            + Thêm sản phẩm
+          </Link>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-line">
@@ -59,23 +65,25 @@ export default async function AdminProductsPage() {
                 </td>
                 <td className="px-4 py-3">{p.stock}</td>
                 <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    <Link
-                      href={`/admin/san-pham/${p.id}`}
-                      className="rounded-md border border-line px-3 py-1.5 text-xs hover:border-primary hover:text-primary"
-                    >
-                      Sửa
-                    </Link>
-                    <form action={deleteProduct}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <button
-                        type="submit"
-                        className="rounded-md border border-line px-3 py-1.5 text-xs hover:border-sale hover:text-sale"
+                  {canEdit && (
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/admin/san-pham/${p.id}`}
+                        className="rounded-md border border-line px-3 py-1.5 text-xs hover:border-primary hover:text-primary"
                       >
-                        Xoá
-                      </button>
-                    </form>
-                  </div>
+                        Sửa
+                      </Link>
+                      <form action={deleteProduct}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <button
+                          type="submit"
+                          className="rounded-md border border-line px-3 py-1.5 text-xs hover:border-sale hover:text-sale"
+                        >
+                          Xoá
+                        </button>
+                      </form>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

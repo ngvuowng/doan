@@ -44,7 +44,8 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   }
 
   // redirect() ném lỗi để điều hướng nên phải gọi ngoài khối try/catch ở trên.
-  redirect(role === 'ADMIN' ? '/admin' : '/tai-khoan')
+  // Nhân viên (mọi vai trò trừ khách hàng) vào thẳng khu quản trị.
+  redirect(role === 'USER' ? '/tai-khoan' : '/admin')
 }
 
 export async function register(_prev: FormState, formData: FormData): Promise<FormState> {

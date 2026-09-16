@@ -14,7 +14,7 @@ Bản dựng lại (clone) của website **nongsan.maugiaodien.com**, kiến tr�
         • Server Action     →  gọi API   (zod kiểm tra form, JWT trong cookie httpOnly)
                      │  HTTP/JSON + Authorization: Bearer <JWT>
                      ▼
-      FastAPI (Python)         :8000        ← nghiệp vụ, 31 endpoint, Swagger ở /docs
+      FastAPI (Python)         :8000        ← nghiệp vụ, 39 endpoint, Swagger ở /docs
         • SQLAlchemy 2.0 + Alembic
         • Pydantic v2 · JWT HS256 · bcrypt
         • Trợ lý ảo: httpx  ──────────────→  Gemini API (Google)
@@ -81,10 +81,13 @@ File `.env` nằm trong `.gitignore` — **không commit khoá lên git**.
 
 ### Tài khoản demo
 
-| Vai trò    | Email                 | Mật khẩu   |
-| ---------- | --------------------- | ---------- |
-| Quản trị   | `admin@halona.vn`     | `admin123` |
-| Khách hàng | `khachhang@halona.vn` | `khach123` |
+| Vai trò                        | Email                 | Mật khẩu     |
+| ------------------------------ | --------------------- | ------------ |
+| Quản trị                       | `admin@halona.vn`     | `admin123`   |
+| Quản lý cửa hàng (Tân Bình)    | `quanly@halona.vn`    | `quanly123`  |
+| Thu ngân (120 Yên Lãng)        | `thungan@halona.vn`   | `thungan123` |
+| Nhân viên bán hàng (Tân Bình)  | `banhang@halona.vn`   | `banhang123` |
+| Khách hàng                     | `khachhang@halona.vn` | `khach123`   |
 
 ## Công nghệ
 
@@ -109,29 +112,51 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 **Phía khách hàng**
 
 - Trang chủ dựng lại đúng 9 khối theo thứ tự của bản gốc
-- Cửa hàng và trang danh mục: lọc theo danh mục, sắp xếp, phân trang
-- Chi tiết sản phẩm: chọn số lượng, mô tả, sản phẩm liên quan
+- Menu chính 3 nhóm theo kleverfruits.com.vn — Quà tặng trái cây · Sản phẩm · Trái cây
+  tươi hàng ngày — mỗi nhóm xổ danh mục con (dropdown bằng CSS, dùng được bàn phím)
+- Cửa hàng và trang danh mục: danh mục hai cấp (trang danh mục cha gom sản phẩm của các
+  danh mục con), lọc theo danh mục, sắp xếp, phân trang
+- Chi tiết sản phẩm: chọn số lượng (chặn theo tồn kho), mô tả, sản phẩm liên quan; sản phẩm
+  hết hàng hiện nhãn "Hết hàng" ở cả thẻ sản phẩm lẫn trang chi tiết và khoá nút thêm vào giỏ
 - Tìm kiếm sản phẩm theo tên và mô tả
 - Giỏ hàng lưu ở `localStorage` + ngăn kéo giỏ hàng trong header
-- Thanh toán: COD hoặc chuyển khoản, tạo đơn hàng và trang xác nhận theo mã đơn
+- Thanh toán: chọn cửa hàng giao trong hệ thống 3 cửa hàng (Tân Bình, 120 Yên Lãng,
+  ngõ 38 Yên Lãng) — bấm "Dùng vị trí của tôi" để hệ thống tự chọn cửa hàng gần nhất và
+  tính phí giao hàng theo khoảng cách (không định vị thì áp phí chuẩn); COD hoặc chuyển
+  khoản, tạo đơn hàng và trang xác nhận theo mã đơn; đơn vượt tồn kho bị từ chối và giỏ
+  tự hạ số lượng về mức còn lại
 - Tài khoản: đăng ký, đăng nhập, cập nhật hồ sơ, xem lịch sử đơn hàng
 - Tin tức: danh sách, chuyên mục, chi tiết bài viết
-- Giới thiệu và liên hệ (form lưu vào CSDL)
+- Giới thiệu và liên hệ (form lưu vào CSDL, liệt kê hệ thống cửa hàng kèm chỉ đường)
 - Trợ lý ảo tư vấn (nút nổi ở mọi trang): khách chọn 1 trong 4 chủ đề trước khi hỏi —
   giải đáp về sản phẩm, tư vấn chọn hoa quả theo nhu cầu, hướng dẫn bảo quản, gợi ý
   công thức nước ép/sinh tố — mỗi chủ đề có system prompt và temperature riêng; chủ đề
   công thức đọc thêm giỏ hàng và đơn đã mua để gợi ý đúng từ những gì khách có
 
-**Phía quản trị** (`/admin`, cần tài khoản `ADMIN`)
+**Phía quản trị** (`/admin`, dành cho tài khoản nhân viên — mọi vai trò trừ `USER`)
 
-- Bảng điều khiển: thống kê sản phẩm, đơn hàng, doanh thu, liên hệ chưa xử lý
+- Bảng điều khiển: thống kê sản phẩm, đơn hàng, doanh thu, liên hệ chưa xử lý (số đơn
+  và doanh thu lọc theo cửa hàng của nhân viên; ADMIN thấy toàn bộ)
 - Sản phẩm: thêm, sửa, xoá, gán danh mục
-- Đơn hàng: xem chi tiết và đổi trạng thái
+- Đơn hàng: xem chi tiết và đổi trạng thái; tồn kho **trừ đúng một lần** khi bấm "Đã nhận
+  tiền" (đơn chuyển khoản) hoặc chuyển đơn sang Hoàn thành (đơn COD), **hoàn lại** khi huỷ
+  đơn đã trừ; thiếu hàng thì báo lỗi ngay trên trang, không đổi trạng thái
 - Bài viết và tin nhắn liên hệ
 - Xem lại hội thoại của trợ lý ảo (chỉ đọc)
+- Nhân sự (chỉ `ADMIN`): tạo tài khoản nhân viên, chọn vai trò (quản lý cửa hàng / thu
+  ngân / nhân viên bán hàng / quản trị viên), gắn cửa hàng, tick **từng quyền** cho
+  từng tài khoản (8 khoá: xem/sửa sản phẩm, xem/đổi trạng thái/xác nhận thanh toán đơn,
+  xem bài viết, xử lý liên hệ, xem hội thoại), sửa họ tên/SĐT, đặt lại mật khẩu, và
+  **khoá/mở khoá** tài khoản khi nhân sự nghỉ việc
 
-Quyền quản trị được kiểm ở **cả hai phía**: frontend chặn sớm để báo lỗi thân thiện,
-backend kiểm lại trên từng endpoint `/api/admin/*` (thiếu token → 401, sai quyền → 403).
+Phân quyền được kiểm ở **cả hai phía**: frontend chặn sớm để báo lỗi thân thiện và ẩn
+mục menu / nút không có quyền, backend kiểm lại trên từng endpoint `/api/admin/*` (thiếu
+token → 401, sai quyền → 403). Vai trò chỉ là chức danh kèm bộ quyền tick sẵn; quyền
+thật là danh sách khoá lưu riêng cho mỗi tài khoản (`users.permissions`), riêng `ADMIN`
+có toàn quyền. Nhân viên (trừ `ADMIN`) thuộc một cửa hàng và chỉ thấy/đổi được đơn của
+cửa hàng đó. Backend đọc lại bảng `users` ở mỗi request nên khoá tài khoản hay đổi quyền
+có hiệu lực ngay, không phải chờ token hết hạn; tài khoản bị khoá đăng nhập sẽ nhận 403
+kèm thông báo.
 
 **Giá đơn hàng luôn được backend tính lại từ CSDL.** Client chỉ gửi
 `{productId, quantity}`; có sửa giá trong payload cũng không ảnh hưởng tổng tiền.
@@ -144,7 +169,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 48 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 83 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -168,23 +193,27 @@ docs/SRS.md          đặc tả yêu cầu phần mềm
 _reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
 
 backend/             ← tầng nghiệp vụ (Python)
-  app/models.py      9 bảng + 2 bảng nối (SQLAlchemy)
+  app/models.py      10 bảng + 2 bảng nối (SQLAlchemy)
   app/schemas.py     Pydantic; đổi snake_case ↔ camelCase ở biên API
-  app/routers/       products · categories · posts · auth · orders · contact · chat · admin
+  app/routers/       products · categories · posts · auth · orders · stores · contact · chat · admin · staff
+  app/permissions.py bộ khoá quyền nhân viên + vai trò (khớp với frontend/src/lib/permissions.ts)
+  app/shipping.py    bậc phí giao hàng theo km + haversine (khoảng cách khách → cửa hàng)
+  app/inventory.py   trừ/hoàn tồn kho theo đơn (cờ stock_deducted_at + SELECT FOR UPDATE)
   app/gemini.py      gọi Gemini API qua REST (httpx)
   app/chat_modes.py  4 chủ đề tư vấn: đoạn prompt riêng + temperature từng chủ đề
   app/chat_prompt.py ghép system prompt tiếng Việt + nhồi danh mục sản phẩm vào ngữ cảnh
   app/security.py    băm mật khẩu, ký/đọc JWT
-  app/deps.py        dependency lấy người dùng từ Authorization, tiện ích or_404
+  app/deps.py        dependency lấy người dùng từ Authorization (chặn tài khoản khoá), staff_user / admin_user / require(quyền)
   alembic/           migration
   seed.py            nạp dữ liệu gốc (đọc RSS trong _reference/)
 
 frontend/            ← tầng giao diện (TypeScript)
   src/lib/api.ts     lớp gọi backend — thay cho Prisma ở bản trước
-  src/lib/auth.ts    phiên đăng nhập; lib/session.ts giữ cookie
+  src/lib/auth.ts    phiên đăng nhập; lib/session.ts giữ cookie; requirePermission() chặn trang quản trị theo quyền
+  src/lib/permissions.ts  bộ khoá quyền + nhãn tiếng Việt, bộ quyền tick sẵn theo vai trò, can()/isStaff()
   src/app/           các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
   src/components/    component giao diện, chia theo khu vực (có chat/ cho trợ lý ảo)
-  src/actions/       server action (đặt hàng, xác thực, quản trị, liên hệ)
+  src/actions/       server action (đặt hàng, xác thực, quản trị, nhân sự, liên hệ)
   public/images/     ảnh gốc đã tải về
   scripts/           tải ảnh từ Wayback, kiểm thử đầu-cuối
 ```
@@ -223,6 +252,7 @@ Header      35px (top) + 90px (chính), thu còn 50px khi cuộn
 | Thumbnail bài "Eat Clean" | Không được lưu trữ → dùng ảnh SVG trang trí cùng tông màu |
 | Ảnh hover trên card sản phẩm | Bản gốc dùng chung **một** ảnh cho cả 4 sản phẩm (rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo) → thay bằng hiệu ứng phóng to nhẹ |
 | Iframe Facebook Page | Cần App ID còn hiệu lực của chủ site gốc → bỏ, giữ lại video YouTube |
+| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng menu 3 nhóm hai cấp theo kleverfruits.com.vn; 5 danh mục Halona giữ nguyên dưới nhóm "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; thêm 8 sản phẩm mẫu (dùng lại ảnh gốc) cho 4 danh mục lá mới |
 
 Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng tinh thần bản clone:
 "Halona Fru**i**st" (tên site) và "Or**a**gnic" (tên danh mục).
@@ -239,9 +269,15 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 48 kiểm tra: hiển thị trang chủ, điều hướng catalog, thêm
-giỏ hàng, đặt hàng cho khách vãng lai và cho thành viên, đăng nhập, tìm kiếm, blog, form
-liên hệ, toàn bộ luồng quản trị, responsive ở 375px, trang 404 và khung trợ lý ảo.
+Playwright/Puppeteer) và chạy 83 kiểm tra: hiển thị trang chủ, điều hướng catalog (menu
+hai cấp, breadcrumb cha/con, danh mục cha gom sản phẩm của các con không trùng), thêm
+giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
+(giả lập định vị ngay trong trang → tự chọn cửa hàng gần nhất, phí theo km), đăng nhập,
+tìm kiếm, blog, form liên hệ, toàn bộ luồng quản trị, tồn kho (hoàn thành đơn trừ kho,
+không trừ hai lần, huỷ hoàn kho, thiếu hàng báo lỗi, nhãn "Hết hàng", từ chối đặt hàng
+khi hết kho), nhân sự (tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu và trang chặn
+theo quyền, phạm vi đơn hàng theo cửa hàng, khoá tài khoản chặn đăng nhập), responsive
+ở 375px, trang 404 và khung trợ lý ảo.
 
 ```bash
 docker compose up -d                                    # cửa sổ 1
@@ -255,3 +291,6 @@ bằng chứng cho thấy việc đổi backend không làm thay đổi hành vi
 (trợ lý ảo) được thêm sau, và cố ý chấp nhận **cả hai** kết quả: chưa gắn
 `GEMINI_API_KEY` thì khung chat phải báo lỗi cấu hình, có khoá thì phải hiện câu trả
 lời — nhờ vậy bộ kiểm thử vẫn xanh khi chưa có khoá.
+7 kiểm tra về cửa hàng giao và phí giao hàng được chèn thêm vào các mục 4, 5, 7, 8 khi
+thêm tính năng này; riêng kiểm tra "trang cảm ơn hiện đúng tổng tiền" được siết thêm
+điều kiện tổng đã gồm phí (210.000₫).

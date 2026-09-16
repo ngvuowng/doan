@@ -3,6 +3,11 @@ export function formatPrice(amount: number): string {
   return `${amount.toLocaleString('vi-VN')}₫`
 }
 
+/** Khoảng cách tới cửa hàng: "2,3 km" (dấu phẩy thập phân theo tiếng Việt). */
+export function formatDistance(km: number): string {
+  return `${km.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`
+}
+
 /** Phần trăm giảm giá làm tròn, dùng cho badge "-25%" trên card sản phẩm. */
 export function discountPercent(price: number, salePrice: number | null): number | null {
   if (!salePrice || salePrice >= price) return null

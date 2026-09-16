@@ -154,6 +154,34 @@ async function main() {
     console.log('\n2. Điều hướng catalog')
     await goto('/danh-muc-san-pham/trai-cay-nhap-khau')
     check('trang danh mục mở được', (await text()).includes('Trái cây nhập khẩu'))
+    // Thanh menu desktop ẩn ở 800px mặc định của Chrome headless nên innerText không thấy;
+    // đọc textContent của các link trong DOM (dropdown chỉ ẩn bằng CSS, link vẫn có sẵn).
+    const menu = await evaluate(
+      "return [...document.querySelectorAll('header nav a')].map(a => a.textContent.trim())",
+    )
+    check(
+      'menu chính có 3 nhóm danh mục',
+      ['Quà tặng trái cây', 'Sản phẩm', 'Trái cây tươi hàng ngày'].every((t) => menu.includes(t)),
+      menu.join(' | '),
+    )
+    check(
+      'nhóm "Sản phẩm" liệt kê đủ 5 danh mục con',
+      ['Trái cây nhập khẩu', 'Trái cây nội địa', 'Nước ép trái cây', 'Các loại hạt dinh dưỡng', 'Các loại rau củ quả Oragnic'].every((t) => menu.includes(t)),
+    )
+    const crumbs = await evaluate("return document.querySelector('nav[aria-label=\"Breadcrumb\"]').innerText")
+    check('breadcrumb danh mục con hiện danh mục cha', crumbs.includes('Sản phẩm') && crumbs.includes('Trái cây nhập khẩu'), crumbs)
+    await goto('/danh-muc-san-pham/san-pham')
+    const parentPage = await text()
+    check(
+      'danh mục cha gom sản phẩm của các danh mục con, không trùng',
+      parentPage.includes('Bom mỹ') && parentPage.includes('Cà chua Đà Lạt') && parentPage.includes('trên 4 sản phẩm'),
+    )
+    await goto('/danh-muc-san-pham/qua-tang-trai-cay')
+    const giftPage = await text()
+    check(
+      'danh mục mới hiện sản phẩm mẫu',
+      giftPage.includes('Giỏ quà trái cây thượng hạng') && giftPage.includes('Giỏ quà Tết sum vầy') && giftPage.includes('trên 4 sản phẩm'),
+    )
     await goto('/san-pham/bom-my')
     const detail = await text()
     check('chi tiết SP hiện tên + giá', detail.includes('Bom mỹ') && detail.includes('180.000₫'))
@@ -182,6 +210,14 @@ async function main() {
     // ---- 4. Thanh toán ----
     console.log('\n4. Thanh toán')
     await goto('/thanh-toan')
+    // Khách vãng lai không chia sẻ vị trí: tự chọn cửa hàng, phí áp mức chuẩn 30.000₫.
+    await evaluate(`
+      [...document.querySelectorAll('input[name="storeId"]')]
+        .find(i => i.closest('label').textContent.includes('120 Yên Lãng')).click();
+      return true;
+    `)
+    await sleep(300)
+    check('chọn cửa hàng tay thì áp phí chuẩn', (await text()).includes('210.000₫'))
     await evaluate(`
       const set = (name, value) => {
         const el = document.querySelector('[name="' + name + '"]');
@@ -203,9 +239,14 @@ async function main() {
     await sleep(3500)
     const afterOrder = await url()
     check('đặt hàng chuyển tới trang cảm ơn', afterOrder.startsWith('/dat-hang-thanh-cong/'), afterOrder)
+    const guestOrder = afterOrder.replace('/dat-hang-thanh-cong/', '') // Bom mỹ × 1, dùng ở mục 8b
     const success = await text()
     check('trang cảm ơn hiện mã đơn', /HL-[0-9A-F]{6}/.test(success))
-    check('trang cảm ơn hiện đúng tổng tiền', success.includes('180.000₫'))
+    check('trang cảm ơn hiện đúng tổng tiền', success.includes('180.000₫') && success.includes('210.000₫'))
+    check(
+      'trang cảm ơn hiện cửa hàng và phí giao hàng',
+      success.includes('120 Yên Lãng') && success.includes('Phí giao hàng') && success.includes('30.000₫'),
+    )
     await sleep(600)
     const clearedBadge = await evaluate(`
       const el = document.querySelector('[aria-label^="Giỏ hàng,"]');
@@ -242,6 +283,30 @@ async function main() {
     await goto('/thanh-toan')
     const prefilled = await evaluate('return document.querySelector(\'[name="email"]\').value')
     check('thanh toán điền sẵn thông tin người đăng nhập', prefilled === 'khachhang@halona.vn', prefilled)
+
+    // Giả lập định vị ngay trong trang (không đi qua hộp thoại xin quyền của Chrome):
+    // toạ độ gần 120 Yên Lãng → hệ thống phải tự chọn cửa hàng đó và áp bậc phí ≤3 km.
+    await evaluate(`
+      navigator.geolocation.getCurrentPosition = (ok) =>
+        ok({ coords: { latitude: 21.0115, longitude: 105.816 } });
+      [...document.querySelectorAll('button')].find(b => b.textContent.includes('Dùng vị trí của tôi')).click();
+      return true;
+    `)
+    let nearest = null
+    for (let i = 0; i < 10; i++) {
+      await sleep(500)
+      nearest = await evaluate(`
+        const el = document.querySelector('input[name="storeId"]:checked');
+        return el ? el.closest('label').innerText : null;
+      `)
+      if (nearest?.includes('Cách')) break
+    }
+    check(
+      'định vị chọn đúng cửa hàng gần nhất',
+      nearest?.includes('120 Yên Lãng') && nearest.includes('15.000₫'),
+      String(nearest),
+    )
+    check('tổng cộng gồm phí theo khoảng cách', (await text()).includes('45.000₫'))
     await evaluate(`
       const set = (name, value) => {
         const el = document.querySelector('[name="' + name + '"]');
@@ -263,7 +328,12 @@ async function main() {
     check('đơn hiện trạng thái chờ xác nhận', myOrders.includes('Chờ xác nhận'))
 
     await goto(`/tai-khoan/don-hang/${memberOrder}`)
-    check('xem được chi tiết đơn của mình', (await text()).includes('Táo nhập khẩu'))
+    const memberDetail = await text()
+    check('xem được chi tiết đơn của mình', memberDetail.includes('Táo nhập khẩu'))
+    check(
+      'chi tiết đơn hiện cửa hàng và phí theo khoảng cách',
+      memberDetail.includes('120 Yên Lãng') && memberDetail.includes('15.000₫') && memberDetail.includes('45.000₫'),
+    )
 
     // ---- 6. Tìm kiếm ----
     console.log('\n6. Tìm kiếm & blog')
@@ -279,6 +349,11 @@ async function main() {
     // ---- 7. Form liên hệ ----
     console.log('\n7. Liên hệ')
     await goto('/lien-he')
+    const contactPage = await text()
+    check(
+      'trang liên hệ liệt kê hệ thống cửa hàng',
+      contactPage.includes('120 Yên Lãng') && contactPage.includes('ngõ 38') && contactPage.includes('Phạm Văn Bạch'),
+    )
     await evaluate(`
       const set = (id, value) => {
         const el = document.getElementById(id);
@@ -327,14 +402,16 @@ async function main() {
     check('dashboard hiện đơn vừa đặt', /HL-[0-9A-F]{6}/.test(dash))
 
     await goto('/admin/don-hang')
-    check('quản trị đơn hàng hiện đơn', (await text()).includes('Nguyễn Văn Test'))
+    const adminOrders = await text()
+    check('quản trị đơn hàng hiện đơn', adminOrders.includes('Nguyễn Văn Test'))
+    check('quản trị đơn hàng hiện cửa hàng giao', adminOrders.includes('Cửa hàng giao') && adminOrders.includes('120 Yên Lãng'))
 
     await goto('/admin/lien-he')
     check('quản trị liên hệ hiện tin nhắn', (await text()).includes('Trần Thị Test'))
 
     // Sửa giá sản phẩm và kiểm tra phía người dùng.
     await goto('/admin/san-pham')
-    check('quản trị sản phẩm liệt kê 4 SP', (await text()).includes('Bom mỹ'))
+    check('quản trị sản phẩm liệt kê sản phẩm', (await text()).includes('Bom mỹ'))
     const editHref = await evaluate(`
       const a = [...document.querySelectorAll('a')].find(a => a.textContent.trim() === 'Sửa');
       return a ? a.getAttribute('href') : null;
@@ -363,6 +440,124 @@ async function main() {
       return true;
     `)
     await sleep(3000)
+
+    // ---- 8b. Tồn kho ----
+    // Kho chỉ trừ khi đơn COD hoàn thành (hoặc admin nhận tiền đơn BANK), hoàn lại khi huỷ.
+    console.log('\n8b. Tồn kho')
+    // Cột "Tồn kho" là td thứ 4 của /admin/san-pham; tìm dòng theo "/slug" để không khớp nhầm tên.
+    const readStock = (slug) =>
+      evaluate(`
+        const row = [...document.querySelectorAll('tbody tr')].find(tr => tr.innerText.includes('/${slug}'));
+        return row ? Number(row.querySelectorAll('td')[3].innerText.trim()) : null;
+      `)
+    // Ô chọn trạng thái là uncontrolled trong <form action>: gán .value rồi bấm Lưu là đủ.
+    const setOrderStatus = async (code, status) => {
+      await goto('/admin/don-hang')
+      await evaluate(`
+        const card = [...document.querySelectorAll('article')].find(a => a.innerText.includes('${code}'));
+        card.querySelector('select[name="status"]').value = '${status}';
+        [...card.querySelectorAll('button')].find(b => b.textContent.trim() === 'Lưu').click();
+        return true;
+      `)
+      await sleep(3000)
+    }
+    const orderHeader = (code) =>
+      evaluate(`
+        const card = [...document.querySelectorAll('article')].find(a => a.innerText.includes('${code}'));
+        return card ? card.querySelector('header').innerText : null;
+      `)
+
+    await goto('/admin/san-pham')
+    const stockBefore = await readStock('tao-nhap-khau')
+    check('đọc được tồn kho Táo nhập khẩu', Number.isInteger(stockBefore), String(stockBefore))
+
+    await setOrderStatus(memberOrder, 'COMPLETED')
+    check('đơn COD chuyển sang Hoàn thành', (await orderHeader(memberOrder))?.includes('Hoàn thành'))
+    await goto('/admin/san-pham')
+    check('hoàn thành đơn COD trừ tồn kho', (await readStock('tao-nhap-khau')) === stockBefore - 1)
+
+    await setOrderStatus(memberOrder, 'PENDING')
+    await setOrderStatus(memberOrder, 'COMPLETED')
+    await goto('/admin/san-pham')
+    check('xác nhận lại không trừ kho lần hai', (await readStock('tao-nhap-khau')) === stockBefore - 1)
+
+    await setOrderStatus(memberOrder, 'CANCELLED')
+    await goto('/admin/san-pham')
+    check('huỷ đơn đã trừ kho thì hoàn lại', (await readStock('tao-nhap-khau')) === stockBefore)
+    await setOrderStatus(memberOrder, 'PENDING') // trả đơn về trạng thái ban đầu
+
+    // Bỏ Bom mỹ vào giỏ trước khi hết hàng để lát nữa thử đặt hàng với giỏ cũ.
+    await goto('/san-pham/bom-my')
+    await evaluate(`
+      [...document.querySelectorAll('button')].find(b => b.textContent.includes('Thêm vào giỏ hàng')).click();
+      return true;
+    `)
+    await sleep(800)
+
+    // Đặt tồn kho Bom mỹ = 0 qua form sửa (cùng cách với salePrice ở trên), nhớ giá trị cũ.
+    await goto(editHref)
+    const bomStock = await evaluate('return document.querySelector(\'[name="stock"]\').value')
+    const setStock = async (value) => {
+      await goto(editHref)
+      await evaluate(`
+        const el = document.querySelector('[name="stock"]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '${value}');
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        [...document.querySelectorAll('button')].find(b => b.textContent.includes('Cập nhật sản phẩm')).click();
+        return true;
+      `)
+      await sleep(3000)
+    }
+    await setStock(0)
+
+    // Hoàn thành đơn khách vãng lai (Bom mỹ × 1) khi kho = 0 → 400, banner lỗi, trạng thái giữ nguyên.
+    await setOrderStatus(guestOrder, 'COMPLETED')
+    const afterFail = await text()
+    check('thiếu hàng thì hiện banner lỗi', afterFail.includes('Không đủ tồn kho') && afterFail.includes('Bom mỹ'))
+    check('đơn thiếu hàng giữ nguyên Chờ xác nhận', (await orderHeader(guestOrder))?.includes('Chờ xác nhận'))
+
+    await goto('/cua-hang')
+    const bomCard = await evaluate(`
+      const card = [...document.querySelectorAll('article')].find(a => a.innerText.includes('Bom mỹ'));
+      return card ? { text: card.innerText, disabled: card.querySelector('button').disabled } : null;
+    `)
+    check(
+      'card hết hàng hiện nhãn và khoá nút',
+      bomCard?.text.includes('Hết hàng') && bomCard.disabled === true,
+      JSON.stringify(bomCard),
+    )
+
+    await goto('/san-pham/bom-my')
+    const soldOutBtn = await evaluate(`
+      const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Hết hàng');
+      return btn ? btn.disabled : null;
+    `)
+    check('trang chi tiết hết hàng khoá nút thêm vào giỏ', soldOutBtn === true)
+
+    // Giỏ cũ còn Bom mỹ: đặt hàng bị từ chối, giỏ tự gỡ dòng hết hàng.
+    await goto('/thanh-toan')
+    await evaluate(`
+      [...document.querySelectorAll('input[name="storeId"]')]
+        .find(i => i.closest('label').textContent.includes('120 Yên Lãng')).click();
+      const set = (name, value) => {
+        const el = document.querySelector('[name="' + name + '"]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      set('phone', '0912345678');
+      set('address', '12 Phạm Văn Bạch, P.15, Tân Bình, TP.HCM');
+      [...document.querySelectorAll('button')].find(b => b.textContent.includes('Đặt hàng')).click();
+      return true;
+    `)
+    await sleep(3500)
+    const rejected = await text()
+    check(
+      'đặt hàng khi hết kho bị từ chối và giỏ tự gỡ',
+      (await url()) === '/thanh-toan' && rejected.includes('không đủ hàng') && rejected.includes('Giỏ hàng đang trống'),
+      await url(),
+    )
+
+    await setStock(bomStock) // trả tồn kho về như cũ
 
     // ---- 9. Responsive ----
     console.log('\n9. Responsive (375px)')
@@ -462,6 +657,127 @@ async function main() {
     check(
       'Escape đóng khung trợ lý',
       (await evaluate('return !document.querySelector("#halona-chat-panel")')) === true,
+    )
+
+    // ---- 12. Nhân sự ----
+    // Admin tạo nhân viên bán hàng ở Tân Bình, đăng nhập bằng tài khoản đó để kiểm menu và
+    // phạm vi cửa hàng, rồi khoá tài khoản (nghỉ việc). Tài khoản e2e để lại ở trạng thái
+    // khoá — giống đơn hàng và tin nhắn liên hệ do e2e tạo, `python seed.py` sẽ dọn.
+    // Đặt CUỐI CÙNG có chủ đích: sau khi đăng nhập tài khoản nhân viên qua form, Chrome
+    // headless (profile thường, không phải ẩn danh) không chuyển `Input.dispatchKeyEvent`
+    // tới trang nữa cho tới hết phiên — mục này chỉ thao tác bằng JS nên không sao, nhưng
+    // mục 11 cần phím Escape thật nên phải chạy trước.
+    console.log('\n12. Nhân sự')
+    // Đổi tài khoản: xoá cookie phiên rồi điền form đăng nhập (id ở AuthForms.tsx).
+    const loginAs = async (email, password) => {
+      await send('Storage.clearDataForOrigin', { origin: BASE, storageTypes: 'all' })
+      await goto('/tai-khoan/dang-nhap')
+      await evaluate(`
+        const set = (id, value) => {
+          const el = document.getElementById(id);
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, value);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        set('login-email', '${email}');
+        set('login-password', '${password}');
+        document.getElementById('login-email').form.querySelector('button[type="submit"]').click();
+        return true;
+      `)
+      await sleep(3000)
+    }
+    // Menu quản trị là <nav> có mục "Tổng quan" (menu chính của site cũng có "Sản phẩm").
+    const adminNavLabels = () =>
+      evaluate(`
+        const nav = [...document.querySelectorAll('nav')].find(n => n.innerText.includes('Tổng quan'));
+        return nav ? [...nav.querySelectorAll('a')].map(a => a.textContent.trim()) : [];
+      `)
+    const staffRow = (email) =>
+      evaluate(`
+        const row = [...document.querySelectorAll('tbody tr')].find(tr => tr.innerText.includes('${email}'));
+        return row ? row.innerText : null;
+      `)
+
+    // Mục 8 đã đăng nhập admin nhưng vẫn đăng nhập lại cho mục này tự đứng được.
+    await loginAs('admin@halona.vn', 'admin123')
+    await goto('/admin/nhan-su')
+    const staffList = await text()
+    check('trang nhân sự liệt kê nhân viên seed', staffList.includes('thungan@halona.vn') && staffList.includes('Thu ngân'))
+    check('admin không có nút khoá chính mình', !(await staffRow('admin@halona.vn'))?.includes('Khoá'))
+
+    const staffEmail = `nv-${Date.now()}@halona.vn`
+    await goto('/admin/nhan-su/moi')
+    await evaluate(`
+      const set = (name, value) => {
+        const el = document.querySelector('[name="' + name + '"]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      set('name', 'Nhân Viên E2E');
+      set('email', '${staffEmail}');
+      set('password', 'nv123456');
+      // Ô chọn là controlled (React): gán qua setter gốc rồi bắn 'change' để state cập nhật.
+      const pick = (name, match) => {
+        const el = document.querySelector('select[name="' + name + '"]');
+        const opt = [...el.options].find(o => o.textContent.includes(match));
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, opt.value);
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      pick('role', 'Nhân viên bán hàng');
+      pick('storeId', 'Tân Bình');
+      return true;
+    `)
+    await sleep(300)
+    const checkedPerms = await evaluate(`
+      return [...document.querySelectorAll('input[name="permissions"]:checked')].map(i => i.value);
+    `)
+    check(
+      'chọn vai trò tự tick bộ quyền mặc định',
+      checkedPerms.length === 5 && checkedPerms.includes('products.view') && !checkedPerms.includes('posts.view'),
+      checkedPerms.join(','),
+    )
+    await evaluate(`
+      [...document.querySelectorAll('button')].find(b => b.textContent.includes('Tạo tài khoản')).click();
+      return true;
+    `)
+    await sleep(3500)
+    check('tạo nhân viên quay lại danh sách', (await url()) === '/admin/nhan-su', await url())
+    check('nhân viên mới hiện trong danh sách', (await staffRow(staffEmail))?.includes('Nhân viên bán hàng'))
+
+    await loginAs(staffEmail, 'nv123456')
+    check('nhân viên đăng nhập vào /admin', (await url()) === '/admin', await url())
+    const navLabels = await adminNavLabels()
+    check(
+      'menu quản trị chỉ hiện mục có quyền',
+      navLabels.includes('Sản phẩm') && navLabels.includes('Đơn hàng') && !navLabels.includes('Bài viết') && !navLabels.includes('Nhân sự'),
+      navLabels.join(','),
+    )
+    await goto('/admin/bai-viet')
+    check('vào trang không có quyền bị đưa về tổng quan', (await url()) === '/admin', await url())
+    await goto('/admin/san-pham')
+    const staffProducts = await text()
+    check('chỉ xem sản phẩm, không có nút thêm/sửa', staffProducts.includes('Bom mỹ') && !staffProducts.includes('Thêm sản phẩm'))
+    await goto('/admin/don-hang')
+    check('nhân viên Tân Bình không thấy đơn của 120 Yên Lãng', (await text()).includes('Chưa có đơn hàng nào.'))
+
+    await loginAs('thungan@halona.vn', 'thungan123')
+    await goto('/admin/don-hang')
+    check('thu ngân 120 Yên Lãng thấy đơn của cửa hàng mình', (await text()).includes('Nguyễn Văn Test'))
+
+    await loginAs('admin@halona.vn', 'admin123')
+    await goto('/admin/nhan-su')
+    await evaluate(`
+      const row = [...document.querySelectorAll('tbody tr')].find(tr => tr.innerText.includes('${staffEmail}'));
+      [...row.querySelectorAll('button')].find(b => b.textContent.trim() === 'Khoá').click();
+      return true;
+    `)
+    await sleep(3000)
+    check('khoá tài khoản đổi trạng thái', (await staffRow(staffEmail))?.includes('Đã khoá'))
+
+    await loginAs(staffEmail, 'nv123456')
+    check(
+      'tài khoản bị khoá không đăng nhập được',
+      (await url()) === '/tai-khoan/dang-nhap' && (await text()).includes('Tài khoản đã bị khoá'),
+      await url(),
     )
   } finally {
     ws.close()

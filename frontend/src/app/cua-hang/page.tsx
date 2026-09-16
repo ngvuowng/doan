@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { api } from '@/lib/api'
-import { PAGE_SIZE, parsePage } from '@/lib/catalog'
+import { PAGE_SIZE, buildCategoryTree, parsePage } from '@/lib/catalog'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ProductGrid } from '@/components/shop/ProductGrid'
 import { SortSelect } from '@/components/shop/SortSelect'
@@ -29,7 +29,7 @@ export default async function ShopPage({ searchParams }: PageProps<'/cua-hang'>)
       <PageHeader title="Cửa hàng" crumbs={[{ label: 'Cửa hàng' }]} />
 
       <div className="container-site flex flex-col gap-8 py-10 lg:flex-row">
-        <CategorySidebar categories={categories} />
+        <CategorySidebar categories={buildCategoryTree(categories)} />
 
         <div className="flex-1">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">

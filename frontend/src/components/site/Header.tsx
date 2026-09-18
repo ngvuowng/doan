@@ -56,7 +56,6 @@ export function Header({ categories, userName, isStaff }: Props) {
     { label: 'Giới thiệu', href: '/gioi-thieu' },
   ]
   const tailLinks = [
-    { label: 'Làm đẹp', href: '/chuyen-muc/lam-dep' },
     { label: 'Tin tức', href: '/chuyen-muc/tin-tuc' },
     { label: 'Liên hệ', href: '/lien-he' },
   ]

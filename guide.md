@@ -131,5 +131,6 @@ npm run dev
 | `SyntaxError: expected '('` tại `def or_404[T](...)` trong `app/deps.py` | Python trên máy < 3.12 (cú pháp generic `def f[T]` chỉ có từ 3.12). Cài Python 3.12+ rồi tạo lại venv: `Remove-Item -Recurse -Force .venv`, `py -3.12 -m venv .venv`. |
 | `npm : The term 'npm' is not recognized` | Chưa cài Node.js. Tải bản LTS tại https://nodejs.org/en/download, cài xong **mở lại PowerShell** rồi kiểm tra `node --version`. |
 | `Thiếu DATABASE_URL trong backend/.env` / `Thiếu AUTH_SECRET` | Quên bước `cp .env.example .env` ở thư mục `backend`. |
+| `Không kết nối được tới máy chủ API.` kèm `connect ECONNREFUSED 127.0.0.1:8000` | Backend chưa chạy hoặc chạy sai cổng — frontend render phía máy chủ nên gọi API ngay từ layout. Mở Terminal 1 xem `uvicorn` còn sống và có dòng `Application startup complete.` không (hay đã chết vì CSDL chưa lên / thiếu `.env`); thử mở http://localhost:8000/docs. Nếu cố ý chạy backend ở cổng khác, sửa `API_URL` trong `frontend/.env` cho khớp rồi khởi động lại `npm run dev` (Next.js chỉ đọc `.env` lúc khởi động). |
 | Khung chat báo lỗi 503 | Chưa cấu hình `GEMINI_API_KEY` hoặc `GEMINI_MOCK=1` (xem Bước 2). |
 | `npm run build` lỗi | Lệnh build cần backend đang chạy vì `generateStaticParams` và `sitemap.xml` đọc dữ liệu thật lúc build. |

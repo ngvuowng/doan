@@ -1,6 +1,8 @@
 """Dependency và tiện ích dùng chung cho các router."""
 
-from typing import Annotated
+from typing import Annotated, TypeVar
+
+T = TypeVar("T")
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -19,7 +21,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 BearerToken = Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)]
 
 
-def or_404[T](value: T | None, message: str) -> T:
+def or_404(value: T | None, message: str) -> T:
     """Trả về `value`; None thì ném 404 kèm thông báo tiếng Việt."""
     if value is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, message)

@@ -125,7 +125,6 @@ PRODUCT_CATEGORIES = [
 
 POST_CATEGORIES = [
     {"slug": "tin-tuc", "name": "Tin tức", "position": 1},
-    {"slug": "lam-dep", "name": "Làm đẹp", "position": 2},
 ]
 
 # 4 sản phẩm của site gốc. Giá tính bằng VND.

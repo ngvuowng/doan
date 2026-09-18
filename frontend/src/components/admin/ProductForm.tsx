@@ -5,7 +5,7 @@ import { useActionState } from 'react'
 import { saveProduct } from '@/actions/admin'
 import { FieldError, FormError, SubmitButton } from '@/components/form/controls'
 import type { FormState } from '@/lib/validation'
-import { buildCategoryTree } from '@/lib/catalog'
+import { buildCategoryTree, type CategoryNode } from '@/lib/catalog'
 
 const initial: FormState = {}
 
@@ -96,17 +96,8 @@ export function ProductForm({ product, categories }: Props) {
 
       <fieldset>
         <legend className="label">Danh mục</legend>
-        {/* Mỗi danh mục gốc một dòng: cha (đậm) rồi các con. Vẫn cho tick cha để form
-            hiển thị được mọi trạng thái trong CSDL. */}
         <div className="space-y-2">
-          {buildCategoryTree(categories).map((group) => (
-            <div key={group.id} className="flex flex-wrap gap-3">
-              <CategoryCheckbox category={group} checked={product.categoryIds.includes(group.id)} parent />
-              {group.children.map((c) => (
-                <CategoryCheckbox key={c.id} category={c} checked={product.categoryIds.includes(c.id)} />
-              ))}
-            </div>
-          ))}
+          <CategoryRows nodes={buildCategoryTree(categories)} selected={product.categoryIds} />
         </div>
       </fieldset>
 
@@ -139,6 +130,39 @@ function Field({
       {error && <FieldError>{error}</FieldError>}
     </div>
   )
+}
+
+/**
+ * Mỗi danh mục có con một dòng: chính nó (đậm) rồi các con lá; con nào lại có con thì xuống
+ * khối riêng thụt vào, đệ quy mọi độ sâu. Vẫn cho tick cha để form hiện được mọi trạng thái
+ * trong CSDL.
+ */
+function CategoryRows({
+  nodes,
+  selected,
+  depth = 0,
+}: {
+  nodes: CategoryNode<CategoryOption>[]
+  selected: string[]
+  depth?: number
+}) {
+  return nodes.map((node) => (
+    <div key={node.id} className={`space-y-2 ${depth > 0 ? 'pl-6' : ''}`}>
+      <div className="flex flex-wrap gap-3">
+        <CategoryCheckbox category={node} checked={selected.includes(node.id)} parent />
+        {node.children
+          .filter((c) => c.children.length === 0)
+          .map((c) => (
+            <CategoryCheckbox key={c.id} category={c} checked={selected.includes(c.id)} />
+          ))}
+      </div>
+      <CategoryRows
+        nodes={node.children.filter((c) => c.children.length > 0)}
+        selected={selected}
+        depth={depth + 1}
+      />
+    </div>
+  ))
 }
 
 function CategoryCheckbox({

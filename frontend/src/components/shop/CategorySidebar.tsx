@@ -3,7 +3,7 @@ import type { CategoryNode } from '@/lib/catalog'
 
 type Category = { slug: string; name: string; productCount: number }
 
-/** Cột danh mục bên trái ở trang cửa hàng: danh mục gốc rồi các danh mục con thụt vào. */
+/** Cột danh mục bên trái ở trang cửa hàng: danh mục gốc rồi các cấp con thụt dần vào. */
 export function CategorySidebar({
   categories,
   activeSlug,
@@ -25,23 +25,32 @@ export function CategorySidebar({
             Tất cả sản phẩm
           </Link>
         </li>
-        {categories.map((group) => (
-          <li key={group.slug}>
-            <CategoryRow category={group} active={activeSlug === group.slug} parent />
-            {group.children.length > 0 && (
-              <ul className="ml-3 mt-1 space-y-1 border-l border-line pl-2">
-                {group.children.map((c) => (
-                  <li key={c.slug}>
-                    <CategoryRow category={c} active={activeSlug === c.slug} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
+        <CategoryBranch nodes={categories} activeSlug={activeSlug} depth={0} />
       </ul>
     </aside>
   )
+}
+
+/** Nhánh cây danh mục, đệ quy mọi độ sâu; cấp 0 in đậm, cấp dưới thụt vào có vạch trái. */
+function CategoryBranch({
+  nodes,
+  activeSlug,
+  depth,
+}: {
+  nodes: CategoryNode[]
+  activeSlug?: string
+  depth: number
+}) {
+  return nodes.map((node) => (
+    <li key={node.slug}>
+      <CategoryRow category={node} active={activeSlug === node.slug} parent={depth === 0} />
+      {node.children.length > 0 && (
+        <ul className="ml-3 mt-1 space-y-1 border-l border-line pl-2">
+          <CategoryBranch nodes={node.children} activeSlug={activeSlug} depth={depth + 1} />
+        </ul>
+      )}
+    </li>
+  ))
 }
 
 /** Một hàng danh mục; `productCount` của danh mục cha đã gồm sản phẩm của các con (API gom sẵn). */

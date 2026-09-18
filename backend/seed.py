@@ -13,7 +13,7 @@ from datetime import timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 
 from app.database import SessionLocal, engine
 from app.models import (
@@ -33,50 +33,52 @@ BASE_DIR = Path(__file__).resolve().parent
 FEED_PATH = BASE_DIR.parent / "_reference" / "original-feed.xml"
 KLEVER_PATH = BASE_DIR.parent / "_reference" / "kleverfruits-products.json"
 
-# Danh mục sản phẩm là cây 2 cấp theo menu chính của kleverfruits.com.vn: 3 danh mục gốc
-# (không `parent`) là 3 mục menu, mỗi mục xổ các danh mục con. 5 danh mục của site gốc
-# Halona nằm trọn dưới "Sản phẩm". Cha phải khai báo trước con (seed gán qua `parent`).
-# `position` toàn cục theo hàng chục (cha 10/20/30, con 11, 12…) để ORDER BY position đã
-# ra thứ tự cha-rồi-con, và 4 sản phẩm gốc vẫn lấy `trai-cay-nhap-khau` làm danh mục chính.
+# Danh mục sản phẩm là cây nhiều cấp (hiện 3 cấp) qua `parent`: chỉ một gốc `san-pham` =
+# mục "Sản phẩm" của menu chính (xổ mega menu); 2 nhóm theo kleverfruits.com.vn (Quà tặng
+# trái cây, Trái cây tươi hàng ngày) và 5 danh mục của site gốc Halona đều là con của nó.
+# Cha phải khai báo trước con (seed gán qua `parent`). `position` toàn cục mỗi cấp một hàng
+# số (gốc 100, con 110/120…, cháu 111, 112…) để ORDER BY position ra đúng thứ tự
+# cha-rồi-con-cháu, và 4 sản phẩm gốc vẫn lấy `trai-cay-nhap-khau` (120) làm danh mục chính.
 PRODUCT_CATEGORIES = [
+    {
+        "slug": "san-pham",
+        "name": "Sản phẩm",
+        "subtitle": "Toàn bộ trái cây, nước ép, hạt và rau củ tại Halona Fruits",
+        "position": 100,
+    },
     {
         "slug": "qua-tang-trai-cay",
         "name": "Quà tặng trái cây",
         "subtitle": "Giỏ quà trái cây tươi gói sẵn, trao gửi yêu thương trong mọi dịp",
-        "position": 10,
+        "position": 110,
+        "parent": "san-pham",
     },
     {
         "slug": "gio-qua-tang-trai-cay-cao-cap",
         "name": "Giỏ quà tặng trái cây cao cấp",
         "subtitle": "Trái cây nhập khẩu tuyển chọn, gói trong giỏ mây sang trọng",
-        "position": 11,
+        "position": 111,
         "parent": "qua-tang-trai-cay",
     },
     {
         "slug": "chuc-mung-cac-dip-le",
         "name": "Chúc mừng các dịp lễ",
         "subtitle": "Quà tặng cho sinh nhật, khai trương, lễ Tết và ngày kỷ niệm",
-        "position": 12,
+        "position": 112,
         "parent": "qua-tang-trai-cay",
-    },
-    {
-        "slug": "san-pham",
-        "name": "Sản phẩm",
-        "subtitle": "Toàn bộ trái cây, nước ép, hạt và rau củ tại Halona Fruits",
-        "position": 20,
     },
     {
         "slug": "trai-cay-nhap-khau",
         "name": "Trái cây nhập khẩu",
         "subtitle": "Là nhà cung cấp thực phẩm tươi sạch hàng đầu khu vực phía nam",
-        "position": 21,
+        "position": 120,
         "parent": "san-pham",
     },
     {
         "slug": "trai-cay-noi-dia",
         "name": "Trái cây nội địa",
         "subtitle": "Có hàng ngàn mẫu hoa quả tươi đủ loại cho bạn chọn!",
-        "position": 22,
+        "position": 130,
         "parent": "san-pham",
     },
     # Tên theo menu kleverfruits nhưng giữ slug `nuoc-ep` của bản gốc vì trang chủ
@@ -85,14 +87,14 @@ PRODUCT_CATEGORIES = [
         "slug": "nuoc-ep",
         "name": "Nước ép trái cây",
         "subtitle": "Mang lại sự sảng khoái khi thưởng thức nước ép tại Halona Fruits",
-        "position": 23,
+        "position": 140,
         "parent": "san-pham",
     },
     {
         "slug": "cac-loai-hat-dinh-duong",
         "name": "Các loại hạt dinh dưỡng",
         "subtitle": "Nguồn dinh dưỡng tự nhiên cho cả gia đình",
-        "position": 24,
+        "position": 150,
         "parent": "san-pham",
     },
     # "Oragnic" là lỗi chính tả có sẵn trên site gốc — giữ nguyên để trung thành với bản clone.
@@ -100,27 +102,28 @@ PRODUCT_CATEGORIES = [
         "slug": "cac-loai-rau-cu-qua-oragnic",
         "name": "Các loại rau củ quả Oragnic",
         "subtitle": "Rau củ quả canh tác hữu cơ, không hoá chất",
-        "position": 25,
+        "position": 160,
         "parent": "san-pham",
     },
     {
         "slug": "trai-cay-tuoi-hang-ngay",
         "name": "Trái cây tươi hàng ngày",
         "subtitle": "Hoa quả tươi sơ chế sẵn, tiện dùng mỗi ngày",
-        "position": 30,
+        "position": 170,
+        "parent": "san-pham",
     },
     {
         "slug": "khay-set-hoa-qua",
         "name": "Khay/set hoa quả",
         "subtitle": "Khay và set hoa quả cắt sẵn cho văn phòng, tiệc nhỏ và gia đình",
-        "position": 31,
+        "position": 171,
         "parent": "trai-cay-tuoi-hang-ngay",
     },
     {
         "slug": "bo-doi-dinh-duong",
         "name": "Bộ đôi dinh dưỡng",
         "subtitle": "Hai loại quả bổ trợ nhau trong một combo tiết kiệm",
-        "position": 32,
+        "position": 172,
         "parent": "trai-cay-tuoi-hang-ngay",
     },
 ]
@@ -284,9 +287,9 @@ def main() -> None:
     with SessionLocal() as db:
         # Xoá sạch để chạy lại seed nhiều lần mà không nhân đôi dữ liệu.
         # Bảng nối được dọn qua quan hệ nên chỉ cần xoá các bảng chính.
-        # Danh mục con xoá trước cha để không phụ thuộc cách InnoDB xử lý FK tự tham chiếu
-        # khi xoá hàng loạt.
-        db.execute(delete(Category).where(Category.parent_id.is_not(None)))
+        # Gỡ liên kết cha-con trước rồi xoá hết để không phụ thuộc cách InnoDB xử lý FK
+        # tự tham chiếu khi xoá hàng loạt ở cây sâu tuỳ ý.
+        db.execute(update(Category).values(parent_id=None))
         for model in (OrderItem, Order, ContactMessage, Post, Product, Category, User, Store):
             db.execute(delete(model))
         db.commit()

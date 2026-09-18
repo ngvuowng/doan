@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
-import { PAGE_SIZE, buildCategoryTree, parsePage } from '@/lib/catalog'
+import { PAGE_SIZE, ancestorsOf, buildCategoryTree, parsePage } from '@/lib/catalog'
 import { PageHeader } from '@/components/site/PageHeader'
 import { ProductGrid } from '@/components/shop/ProductGrid'
 import { SortSelect } from '@/components/shop/SortSelect'
@@ -40,16 +40,18 @@ export default async function CategoryPage({
   ])
   if (!category) notFound()
 
-  // Danh mục con: chèn cha vào breadcrumb; tra trong danh sách đã tải, không gọi API thêm.
-  const parent = category.parentId ? categories.find((c) => c.id === category.parentId) : undefined
-
   return (
     <>
+      {/* Breadcrumb đủ chuỗi tổ tiên (Sản phẩm / Quà tặng trái cây / …), tra trong danh sách
+          đã tải chứ không gọi API thêm. */}
       <PageHeader
         title={category.name}
         crumbs={[
           { label: 'Cửa hàng', href: '/cua-hang' },
-          ...(parent ? [{ label: parent.name, href: `/danh-muc-san-pham/${parent.slug}` }] : []),
+          ...ancestorsOf(category, categories).map((c) => ({
+            label: c.name,
+            href: `/danh-muc-san-pham/${c.slug}`,
+          })),
           { label: category.name },
         ]}
       />

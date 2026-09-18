@@ -19,9 +19,8 @@ const KLEVER = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '_reference', 'kleverfruits-products.json'), 'utf8'),
 )
 const inCategories = (...slugs) => KLEVER.filter((p) => slugs.includes(p.category))
-// 4 sản phẩm gốc + mọi sản phẩm kleverfruits thuộc 5 danh mục con của "Sản phẩm".
-const SAN_PHAM_TOTAL =
-  4 + inCategories('trai-cay-nhap-khau', 'trai-cay-noi-dia', 'nuoc-ep', 'cac-loai-hat-dinh-duong', 'cac-loai-rau-cu-qua-oragnic').length
+// 4 sản phẩm gốc + toàn bộ sản phẩm kleverfruits: mọi danh mục lá nay đều nằm dưới "Sản phẩm".
+const SAN_PHAM_TOTAL = 4 + KLEVER.length
 const GIFT = inCategories('gio-qua-tang-trai-cay-cao-cap', 'chuc-mung-cac-dip-le')
 const formatVnd = (n) => n.toLocaleString('vi-VN') + '₫'
 const CHROME =
@@ -177,17 +176,45 @@ async function main() {
     const menu = await evaluate(
       "return [...document.querySelectorAll('header nav a')].map(a => a.textContent.trim())",
     )
-    check(
-      'menu chính có 3 nhóm danh mục',
-      ['Quà tặng trái cây', 'Sản phẩm', 'Trái cây tươi hàng ngày'].every((t) => menu.includes(t)),
-      menu.join(' | '),
+    // Mục cấp một của thanh menu: link trực tiếp, hoặc link kích hoạt của khối dropdown.
+    const tabs = await evaluate(
+      "return [...document.querySelectorAll('header nav > div > *')].map(el => (el.matches('a') ? el : el.querySelector('a')).textContent.trim())",
     )
+    check(
+      'thanh menu chỉ còn 5 mục, 2 nhóm kleverfruits nằm trong mega menu "Sản phẩm"',
+      tabs.join('|') === 'Trang chủ|Giới thiệu|Sản phẩm|Tin tức|Liên hệ' &&
+        ['Quà tặng trái cây', 'Trái cây tươi hàng ngày'].every((t) => menu.includes(t)),
+      `${tabs.join(' | ')} // ${menu.join(' | ')}`,
+    )
+    // Mega menu điều khiển bằng JS (không dựa vào `group-hover:` bị bọc trong `@media (hover: hover)`):
+    // bấm mũi tên phải mở, Esc phải đóng. `.click()` vẫn chạy handler dù thanh menu đang display:none.
+    const toggled = await evaluate(`
+      const btn = document.querySelector('button[aria-label="Mở menu Sản phẩm"]');
+      const tick = () => new Promise((r) => setTimeout(r, 50)); // React cập nhật DOM sau microtask
+      return (async () => {
+        btn.click();
+        await tick();
+        const opened = btn.getAttribute('aria-expanded');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await tick();
+        return opened + '/' + btn.getAttribute('aria-expanded');
+      })();
+    `)
+    check('bấm mũi tên mở mega menu, Esc đóng', toggled === 'true/false', toggled)
     check(
       'nhóm "Sản phẩm" liệt kê đủ 5 danh mục con',
       ['Trái cây nhập khẩu', 'Trái cây nội địa', 'Nước ép trái cây', 'Các loại hạt dinh dưỡng', 'Các loại rau củ quả Oragnic'].every((t) => menu.includes(t)),
     )
     const crumbs = await evaluate("return document.querySelector('nav[aria-label=\"Breadcrumb\"]').innerText")
     check('breadcrumb danh mục con hiện danh mục cha', crumbs.includes('Sản phẩm') && crumbs.includes('Trái cây nhập khẩu'), crumbs)
+    await goto('/danh-muc-san-pham/gio-qua-tang-trai-cay-cao-cap')
+    const deepCrumbs = await evaluate("return document.querySelector('nav[aria-label=\"Breadcrumb\"]').innerText")
+    check(
+      'breadcrumb danh mục cấp 3 hiện đủ chuỗi tổ tiên',
+      deepCrumbs.indexOf('Sản phẩm') < deepCrumbs.indexOf('Quà tặng trái cây') &&
+        deepCrumbs.indexOf('Quà tặng trái cây') < deepCrumbs.indexOf('Giỏ quà tặng trái cây cao cấp'),
+      deepCrumbs,
+    )
     await goto('/danh-muc-san-pham/san-pham')
     const parentPage = await text()
     check(

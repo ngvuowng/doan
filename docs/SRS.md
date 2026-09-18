@@ -269,10 +269,10 @@ flowchart LR
 |---|---|
 | **Mã UC** | UC-CT-02 |
 | **Tác nhân** | Khách vãng lai, Khách hàng, Quản trị viên |
-| **Mô tả** | Hai trang dùng chung một cơ chế: `/cua-hang` liệt kê **toàn bộ** sản phẩm, `/danh-muc-san-pham/{slug}` liệt kê sản phẩm của **một danh mục**. Danh mục là **cây hai cấp** (3 danh mục gốc = 3 mục của menu chính, mỗi gốc xổ các danh mục con); trang của danh mục cha liệt kê sản phẩm của chính nó và mọi danh mục con. Cả hai trang đều có thanh bên danh mục dạng cây (kèm số lượng sản phẩm), ô sắp xếp và thanh phân trang. |
+| **Mô tả** | Hai trang dùng chung một cơ chế: `/cua-hang` liệt kê **toàn bộ** sản phẩm, `/danh-muc-san-pham/{slug}` liệt kê sản phẩm của **một danh mục**. Danh mục là **cây nhiều cấp** (hiện 3 cấp; một gốc "Sản phẩm" = mục menu chính, xổ mega menu chia cột theo nhóm — mở khi rê chuột hoặc bấm nút mũi tên, đóng bằng Esc/bấm ra ngoài, điều khiển bằng state chứ không dùng `group-hover:` vì Tailwind v4 bọc biến thể đó trong `@media (hover: hover)`); trang của danh mục cha liệt kê sản phẩm của chính nó và **mọi con cháu**. Cả hai trang đều có thanh bên danh mục dạng cây (kèm số lượng sản phẩm), ô sắp xếp và thanh phân trang. |
 | **Tiền điều kiện** | Không. |
 | **Luồng chính** | 1. Người dùng mở `/cua-hang` hoặc bấm vào một danh mục ở thanh bên.<br>2. Hệ thống đọc tham số URL `?sap-xep=` và `?trang=`.<br>3. Hệ thống gọi song song: danh sách danh mục (kèm số đếm), (với trang danh mục) thông tin danh mục theo slug, và trang sản phẩm tương ứng.<br>4. Hệ thống hiển thị "Hiển thị *n* trên *tổng* sản phẩm", lưới sản phẩm và thanh phân trang. |
-| **Luồng thay thế / Quy tắc** | - **Phân trang cố định 12 sản phẩm/trang** (`PAGE_SIZE` trong `src/lib/catalog.ts`), thực hiện bằng `OFFSET/LIMIT` phía CSDL.<br>- `?trang=` không phải số nguyên dương → hệ thống **âm thầm quay về trang 1** (`parsePage`), không báo lỗi.<br>- Ba giá trị sắp xếp hợp lệ: `gia-tang`, `gia-giam`, `ten`. Giá trị lạ → dùng **thứ tự mặc định** `created_at` tăng dần (`SORTS.get(sort or "", ...)`), không báo lỗi.<br>- Sắp xếp theo giá dùng cột `price` (**giá niêm yết**), không dùng `sale_price` — sản phẩm đang giảm giá vẫn xếp theo giá gốc.<br>- Slug danh mục không tồn tại → trang 404 (UC-HT-02). Ba lời gọi API vẫn chạy **song song** rồi mới kiểm tra 404, vì lời gọi lọc sản phẩm chỉ cần slug trên URL.<br>- Số đếm ở thanh bên (`productCount`, `postCount`) do backend tính bằng truy vấn con tương quan, thay cho `_count` của Prisma ở bản trước; `productCount` của danh mục cha là số sản phẩm **khác nhau** của cha và các con.<br>- Lọc theo danh mục cha dùng `IN` trên bảng nối `product_categories` (không `JOIN`) nên sản phẩm thuộc hai danh mục con chỉ được đếm **một lần** trong `total`.<br>- Breadcrumb ở trang danh mục con: Trang chủ / Cửa hàng / *cha* / *con* — tên cha tra trong danh sách danh mục đã tải, không gọi API thêm. Menu chính và thanh bên dựng cây bằng `buildCategoryTree` (`src/lib/catalog.ts`) từ danh sách phẳng có `parentId`. |
+| **Luồng thay thế / Quy tắc** | - **Phân trang cố định 12 sản phẩm/trang** (`PAGE_SIZE` trong `src/lib/catalog.ts`), thực hiện bằng `OFFSET/LIMIT` phía CSDL.<br>- `?trang=` không phải số nguyên dương → hệ thống **âm thầm quay về trang 1** (`parsePage`), không báo lỗi.<br>- Ba giá trị sắp xếp hợp lệ: `gia-tang`, `gia-giam`, `ten`. Giá trị lạ → dùng **thứ tự mặc định** `created_at` tăng dần (`SORTS.get(sort or "", ...)`), không báo lỗi.<br>- Sắp xếp theo giá dùng cột `price` (**giá niêm yết**), không dùng `sale_price` — sản phẩm đang giảm giá vẫn xếp theo giá gốc.<br>- Slug danh mục không tồn tại → trang 404 (UC-HT-02). Ba lời gọi API vẫn chạy **song song** rồi mới kiểm tra 404, vì lời gọi lọc sản phẩm chỉ cần slug trên URL.<br>- Số đếm ở thanh bên (`productCount`, `postCount`) do backend tính bằng truy vấn con tương quan, thay cho `_count` của Prisma ở bản trước; `productCount` của danh mục cha là số sản phẩm **khác nhau** của cả cây con (mọi độ sâu), gom trong Python từ bảng nối.<br>- Lọc theo danh mục cha dùng `IN` trên bảng nối `product_categories` (không `JOIN`), danh sách id lấy bằng cách lan từng tầng theo `parent_id`, nên sản phẩm thuộc hai danh mục trong cùng cây chỉ được đếm **một lần** trong `total`.<br>- Breadcrumb ở trang danh mục: Trang chủ / Cửa hàng / *…tổ tiên* / *danh mục* (ví dụ Sản phẩm / Quà tặng trái cây / Giỏ quà tặng trái cây cao cấp) — `ancestorsOf` tra trong danh sách danh mục đã tải, không gọi API thêm. Menu chính và thanh bên dựng cây bằng `buildCategoryTree` (`src/lib/catalog.ts`) từ danh sách phẳng có `parentId`. |
 | **Hậu điều kiện** | Người dùng chọn được sản phẩm để xem chi tiết. |
 
 #### UC-CT-03 — Xem chi tiết sản phẩm
@@ -2335,8 +2335,8 @@ classDiagram
 |---|---|
 | `Category.kind` | **Một bảng dùng chung** cho danh mục sản phẩm và chuyên mục bài viết. Mọi truy vấn phải kèm `kind` để không trộn lẫn hai loại. |
 | `Category.subtitle` | Phụ đề hiển thị dưới tiêu đề khối ở trang chủ; chỉ danh mục sản phẩm dùng tới. |
-| `Category.position` | Quyết định thứ tự hiển thị và **danh mục nào là "danh mục đầu tiên"** khi chọn sản phẩm liên quan. Đánh số toàn cục theo hàng chục (cha 10/20/30, con 11, 12…) nên danh sách phẳng `ORDER BY position` đã đúng thứ tự cha-rồi-con. |
-| `Category.parentId` | Danh mục cha, tự tham chiếu, chỉ **hai cấp**. `NULL` = danh mục gốc = một mục của menu chính. `ON DELETE SET NULL`: xoá cha thì con nổi lên thành gốc, không mất gán sản phẩm. Sản phẩm chỉ gán vào danh mục lá; trang danh mục cha gom sản phẩm của các con lúc truy vấn. |
+| `Category.position` | Quyết định thứ tự hiển thị và **danh mục nào là "danh mục đầu tiên"** khi chọn sản phẩm liên quan. Đánh số toàn cục mỗi cấp một hàng số (gốc 100, con 110/120…, cháu 111, 112…) nên danh sách phẳng `ORDER BY position` đã đúng thứ tự cha-rồi-con-cháu. |
+| `Category.parentId` | Danh mục cha, tự tham chiếu, **sâu tuỳ ý** (hiện 3 cấp). `NULL` = danh mục gốc = một mục của menu chính (hiện chỉ "Sản phẩm"). `ON DELETE SET NULL`: xoá cha thì con nổi lên thành gốc, không mất gán sản phẩm. Sản phẩm chỉ gán vào danh mục lá; trang danh mục cha gom sản phẩm của cả cây con lúc truy vấn. |
 | `Product.price` | Đơn vị **VND**, kiểu **số nguyên** — tiền Việt không có phần lẻ nên không cần `DECIMAL`. |
 | `Product.salePrice` | `NULL` nghĩa là **không giảm giá**. `giaThucTe()` trả `salePrice` nếu có, ngược lại `price`. |
 | `Product.hoverImage` | Ảnh thứ hai hiện khi rê chuột lên card. **Không có ô nhập trong form quản trị** nên bị loại khỏi thao tác sửa (UC-QT-02). |
@@ -2894,7 +2894,7 @@ CREATE TABLE categories (
     -- phụ đề hiển thị dưới tiêu đề khối ở trang chủ
     subtitle  VARCHAR(500) NULL,
     position  INT          NOT NULL,
-    -- danh mục cha (cây 2 cấp theo menu chính); NULL = danh mục gốc
+    -- danh mục cha (cây nhiều cấp theo menu chính); NULL = danh mục gốc
     parent_id VARCHAR(36)  NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uq_categories_slug (slug),
@@ -3131,7 +3131,7 @@ CREATE TABLE chat_messages (
 |---|---|
 | `uq_products_slug`, `uq_posts_slug`, `uq_categories_slug` UNIQUE | Tra cứu theo slug ở mọi trang chi tiết (`/san-pham/{slug}`, `/tin-tuc/{slug}`, `/danh-muc-san-pham/{slug}`) — đường vào chính của toàn site. Đồng thời chặn slug trùng ở UC-QT-02 (lỗi 409). |
 | `ix_categories_kind` | Mọi truy vấn danh mục đều lọc `kind = 'product'` hoặc `kind = 'post'` (thanh bên cửa hàng, thanh bên tin tức, trang chủ, sitemap). |
-| `ix_categories_parent_id` | Gom danh mục con của một danh mục cha: lọc sản phẩm ở trang danh mục cha và đếm `productCount` (cha + con) ở thanh bên. |
+| `ix_categories_parent_id` | Gom danh mục con của một danh mục cha: lọc sản phẩm ở trang danh mục cha và đếm `productCount` (toàn bộ cây con) ở thanh bên. |
 | `uq_users_email` UNIQUE | Đăng nhập tra theo email; chặn đăng ký trùng (lỗi 409). Độ dài 191 ký tự là giới hạn an toàn cho chỉ mục `utf8mb4` trên các phiên bản MySQL cũ. |
 | `uq_orders_code` UNIQUE | Tra cứu đơn theo mã ở trang cảm ơn và trang chi tiết đơn; đồng thời chặn mã trùng do `secrets.token_hex` sinh ra. |
 | `ix_orders_user_id` | Trang "Đơn hàng của tôi" lọc theo `user_id`. |
@@ -3145,7 +3145,7 @@ CREATE TABLE chat_messages (
 **Điểm chưa tối ưu, cần biết khi dữ liệu lớn lên:**
 
 - Tìm kiếm dùng `LIKE '%q%'` trên ba cột (`name`, `short_description`, `description`) — **không dùng được chỉ mục**, MySQL phải quét toàn bảng. Với vài trăm sản phẩm thì không đáng kể; muốn mở rộng cần `FULLTEXT INDEX` hoặc công cụ tìm kiếm riêng.
-- Đếm sản phẩm/bài viết theo danh mục dùng **truy vấn con tương quan** cho từng dòng danh mục (đếm sản phẩm còn JOIN thêm `categories` để gom con) — chấp nhận được vì số danh mục nhỏ và cố định.
+- Đếm sản phẩm/bài viết theo danh mục dùng **truy vấn con tương quan** cho từng dòng danh mục (đếm sản phẩm lấy cả bảng nối rồi gom theo cây trong Python) — chấp nhận được vì số danh mục nhỏ và cố định.
 - Các trang quản trị (`/admin/san-pham`, `/admin/don-hang`, `/admin/bai-viet`, `/admin/lien-he`) **không phân trang** — trả toàn bộ bảng về một lần.
 - Tổng số đơn và doanh thu tính lại bằng `COUNT`/`SUM` mỗi lần mở bảng điều khiển, không có cache.
 
@@ -3335,7 +3335,7 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Dựng môi trường nhanh | `docker compose up -d` cho MySQL + phpMyAdmin; `python seed.py` nạp dữ liệu mẫu |
 | Không đụng MySQL sẵn có trên máy dev | Container ánh xạ cổng **3307** thay vì 3306 |
 | Tài liệu API luôn khớp mã nguồn | FastAPI tự sinh Swagger tại `/docs` từ chính các lớp Pydantic |
-| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 85 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
+| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 87 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
 
 ---
 
@@ -3349,14 +3349,14 @@ Toàn bộ **39 endpoint** của backend FastAPI. Tài liệu tương tác đư�
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `GET /api/products` | Công khai | Danh sách sản phẩm; tham số `category`, `q`, `sort`, `page`, `page_size`. `category` là slug danh mục cha thì gom cả sản phẩm của các danh mục con, mỗi sản phẩm một lần. Bỏ trống `page_size` thì trả tất cả | UC-CT-01, UC-CT-02, UC-CT-04, UC-HT-01 |
+| `GET /api/products` | Công khai | Danh sách sản phẩm; tham số `category`, `q`, `sort`, `page`, `page_size`. `category` là slug danh mục cha thì gom cả sản phẩm của mọi danh mục con cháu, mỗi sản phẩm một lần. Bỏ trống `page_size` thì trả tất cả | UC-CT-01, UC-CT-02, UC-CT-04, UC-HT-01 |
 | `GET /api/products/{slug}` | Công khai | Chi tiết sản phẩm kèm danh mục và tối đa 4 sản phẩm liên quan; 404 nếu không có | UC-CT-03 |
 
 ### A.2. Danh mục — `categories` (2)
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `GET /api/categories` | Công khai | Danh mục (phẳng, kèm `parentId`) với `productCount` và `postCount`; `productCount` của danh mục cha đã gom các con; lọc bằng `kind` | UC-CT-01, UC-CT-02, UC-ND-01, UC-HT-01 |
+| `GET /api/categories` | Công khai | Danh mục (phẳng, kèm `parentId`) với `productCount` và `postCount`; `productCount` của danh mục cha đã gom toàn bộ cây con; lọc bằng `kind` | UC-CT-01, UC-CT-02, UC-ND-01, UC-HT-01 |
 | `GET /api/categories/{slug}` | Công khai | Một danh mục theo slug; lọc thêm bằng `kind`; 404 nếu không có | UC-CT-02, UC-ND-01 |
 
 ### A.3. Bài viết — `posts` (2)

@@ -70,7 +70,7 @@ class Category(Base):
     # Phụ đề hiển thị dưới tiêu đề section ở trang chủ.
     subtitle: Mapped[str | None] = mapped_column(String(500), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
-    # Danh mục cha (cây 2 cấp theo menu chính). NULL = danh mục gốc = một mục menu.
+    # Danh mục cha (cây nhiều cấp theo menu chính). NULL = danh mục gốc = một mục menu.
     # SET NULL: xoá cha thì con nổi lên thành gốc, không kéo theo mất gán sản phẩm.
     parent_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True

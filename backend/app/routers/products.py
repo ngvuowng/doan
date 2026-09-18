@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.deps import DbSession, or_404
 from app.models import Category, Product, product_categories
@@ -16,6 +16,18 @@ SORTS = {
 }
 
 
+def _subtree_ids(db: Session, root_id: str) -> list[str]:
+    """Id của danh mục và toàn bộ con cháu (mọi độ sâu): lan từng tầng theo `parent_id`,
+    số truy vấn = độ sâu + 1, mỗi truy vấn chỉ đụng vài dòng."""
+    ids, frontier = [root_id], [root_id]
+    while frontier:
+        frontier = list(
+            db.execute(select(Category.id).where(Category.parent_id.in_(frontier))).scalars()
+        )
+        ids.extend(frontier)
+    return ids
+
+
 @router.get("", response_model=ProductPage)
 def list_products(
     db: DbSession,
@@ -29,11 +41,11 @@ def list_products(
     stmt = select(Product)
 
     if category:
-        # Danh mục cha gom sản phẩm của mọi danh mục con. Lọc bằng IN trên bảng nối
-        # (không JOIN) để sản phẩm thuộc hai danh mục con không bị nhân đôi dòng,
-        # nhờ đó `total` đếm đúng. Slug lạ -> rỗng (giữ hành vi cũ, không 404).
+        # Danh mục cha gom sản phẩm của mọi danh mục con cháu (sâu tuỳ ý). Lọc bằng IN trên
+        # bảng nối (không JOIN) để sản phẩm thuộc hai danh mục trong cùng cây không bị nhân
+        # đôi dòng, nhờ đó `total` đếm đúng. Slug lạ -> rỗng (giữ hành vi cũ, không 404).
         node = db.execute(select(Category).where(Category.slug == category)).scalar_one_or_none()
-        ids = [node.id, *(c.id for c in node.children)] if node else []
+        ids = _subtree_ids(db, node.id) if node else []
         stmt = stmt.where(
             Product.id.in_(
                 select(product_categories.c.product_id).where(

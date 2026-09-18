@@ -11,7 +11,8 @@ import { CartDrawer } from '@/components/cart/CartDrawer'
 import { ChevronDownIcon, MenuIcon, SearchIcon, UserIcon, XIcon, CartIcon } from '@/components/site/icons'
 
 type Props = {
-  /** Cây danh mục sản phẩm 2 cấp: mỗi gốc là một mục menu chính có dropdown danh mục con. */
+  /** Cây danh mục sản phẩm sâu tuỳ ý: mỗi gốc là một mục menu chính; gốc có con xổ mega menu
+   *  (mỗi con có con là một cột, các con lá gom một cột). Cấp sâu hơn xem ở thanh bên. */
   categories: CategoryNode[]
   /** Tên người dùng đang đăng nhập, null nếu là khách. */
   userName: string | null
@@ -24,6 +25,10 @@ export function Header({ categories, userName, isStaff }: Props) {
   const { count, openCart } = useCart()
   const [stuck, setStuck] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  // Slug của mục menu đang xổ mega menu (null = đóng). Điều khiển bằng JS thay vì
+  // `group-hover:` vì Tailwind v4 bọc biến thể đó trong `@media (hover: hover)` — trình
+  // duyệt/thiết bị báo không có hover sẽ không bao giờ mở được; và để bấm/chạm cũng mở.
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
   // Bản gốc thu header từ 90px xuống 50px khi cuộn xuống.
@@ -33,6 +38,21 @@ export function Header({ categories, userName, isStaff }: Props) {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // Esc hoặc bấm ra ngoài thanh menu thì đóng mega menu.
+  useEffect(() => {
+    if (openMenu === null) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpenMenu(null)
+    const onPointerDown = (e: PointerEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('[data-mega-menu]')) setOpenMenu(null)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [openMenu])
 
   useEffect(() => {
     if (!mobileOpen) return
@@ -163,32 +183,75 @@ export function Header({ categories, userName, isStaff }: Props) {
               </HeaderLink>
             ))}
 
-            {/* Dropdown mở bằng CSS (hover / focus-within) nên dùng được bàn phím và link
-                con luôn có trong DOM; không cần state. */}
-            {categories.map((group) => (
-              <div key={group.slug} className="group relative">
-                <Link
-                  href={`/danh-muc-san-pham/${group.slug}`}
-                  className="flex items-center gap-1 px-3 py-3 text-[13px] font-medium uppercase tracking-wide text-ink transition-colors hover:text-primary"
+            {/* Mega menu: rê chuột hoặc bấm mũi tên để mở; chữ vẫn là link tới trang danh mục.
+                Bảng luôn nằm trong DOM (chỉ ẩn/hiện bằng class) để crawler và e2e đọc được. */}
+            {categories.map((group) => {
+              const columns = megaColumns(group)
+              const open = openMenu === group.slug
+              return (
+                <div
+                  key={group.slug}
+                  data-mega-menu
+                  className="relative"
+                  onMouseEnter={() => columns.length > 0 && setOpenMenu(group.slug)}
+                  onMouseLeave={() => setOpenMenu(null)}
+                  onBlur={(e) => {
+                    // Tab ra khỏi cả khối (link + bảng) thì đóng; chuyển tiêu điểm bên trong thì giữ.
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpenMenu(null)
+                  }}
                 >
-                  {group.name}
-                  {group.children.length > 0 && <ChevronDownIcon className="h-3 w-3" />}
-                </Link>
-                {group.children.length > 0 && (
-                  <div className="absolute left-0 top-full z-50 hidden min-w-[240px] border border-line bg-white py-2 shadow-lg group-hover:block group-focus-within:block">
-                    {group.children.map((c) => (
-                      <Link
-                        key={c.slug}
-                        href={`/danh-muc-san-pham/${c.slug}`}
-                        className="block px-4 py-2 text-sm text-ink transition-colors hover:bg-shell hover:text-primary"
+                  <div className="flex items-center">
+                    <Link
+                      href={`/danh-muc-san-pham/${group.slug}`}
+                      onClick={() => setOpenMenu(null)}
+                      className="py-3 pl-3 pr-1 text-[13px] font-medium uppercase tracking-wide text-ink transition-colors hover:text-primary"
+                    >
+                      {group.name}
+                    </Link>
+                    {columns.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenu(open ? null : group.slug)}
+                        aria-expanded={open}
+                        aria-label={`${open ? 'Đóng' : 'Mở'} menu ${group.name}`}
+                        className="py-3 pl-1 pr-3 text-ink transition-colors hover:text-primary"
                       >
-                        {c.name}
-                      </Link>
-                    ))}
+                        <ChevronDownIcon className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                  {columns.length > 0 && (
+                    <div
+                      className={`absolute left-0 top-full z-50 gap-8 whitespace-nowrap border border-line bg-white p-5 shadow-lg ${
+                        open ? 'flex' : 'hidden'
+                      }`}
+                    >
+                      {columns.map((col) => (
+                        <div key={col.items[0].slug} className="min-w-[200px]">
+                          <Link
+                            href={`/danh-muc-san-pham/${col.heading.slug}`}
+                            onClick={() => setOpenMenu(null)}
+                            className="mb-2 block border-b border-line pb-2 text-[13px] font-semibold uppercase tracking-wide text-ink hover:text-primary"
+                          >
+                            {col.heading.name}
+                          </Link>
+                          {col.items.map((c) => (
+                            <Link
+                              key={c.slug}
+                              href={`/danh-muc-san-pham/${c.slug}`}
+                              onClick={() => setOpenMenu(null)}
+                              className="block py-1.5 text-sm text-ink transition-colors hover:text-primary"
+                            >
+                              {c.name}
+                            </Link>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
             {tailLinks.map((l) => (
               <HeaderLink key={l.href} href={l.href}>
@@ -240,23 +303,7 @@ export function Header({ categories, userName, isStaff }: Props) {
                   {l.label}
                 </MobileLink>
               ))}
-              {categories.map((group) => (
-                <Fragment key={group.slug}>
-                  <MobileLink href={`/danh-muc-san-pham/${group.slug}`} onClick={() => setMobileOpen(false)}>
-                    {group.name}
-                  </MobileLink>
-                  {group.children.map((c) => (
-                    <MobileLink
-                      key={c.slug}
-                      href={`/danh-muc-san-pham/${c.slug}`}
-                      onClick={() => setMobileOpen(false)}
-                      nested
-                    >
-                      {c.name}
-                    </MobileLink>
-                  ))}
-                </Fragment>
-              ))}
+              <MobileCategoryLinks nodes={categories} depth={0} onClick={() => setMobileOpen(false)} />
               {tailLinks.map((l) => (
                 <MobileLink key={l.href} href={l.href} onClick={() => setMobileOpen(false)}>
                   {l.label}
@@ -282,6 +329,27 @@ export function Header({ categories, userName, isStaff }: Props) {
   )
 }
 
+type MenuColumn = { heading: CategoryNode; items: CategoryNode[] }
+
+/**
+ * Chia con của một mục menu thành cột: con có con → một cột riêng (tiêu đề = chính nó);
+ * các con lá đứng liền nhau gom vào một cột lấy tiêu đề là mục menu (link tới trang của nó).
+ */
+function megaColumns(group: CategoryNode): MenuColumn[] {
+  const columns: MenuColumn[] = []
+  let leafColumn: MenuColumn | null = null
+  for (const child of group.children) {
+    if (child.children.length > 0) {
+      columns.push({ heading: child, items: child.children })
+      leafColumn = null
+    } else {
+      if (!leafColumn) columns.push((leafColumn = { heading: group, items: [] }))
+      leafColumn.items.push(child)
+    }
+  }
+  return columns
+}
+
 function HeaderLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
@@ -293,24 +361,47 @@ function HeaderLink({ href, children }: { href: string; children: React.ReactNod
   )
 }
 
+/** Danh mục trong menu mobile, đệ quy mọi độ sâu; mỗi cấp thụt thêm 1rem. */
+function MobileCategoryLinks({
+  nodes,
+  depth,
+  onClick,
+}: {
+  nodes: CategoryNode[]
+  depth: number
+  onClick: () => void
+}) {
+  return nodes.map((node) => (
+    <Fragment key={node.slug}>
+      <MobileLink href={`/danh-muc-san-pham/${node.slug}`} onClick={onClick} depth={depth}>
+        {node.name}
+      </MobileLink>
+      <MobileCategoryLinks nodes={node.children} depth={depth + 1} onClick={onClick} />
+    </Fragment>
+  ))
+}
+
+// Tailwind cần tên lớp viết đủ (không ghép chuỗi), nên tra bảng theo độ sâu và kẹp ở mức cuối.
+const MOBILE_INDENT = ['pl-4', 'pl-8', 'pl-12', 'pl-16']
+
 function MobileLink({
   href,
   children,
   onClick,
-  nested,
+  depth = 0,
 }: {
   href: string
   children: React.ReactNode
   onClick: () => void
-  nested?: boolean
+  depth?: number
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      className={`block py-2.5 text-sm text-ink hover:bg-shell hover:text-primary ${
-        nested ? 'pl-8 pr-4 text-muted' : 'px-4 font-medium'
-      }`}
+      className={`block py-2.5 pr-4 text-sm hover:bg-shell hover:text-primary ${
+        MOBILE_INDENT[Math.min(depth, MOBILE_INDENT.length - 1)]
+      } ${depth === 0 ? 'font-medium text-ink' : 'text-muted'}`}
     >
       {children}
     </Link>

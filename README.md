@@ -112,12 +112,14 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 **Phía khách hàng**
 
 - Trang chủ dựng lại đúng 9 khối theo thứ tự của bản gốc
-- Menu chính 3 nhóm theo kleverfruits.com.vn — Quà tặng trái cây · Sản phẩm · Trái cây
-  tươi hàng ngày — mỗi nhóm xổ danh mục con (dropdown bằng CSS, dùng được bàn phím);
+- Menu chính theo kleverfruits.com.vn: một mục "Sản phẩm" xổ **mega menu** 3 cột — Quà
+  tặng trái cây · 5 danh mục Halona · Trái cây tươi hàng ngày (mở khi rê chuột hoặc bấm
+  mũi tên, đóng bằng Esc/bấm ra ngoài — không dựa vào `group-hover:` vì Tailwind v4 bọc
+  nó trong `@media (hover: hover)`);
   7 danh mục lá của menu có **sản phẩm thật nhập từ kleverfruits.com.vn** (6 sản
   phẩm/danh mục, ảnh tải về máy)
-- Cửa hàng và trang danh mục: danh mục hai cấp (trang danh mục cha gom sản phẩm của các
-  danh mục con), lọc theo danh mục, sắp xếp, phân trang
+- Cửa hàng và trang danh mục: danh mục nhiều cấp, hiện 3 cấp (trang danh mục cha gom sản
+  phẩm của toàn bộ cây con), lọc theo danh mục, sắp xếp, phân trang
 - Chi tiết sản phẩm: chọn số lượng (chặn theo tồn kho), mô tả, sản phẩm liên quan; sản phẩm
   hết hàng hiện nhãn "Hết hàng" ở cả thẻ sản phẩm lẫn trang chi tiết và khoá nút thêm vào giỏ
 - Tìm kiếm sản phẩm theo tên và mô tả
@@ -171,7 +173,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 85 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 87 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -271,7 +273,7 @@ Header      35px (top) + 90px (chính), thu còn 50px khi cuộn
 | Thumbnail bài "Eat Clean" | Không được lưu trữ → dùng ảnh SVG trang trí cùng tông màu |
 | Ảnh hover trên card sản phẩm | Bản gốc dùng chung **một** ảnh cho cả 4 sản phẩm (rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo) → thay bằng hiệu ứng phóng to nhẹ |
 | Iframe Facebook Page | Cần App ID còn hiệu lực của chủ site gốc → bỏ, giữ lại video YouTube |
-| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng menu 3 nhóm hai cấp theo kleverfruits.com.vn; 5 danh mục Halona giữ nguyên dưới nhóm "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; 7 danh mục lá nạp 6 sản phẩm thật/danh mục từ kleverfruits.com.vn (JSON công khai của Haravan, ảnh tải về `public/images`); 2 danh mục hạt/rau củ không có tương đương nên để trống |
+| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng một mục "Sản phẩm" xổ mega menu 3 cột theo kleverfruits.com.vn (2 nhóm Quà tặng trái cây / Trái cây tươi hàng ngày là con của "Sản phẩm" — cây 3 cấp); 5 danh mục Halona giữ nguyên dưới "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; 7 danh mục lá nạp 6 sản phẩm thật/danh mục từ kleverfruits.com.vn (JSON công khai của Haravan, ảnh tải về `public/images`); 2 danh mục hạt/rau củ không có tương đương nên để trống |
 
 Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng tinh thần bản clone:
 "Halona Fru**i**st" (tên site) và "Or**a**gnic" (tên danh mục).
@@ -288,8 +290,8 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 85 kiểm tra: hiển thị trang chủ, điều hướng catalog (menu
-hai cấp, breadcrumb cha/con, danh mục cha gom sản phẩm của các con không trùng), thêm
+Playwright/Puppeteer) và chạy 87 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
+menu, breadcrumb đủ chuỗi tổ tiên, danh mục cha gom sản phẩm của các con không trùng), thêm
 giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
 (giả lập định vị ngay trong trang → tự chọn cửa hàng gần nhất, phí theo km), đăng nhập,
 tìm kiếm, blog, form liên hệ, toàn bộ luồng quản trị, tồn kho (hoàn thành đơn trừ kho,

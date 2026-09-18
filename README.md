@@ -113,7 +113,9 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 
 - Trang chủ dựng lại đúng 9 khối theo thứ tự của bản gốc
 - Menu chính 3 nhóm theo kleverfruits.com.vn — Quà tặng trái cây · Sản phẩm · Trái cây
-  tươi hàng ngày — mỗi nhóm xổ danh mục con (dropdown bằng CSS, dùng được bàn phím)
+  tươi hàng ngày — mỗi nhóm xổ danh mục con (dropdown bằng CSS, dùng được bàn phím);
+  7 danh mục lá của menu có **sản phẩm thật nhập từ kleverfruits.com.vn** (6 sản
+  phẩm/danh mục, ảnh tải về máy)
 - Cửa hàng và trang danh mục: danh mục hai cấp (trang danh mục cha gom sản phẩm của các
   danh mục con), lọc theo danh mục, sắp xếp, phân trang
 - Chi tiết sản phẩm: chọn số lượng (chặn theo tồn kho), mô tả, sản phẩm liên quan; sản phẩm
@@ -169,7 +171,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 83 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 85 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -183,6 +185,21 @@ docker compose down       # tắt (giữ dữ liệu)
 docker compose down -v    # tắt và XOÁ toàn bộ dữ liệu
 ```
 
+### Nạp lại sản phẩm kleverfruits
+
+Sản phẩm của 7 danh mục lá (menu mới) lấy từ JSON công khai của kleverfruits.com.vn
+(nền Haravan). File `_reference/kleverfruits-products.json` và ảnh trong
+`frontend/public/images/product-*.jpg` **đã commit**, nên `python seed.py` chạy offline;
+chỉ cần chạy lại khi muốn làm mới dữ liệu:
+
+```bash
+cd frontend && npm run fetch:kleverfruits   # tải JSON + ảnh, ghi _reference/kleverfruits-products.json
+cd ../backend && python seed.py             # nạp lại CSDL
+```
+
+kleverfruits có thể xếp lại thứ tự bộ sưu tập theo thời gian, nên xem `git diff _reference/`
+trước khi commit bản mới.
+
 ## Cấu trúc thư mục
 
 Mỗi tầng trong sơ đồ kiến trúc ở trên là một thư mục riêng ở gốc repo:
@@ -190,7 +207,7 @@ Mỗi tầng trong sơ đồ kiến trúc ở trên là một thư mục riêng 
 ```
 docker-compose.yml   MySQL 8.4 + phpMyAdmin
 docs/SRS.md          đặc tả yêu cầu phần mềm
-_reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX)
+_reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, danh mục CDX) + kleverfruits-products.json
 
 backend/             ← tầng nghiệp vụ (Python)
   app/models.py      10 bảng + 2 bảng nối (SQLAlchemy)
@@ -214,15 +231,17 @@ frontend/            ← tầng giao diện (TypeScript)
   src/app/           các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
   src/components/    component giao diện, chia theo khu vực (có chat/ cho trợ lý ảo)
   src/actions/       server action (đặt hàng, xác thực, quản trị, nhân sự, liên hệ)
-  public/images/     ảnh gốc đã tải về
-  scripts/           tải ảnh từ Wayback, kiểm thử đầu-cuối
+  public/images/     ảnh gốc và ảnh sản phẩm kleverfruits đã tải về
+  scripts/           tải ảnh từ Wayback, nhập sản phẩm kleverfruits, kiểm thử đầu-cuối
 ```
 
 > Lệnh `npm` phải chạy trong `frontend/`, giống như lệnh `uvicorn`/`alembic` phải
 > chạy trong `backend/`. Gốc repo không có `package.json`.
 
 `_reference/` nằm ở gốc vì cả hai tầng đều dùng: `backend/seed.py` đọc RSS lưu trữ
-trong đó, còn `frontend/scripts/fetch-assets.ts` tải ảnh từ cùng bản lưu trữ.
+trong đó, còn `frontend/scripts/fetch-assets.ts` tải ảnh từ cùng bản lưu trữ. Tương tự,
+`_reference/kleverfruits-products.json` do `frontend/scripts/fetch-kleverfruits.ts` sinh ra
+và `backend/seed.py` nạp.
 
 ## Ghi chú về việc clone
 
@@ -252,7 +271,7 @@ Header      35px (top) + 90px (chính), thu còn 50px khi cuộn
 | Thumbnail bài "Eat Clean" | Không được lưu trữ → dùng ảnh SVG trang trí cùng tông màu |
 | Ảnh hover trên card sản phẩm | Bản gốc dùng chung **một** ảnh cho cả 4 sản phẩm (rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo) → thay bằng hiệu ứng phóng to nhẹ |
 | Iframe Facebook Page | Cần App ID còn hiệu lực của chủ site gốc → bỏ, giữ lại video YouTube |
-| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng menu 3 nhóm hai cấp theo kleverfruits.com.vn; 5 danh mục Halona giữ nguyên dưới nhóm "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; thêm 8 sản phẩm mẫu (dùng lại ảnh gốc) cho 4 danh mục lá mới |
+| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng menu 3 nhóm hai cấp theo kleverfruits.com.vn; 5 danh mục Halona giữ nguyên dưới nhóm "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; 7 danh mục lá nạp 6 sản phẩm thật/danh mục từ kleverfruits.com.vn (JSON công khai của Haravan, ảnh tải về `public/images`); 2 danh mục hạt/rau củ không có tương đương nên để trống |
 
 Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng tinh thần bản clone:
 "Halona Fru**i**st" (tên site) và "Or**a**gnic" (tên danh mục).
@@ -269,7 +288,7 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 83 kiểm tra: hiển thị trang chủ, điều hướng catalog (menu
+Playwright/Puppeteer) và chạy 85 kiểm tra: hiển thị trang chủ, điều hướng catalog (menu
 hai cấp, breadcrumb cha/con, danh mục cha gom sản phẩm của các con không trùng), thêm
 giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
 (giả lập định vị ngay trong trang → tự chọn cửa hàng gần nhất, phí theo km), đăng nhập,

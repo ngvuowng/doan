@@ -13,7 +13,8 @@ const HOME_SECTIONS = ['trai-cay-nhap-khau', 'trai-cay-noi-dia', 'nuoc-ep'] as c
 export default async function HomePage() {
   const [categories, sections, posts] = await Promise.all([
     api.categories.list('product'),
-    Promise.all(HOME_SECTIONS.map((slug) => api.products.list({ category: slug }))),
+    // Mỗi khối tối đa 8 sản phẩm (4 gốc + 4 kleverfruits = 2 hàng); trang danh mục mới hiện đủ.
+    Promise.all(HOME_SECTIONS.map((slug) => api.products.list({ category: slug, page_size: 8 }))),
     api.posts.list({ limit: 4 }),
   ])
 

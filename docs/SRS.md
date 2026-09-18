@@ -260,7 +260,7 @@ flowchart LR
 | **Mô tả** | Trang chủ dựng lại đúng **9 khối theo thứ tự của bản gốc**: slider chính, 3 banner khuyến mãi, khối sản phẩm "Trái cây nhập khẩu", 2 banner rộng, khối "Trái cây nội địa", khối "Nước ép" (nền tối), dải cam kết dịch vụ, khối tin tức, khối liên hệ kèm video YouTube. |
 | **Tiền điều kiện** | Backend API đang chạy; CSDL đã có dữ liệu (chạy `python seed.py`). |
 | **Luồng chính** | 1. Người dùng mở `/`.<br>2. Server Component gọi **song song** ba nhóm dữ liệu: danh mục sản phẩm, sản phẩm của ba danh mục `trai-cay-nhap-khau` / `trai-cay-noi-dia` / `nuoc-ep`, và 4 bài viết mới nhất.<br>3. Hệ thống ghép danh mục với danh sách sản phẩm tương ứng và render các khối.<br>4. Người dùng có thể bấm "Xem tất cả" của mỗi khối để sang trang danh mục tương ứng. |
-| **Luồng thay thế / Quy tắc** | - Danh mục nào **không tồn tại trong CSDL** thì khối tương ứng **bị bỏ qua** (không render khối rỗng) — mã dùng phép kiểm `category && {...}`.<br>- Ba khối này gọi `products.list` **không truyền `page_size`**, tức lấy toàn bộ sản phẩm của danh mục chứ không phân trang.<br>- Ảnh nền footer và slide 1 không có trong kho lưu trữ nên được dựng lại bằng HTML/CSS và gradient (xem README).<br>- Backend chết → toàn trang hiển thị màn hình lỗi của UC-HT-02, không phải trang trắng. |
+| **Luồng thay thế / Quy tắc** | - Danh mục nào **không tồn tại trong CSDL** thì khối tương ứng **bị bỏ qua** (không render khối rỗng) — mã dùng phép kiểm `category && {...}`.<br>- Ba khối này gọi `products.list` với **`page_size: 8`** (4 sản phẩm Halona gốc đứng đầu theo `created_at`, rồi 4 sản phẩm nhập từ kleverfruits = 2 hàng); muốn xem đủ thì sang trang danh mục.<br>- Ảnh nền footer và slide 1 không có trong kho lưu trữ nên được dựng lại bằng HTML/CSS và gradient (xem README).<br>- Backend chết → toàn trang hiển thị màn hình lỗi của UC-HT-02, không phải trang trắng. |
 | **Hậu điều kiện** | Người dùng thấy toàn cảnh catalog và có lối vào cửa hàng, danh mục, tin tức. |
 
 #### UC-CT-02 — Duyệt cửa hàng và danh mục sản phẩm
@@ -2341,8 +2341,9 @@ classDiagram
 | `Product.salePrice` | `NULL` nghĩa là **không giảm giá**. `giaThucTe()` trả `salePrice` nếu có, ngược lại `price`. |
 | `Product.hoverImage` | Ảnh thứ hai hiện khi rê chuột lên card. **Không có ô nhập trong form quản trị** nên bị loại khỏi thao tác sửa (UC-QT-02). |
 | `Product.stock` | Trừ khi xác nhận thanh toán (BANK) / hoàn thành đơn (COD), hoàn lại khi huỷ đơn đã trừ; `0` → "Hết hàng", khoá nút mua và chặn đặt hàng. |
+| `Product.description` | HTML; 4 sản phẩm gốc soạn tay, 42 sản phẩm còn lại nhập từ kleverfruits.com.vn qua `_reference/kleverfruits-products.json` (mô tả đã lọc chỉ còn `p/h2-h4/ul/ol/li/strong/em/br`, ảnh tải về `public/images`). |
 | `Post.content` | HTML lấy nguyên từ RSS lưu trữ của site gốc, nạp qua `seed.py`. |
-| `ProductPage` | Kết quả phân trang; `pageSize = null` nghĩa là **không phân trang** (trang chủ, tìm kiếm, sitemap dùng chế độ này). |
+| `ProductPage` | Kết quả phân trang; `pageSize = null` nghĩa là **không phân trang** (tìm kiếm, sitemap dùng chế độ này). |
 
 ### 7.3. Phân hệ Giỏ hàng & Đặt hàng
 
@@ -3334,7 +3335,7 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Dựng môi trường nhanh | `docker compose up -d` cho MySQL + phpMyAdmin; `python seed.py` nạp dữ liệu mẫu |
 | Không đụng MySQL sẵn có trên máy dev | Container ánh xạ cổng **3307** thay vì 3306 |
 | Tài liệu API luôn khớp mã nguồn | FastAPI tự sinh Swagger tại `/docs` từ chính các lớp Pydantic |
-| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 83 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
+| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 85 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
 
 ---
 

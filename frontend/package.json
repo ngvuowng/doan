@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "fetch:assets": "tsx scripts/fetch-assets.ts"
+    "fetch:assets": "tsx scripts/fetch-assets.ts",
+    "fetch:kleverfruits": "tsx scripts/fetch-kleverfruits.ts"
   },
   "dependencies": {
     "next": "16.3.3",

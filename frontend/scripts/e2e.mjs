@@ -8,9 +8,22 @@
  *        BASE_URL=... node scripts/e2e.mjs
  */
 import { spawn } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000'
+// Sản phẩm nhập từ kleverfruits (cùng file seed.py đọc) để số đếm và tên không phải viết cứng.
+const KLEVER = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '_reference', 'kleverfruits-products.json'), 'utf8'),
+)
+const inCategories = (...slugs) => KLEVER.filter((p) => slugs.includes(p.category))
+// 4 sản phẩm gốc + mọi sản phẩm kleverfruits thuộc 5 danh mục con của "Sản phẩm".
+const SAN_PHAM_TOTAL =
+  4 + inCategories('trai-cay-nhap-khau', 'trai-cay-noi-dia', 'nuoc-ep', 'cac-loai-hat-dinh-duong', 'cac-loai-rau-cu-qua-oragnic').length
+const GIFT = inCategories('gio-qua-tang-trai-cay-cao-cap', 'chuc-mung-cac-dip-le')
+const formatVnd = (n) => n.toLocaleString('vi-VN') + '₫'
 const CHROME =
   process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const PORT = 9222
@@ -149,6 +162,11 @@ async function main() {
       'return [...document.images].filter(i => i.complete && i.naturalWidth === 0).map(i => i.currentSrc || i.src)',
     )
     check('không có ảnh vỡ', broken.length === 0, broken.join(', '))
+    // Mỗi khối sản phẩm là một <section> chứa các <article>; trang chủ giới hạn 8 sản phẩm/khối.
+    const homeCards = await evaluate(
+      "return [...document.querySelectorAll('section')].map(s => s.querySelectorAll('article').length).filter(Boolean)",
+    )
+    check('mỗi khối trang chủ tối đa 8 sản phẩm', homeCards.length >= 3 && homeCards.every((n) => n <= 8), homeCards.join(','))
 
     // ---- 2. Điều hướng tới chi tiết sản phẩm ----
     console.log('\n2. Điều hướng catalog')
@@ -174,13 +192,19 @@ async function main() {
     const parentPage = await text()
     check(
       'danh mục cha gom sản phẩm của các danh mục con, không trùng',
-      parentPage.includes('Bom mỹ') && parentPage.includes('Cà chua Đà Lạt') && parentPage.includes('trên 4 sản phẩm'),
+      parentPage.includes('Bom mỹ') && parentPage.includes('Cà chua Đà Lạt') && parentPage.includes(`trên ${SAN_PHAM_TOTAL} sản phẩm`),
     )
     await goto('/danh-muc-san-pham/qua-tang-trai-cay')
     const giftPage = await text()
     check(
-      'danh mục mới hiện sản phẩm mẫu',
-      giftPage.includes('Giỏ quà trái cây thượng hạng') && giftPage.includes('Giỏ quà Tết sum vầy') && giftPage.includes('trên 4 sản phẩm'),
+      'danh mục mới hiện sản phẩm nhập từ kleverfruits',
+      giftPage.includes(GIFT[0].name) && giftPage.includes(GIFT[GIFT.length - 1].name) && giftPage.includes(`trên ${GIFT.length} sản phẩm`),
+    )
+    await goto(`/san-pham/${GIFT[0].slug}`)
+    const detailKlever = await text()
+    check(
+      'chi tiết SP kleverfruits hiện tên + giá',
+      detailKlever.includes(GIFT[0].name) && detailKlever.includes(formatVnd(GIFT[0].sale_price ?? GIFT[0].price)),
     )
     await goto('/san-pham/bom-my')
     const detail = await text()

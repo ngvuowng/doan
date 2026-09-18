@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@/components/cart/CartProvider'
+import { QuantityInput } from '@/components/cart/QuantityInput'
 import { formatPrice } from '@/lib/format'
 import { CartIcon, TrashIcon, XIcon } from '@/components/site/icons'
 
@@ -71,25 +72,11 @@ export function CartDrawer() {
                     <span className="mt-0.5 text-sm text-primary">{formatPrice(line.price)}</span>
 
                     <div className="mt-auto flex items-center justify-between pt-2">
-                      <div className="flex items-center rounded-md border border-line">
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(line.productId, line.quantity - 1)}
-                          className="h-7 w-7 text-muted hover:text-primary"
-                          aria-label={`Giảm số lượng ${line.name}`}
-                        >
-                          −
-                        </button>
-                        <span className="w-8 text-center text-sm">{line.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(line.productId, line.quantity + 1)}
-                          className="h-7 w-7 text-muted hover:text-primary"
-                          aria-label={`Tăng số lượng ${line.name}`}
-                        >
-                          +
-                        </button>
-                      </div>
+                      <QuantityInput
+                        value={line.quantity}
+                        onChange={(q) => setQuantity(line.productId, q)}
+                        label={line.name}
+                      />
 
                       <button
                         type="button"

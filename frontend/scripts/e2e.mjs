@@ -241,6 +241,36 @@ async function main() {
 
     // ---- 3. Thêm vào giỏ hàng ----
     console.log('\n3. Giỏ hàng')
+    // Ô số lượng nhập tay: chốt khi rời ô, chỉ nhận số nguyên trong [1, stock]. Cửa sổ
+    // headless không có focus nên focus()/blur() không phát sự kiện → phát focusin/focusout
+    // tay (React lắng nghe hai sự kiện này cho onFocus/onBlur).
+    // Mỗi bước tách một lượt để React kịp render lại giữa các sự kiện, như người dùng thật.
+    const qtyEl = `document.querySelector('[aria-label="Số lượng"]')`
+    const typeQuantity = async (raw) => {
+      await evaluate(`${qtyEl}.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); return true`)
+      await sleep(100)
+      await evaluate(`
+        const el = ${qtyEl};
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(raw)});
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      `)
+      await sleep(100)
+      await evaluate(`${qtyEl}.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); return true`)
+      await sleep(100)
+      return evaluate(`return ${qtyEl}.value`)
+    }
+    check('ô số lượng nhập tay được', (await typeQuantity('3')) === '3')
+    const decimal = await typeQuantity('2.5')
+    check('ô số lượng chặn số thập phân', /^[1-9]\d*$/.test(decimal), decimal)
+    const afterLetters = await typeQuantity('abc')
+    const afterZero = await typeQuantity('0')
+    check(
+      'ô số lượng bỏ qua chữ và 0',
+      afterLetters === decimal && afterZero === decimal,
+      `sau 2.5=${decimal} abc=${afterLetters} 0=${afterZero}`,
+    )
+    await typeQuantity('1')
     await evaluate(`
       const btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Thêm vào giỏ hàng'));
       btn.click();

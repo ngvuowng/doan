@@ -120,10 +120,12 @@ qua giao diện. Đây là trùng lặp có chủ đích.
   phẩm/danh mục, ảnh tải về máy)
 - Cửa hàng và trang danh mục: danh mục nhiều cấp, hiện 3 cấp (trang danh mục cha gom sản
   phẩm của toàn bộ cây con), lọc theo danh mục, sắp xếp, phân trang
-- Chi tiết sản phẩm: chọn số lượng (chặn theo tồn kho), mô tả, sản phẩm liên quan; sản phẩm
+- Chi tiết sản phẩm: chọn số lượng (gõ tay hoặc +/−, chỉ nhận số nguyên, chặn theo tồn kho),
+  mô tả, sản phẩm liên quan; sản phẩm
   hết hàng hiện nhãn "Hết hàng" ở cả thẻ sản phẩm lẫn trang chi tiết và khoá nút thêm vào giỏ
 - Tìm kiếm sản phẩm theo tên và mô tả
-- Giỏ hàng lưu ở `localStorage` + ngăn kéo giỏ hàng trong header
+- Giỏ hàng lưu ở `localStorage` + ngăn kéo giỏ hàng trong header; ô số lượng ở giỏ cũng gõ
+  tay được, trần 999/dòng (khớp kiểm tra ở bước đặt hàng)
 - Thanh toán: chọn cửa hàng giao trong hệ thống 3 cửa hàng (Tân Bình, 120 Yên Lãng,
   ngõ 38 Yên Lãng) — bấm "Dùng vị trí của tôi" để hệ thống tự chọn cửa hàng gần nhất và
   tính phí giao hàng theo khoảng cách (không định vị thì áp phí chuẩn); COD hoặc chuyển
@@ -173,7 +175,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 87 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 90 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -290,9 +292,9 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 87 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
-menu, breadcrumb đủ chuỗi tổ tiên, danh mục cha gom sản phẩm của các con không trùng), thêm
-giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
+Playwright/Puppeteer) và chạy 90 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
+menu, breadcrumb đủ chuỗi tổ tiên, danh mục cha gom sản phẩm của các con không trùng), ô số
+lượng gõ tay (chặn thập phân, chữ, 0), thêm giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
 (giả lập định vị ngay trong trang → tự chọn cửa hàng gần nhất, phí theo km), đăng nhập,
 tìm kiếm, blog, form liên hệ, toàn bộ luồng quản trị, tồn kho (hoàn thành đơn trừ kho,
 không trừ hai lần, huỷ hoàn kho, thiếu hàng báo lỗi, nhãn "Hết hàng", từ chối đặt hàng

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@/components/cart/CartProvider'
+import { QuantityInput } from '@/components/cart/QuantityInput'
 import { formatPrice } from '@/lib/format'
 import { CartIcon, TrashIcon } from '@/components/site/icons'
 
@@ -57,7 +58,7 @@ export function CartPageContent() {
                 </td>
                 <td className="py-4 text-primary">{formatPrice(line.price)}</td>
                 <td className="py-4">
-                  <QuantityControl
+                  <QuantityInput
                     value={line.quantity}
                     onChange={(q) => setQuantity(line.productId, q)}
                     label={line.name}
@@ -94,7 +95,7 @@ export function CartPageContent() {
                 </Link>
                 <p className="mt-0.5 text-sm text-primary">{formatPrice(line.price)}</p>
                 <div className="mt-2 flex items-center justify-between">
-                  <QuantityControl
+                  <QuantityInput
                     value={line.quantity}
                     onChange={(q) => setQuantity(line.productId, q)}
                     label={line.name}
@@ -143,38 +144,6 @@ export function CartPageContent() {
           Tiến hành thanh toán
         </Link>
       </aside>
-    </div>
-  )
-}
-
-function QuantityControl({
-  value,
-  onChange,
-  label,
-}: {
-  value: number
-  onChange: (q: number) => void
-  label: string
-}) {
-  return (
-    <div className="inline-flex items-center rounded-md border border-line">
-      <button
-        type="button"
-        onClick={() => onChange(value - 1)}
-        className="h-8 w-8 text-muted hover:text-primary"
-        aria-label={`Giảm số lượng ${label}`}
-      >
-        −
-      </button>
-      <span className="w-9 text-center text-sm">{value}</span>
-      <button
-        type="button"
-        onClick={() => onChange(value + 1)}
-        className="h-8 w-8 text-muted hover:text-primary"
-        aria-label={`Tăng số lượng ${label}`}
-      >
-        +
-      </button>
     </div>
   )
 }

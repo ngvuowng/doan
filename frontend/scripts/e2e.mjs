@@ -829,7 +829,7 @@ async function main() {
     const navLabels = await adminNavLabels()
     check(
       'menu quản trị chỉ hiện mục có quyền',
-      navLabels.includes('Sản phẩm') && navLabels.includes('Đơn hàng') && !navLabels.includes('Bài viết') && !navLabels.includes('Nhân sự'),
+      navLabels.includes('Sản phẩm') && navLabels.includes('Đơn hàng') && !navLabels.includes('Bài viết') && !navLabels.includes('Nhân sự') && !navLabels.includes('Khách hàng'),
       navLabels.join(','),
     )
     await goto('/admin/bai-viet')
@@ -860,6 +860,65 @@ async function main() {
       (await url()) === '/tai-khoan/dang-nhap' && (await text()).includes('Tài khoản đã bị khoá'),
       await url(),
     )
+
+    // ---- 13. Khách hàng ----
+    // Chỉ ADMIN vào được. Khoá rồi mở khoá lại tài khoản khách seed để các lần chạy sau
+    // (và mục 5) vẫn đăng nhập được. Chỉ thao tác bằng JS — xem ghi chú ở đầu mục 12.
+    console.log('\n13. Khách hàng')
+    const customerRow = (email) =>
+      evaluate(`
+        const row = [...document.querySelectorAll('tbody tr')].find(tr => tr.innerText.includes('${email}'));
+        return row ? row.innerText : null;
+      `)
+    const clickButton = async (label) => {
+      await evaluate(`
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === '${label}').click();
+        return true;
+      `)
+      await sleep(3000)
+    }
+
+    await loginAs('admin@halona.vn', 'admin123')
+    check('menu quản trị của admin có mục Khách hàng', (await adminNavLabels()).includes('Khách hàng'))
+    await goto('/admin/khach-hang')
+    check('danh sách có khách hàng seed', (await customerRow('khachhang@halona.vn')) !== null)
+    check('danh sách không lẫn tài khoản nhân viên', (await customerRow('admin@halona.vn')) === null)
+
+    await goto('/admin/khach-hang?q=khachhang')
+    const searchRows = await evaluate('return document.querySelectorAll("tbody tr").length')
+    check('tìm theo email chỉ còn đúng khách đó', searchRows === 1, String(searchRows))
+    await goto('/admin/khach-hang?q=khong-ton-tai-xyz')
+    check('tìm không khớp báo không có kết quả', (await text()).includes('Không tìm thấy khách hàng nào.'))
+
+    await goto('/admin/khach-hang?q=khachhang')
+    await evaluate(`
+      [...document.querySelectorAll('tbody a')].find(a => a.textContent.trim() === 'Xem').click();
+      return true;
+    `)
+    await sleep(2500)
+    const customerDetail = await text()
+    check('chi tiết khách hiện đơn đã đặt ở mục 5', customerDetail.includes(memberOrder), memberOrder)
+    check('chi tiết khách hiện tổng chi tiêu', customerDetail.includes('Tổng chi tiêu') && customerDetail.includes('₫'))
+
+    await clickButton('Khoá tài khoản')
+    check('khoá khách hàng đổi trạng thái', (await text()).includes('Đã khoá'))
+    await loginAs('khachhang@halona.vn', 'khach123')
+    check(
+      'khách bị khoá không đăng nhập được',
+      (await url()) === '/tai-khoan/dang-nhap' && (await text()).includes('Tài khoản đã bị khoá'),
+      await url(),
+    )
+
+    await loginAs('admin@halona.vn', 'admin123')
+    await goto('/admin/khach-hang?q=khachhang')
+    await clickButton('Mở khoá')
+    check('mở khoá khách hàng', (await customerRow('khachhang@halona.vn'))?.includes('Đang hoạt động'))
+    await loginAs('khachhang@halona.vn', 'khach123')
+    check('khách được mở khoá đăng nhập lại được', (await url()) === '/tai-khoan', await url())
+
+    await loginAs('thungan@halona.vn', 'thungan123')
+    await goto('/admin/khach-hang')
+    check('nhân viên không phải ADMIN bị đưa về tổng quan', (await url()) === '/admin', await url())
   } finally {
     ws.close()
     chrome.kill()

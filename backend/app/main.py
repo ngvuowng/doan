@@ -10,6 +10,7 @@ from app.routers import (
     categories,
     chat,
     contact,
+    customers,
     orders,
     posts,
     products,
@@ -34,7 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (products, categories, posts, auth, orders, stores, contact, chat, admin, staff):
+for module in (
+    products, categories, posts, auth, orders, stores, contact, chat, admin, staff, customers
+):
     app.include_router(module.router)
 
 

@@ -22,7 +22,8 @@ Tài liệu mô tả đầy đủ **những gì hệ thống làm** (yêu cầu 
 | Nội dung: tin tức, chuyên mục, giới thiệu, form liên hệ | Mã giảm giá |
 | Hệ thống cửa hàng: khách chọn cửa hàng giao, phí giao hàng theo khoảng cách (đường chim bay từ vị trí trình duyệt) | Tích hợp đơn vị vận chuyển thật, theo dõi hành trình giao hàng |
 | Khu quản trị: thống kê, sản phẩm, đơn hàng, bài viết, tin nhắn liên hệ | Đa ngôn ngữ, đa tiền tệ |
-| Nhân sự: tạo tài khoản nhân viên, vai trò kèm bộ quyền tick riêng cho từng tài khoản, gắn cửa hàng, khoá khi nghỉ việc, đặt lại mật khẩu | Quản lý tài khoản **khách hàng** từ giao diện quản trị; quên mật khẩu qua email; nhật ký thao tác (audit log) |
+| Nhân sự: tạo tài khoản nhân viên, vai trò kèm bộ quyền tick riêng cho từng tài khoản, gắn cửa hàng, khoá khi nghỉ việc, đặt lại mật khẩu | Sửa hồ sơ / đặt lại mật khẩu của **khách hàng** từ giao diện quản trị; quên mật khẩu qua email; nhật ký thao tác (audit log) |
+| Khách hàng (chỉ `ADMIN`): tìm kiếm, xem số đơn, tổng chi tiêu và lịch sử đơn của từng khách, khoá/mở khoá tài khoản | |
 | SEO: `sitemap.xml`, `robots.txt`, metadata theo trang | |
 | Trợ lý ảo tư vấn bán hàng chạy trên Gemini: giải đáp về sản phẩm, tư vấn chọn hoa quả, hướng dẫn bảo quản, gợi ý công thức | Trợ lý **không** đặt hàng hộ, không sửa giỏ hàng, không tra cứu tình trạng đơn hộ khách (chỉ đọc tên hàng đã mua để gợi ý công thức); không có giọng nói, không streaming từng chữ |
 
@@ -95,7 +96,7 @@ Tên bảng và cột trong CSDL viết `snake_case` không dấu; JSON trả v�
 | **Khách vãng lai** (Guest) | Người truy cập chưa đăng nhập. | Xem toàn bộ catalog và tin tức; tìm kiếm; thêm/sửa giỏ hàng; **đặt hàng không cần tài khoản**; tra cứu đơn theo mã; gửi tin nhắn liên hệ; đăng ký/đăng nhập. |
 | **Khách hàng** (`role = USER`) | Người dùng đã đăng ký và đăng nhập. | Toàn bộ quyền của Khách vãng lai, cộng thêm: form thanh toán **tự điền sẵn** thông tin hồ sơ; xem danh sách đơn của mình; xem chi tiết đơn của mình; cập nhật hồ sơ (họ tên, điện thoại, địa chỉ). |
 | **Nhân viên cửa hàng** (`role = STORE_MANAGER` / `CASHIER` / `SALES`) | Nhân sự của **một** cửa hàng (`users.store_id`), do quản trị viên tạo tài khoản. | Vào khu `/admin` nhưng chỉ thấy các mục ứng với **bộ quyền được tick riêng** cho tài khoản mình (`users.permissions`, 8 khoá — xem UC-QT-07). Đơn hàng và số liệu doanh thu chỉ trong **phạm vi cửa hàng mình**. Vai trò chỉ là chức danh gợi ý bộ quyền mặc định, không tự sinh quyền. |
-| **Quản trị viên** (`role = ADMIN`) | Chủ hệ thống. | Toàn bộ quyền của Khách hàng, cộng thêm **toàn quyền** khu `/admin` trên **mọi** cửa hàng: bảng điều khiển, thêm/sửa/xoá sản phẩm và gán danh mục, đổi trạng thái đơn hàng, xem bài viết, đánh dấu tin nhắn liên hệ đã xử lý, giám sát trợ lý ảo, và **quản lý nhân sự** (tạo tài khoản, phân quyền, gắn cửa hàng, khoá/mở khoá, đặt lại mật khẩu). Xem được chi tiết đơn của **mọi** khách. |
+| **Quản trị viên** (`role = ADMIN`) | Chủ hệ thống. | Toàn bộ quyền của Khách hàng, cộng thêm **toàn quyền** khu `/admin` trên **mọi** cửa hàng: bảng điều khiển, thêm/sửa/xoá sản phẩm và gán danh mục, đổi trạng thái đơn hàng, xem bài viết, đánh dấu tin nhắn liên hệ đã xử lý, giám sát trợ lý ảo, **quản lý nhân sự** (tạo tài khoản, phân quyền, gắn cửa hàng, khoá/mở khoá, đặt lại mật khẩu) và **quản lý khách hàng** (tra cứu, xem lịch sử đơn, khoá/mở khoá — UC-QT-08). Xem được chi tiết đơn của **mọi** khách. |
 | **Gemini API** (tác nhân ngoài, thứ cấp) | Dịch vụ mô hình ngôn ngữ của Google, do backend gọi qua REST. | Sinh câu trả lời tư vấn từ system prompt (đã nhồi sẵn danh mục sản phẩm) và ngữ cảnh hội thoại. **Không** truy cập CSDL, không biết gì ngoài những gì backend gửi trong mỗi request. |
 | **Hệ thống** (tác nhân thứ cấp) | Các xử lý tự động, không do người dùng bấm. | Sinh mã đơn `HL-XXXXXX`; **tính lại tổng tiền từ CSDL** khi tạo đơn; chụp tên/giá/ảnh sản phẩm vào dòng đơn hàng; cấp và thẩm định JWT; chọn sản phẩm liên quan; sinh `sitemap.xml` và `robots.txt`; quy đổi thời điểm sang ISO UTC có hậu tố `Z`; nhồi danh mục sản phẩm vào system prompt và dò tên sản phẩm trong câu trả lời của trợ lý để gắn thẻ liên kết. |
 
@@ -594,6 +595,11 @@ flowchart LR
         E7c(["Khoá / mở khoá"])
         E7d(["Đặt lại mật khẩu"])
 
+        E8(["UC-QT-08<br/>Quản lý khách hàng"])
+        E8a(["Tìm kiếm khách hàng"])
+        E8b(["Xem lịch sử đơn"])
+        E8c(["Khoá / mở khoá"])
+
         E6(["UC-TK-04<br/>Kiểm tra quyền<br/>(khoá quyền + phạm vi cửa hàng)"])
     end
 
@@ -605,6 +611,7 @@ flowchart LR
     AD --- E4
     AD --- E5
     AD --- E7
+    AD --- E8
     NV -- "theo quyền được tick" --- E1
     NV -- "theo quyền được tick" --- E2
     NV -- "theo quyền được tick" --- E3
@@ -623,12 +630,16 @@ flowchart LR
     E7 -. "«extend»" .-> E7b
     E7 -. "«extend»" .-> E7c
     E7 -. "«extend»" .-> E7d
+    E8 -. "«extend»" .-> E8a
+    E8 -. "«extend»" .-> E8b
+    E8 -. "«extend»" .-> E8c
     E1 -. "«include»" .-> E6
     E2 -. "«include»" .-> E6
     E3 -. "«include»" .-> E6
     E4 -. "«include»" .-> E6
     E5 -. "«include»" .-> E6
     E7 -. "«include»" .-> E6
+    E8 -. "«include»" .-> E6
 ```
 
 #### UC-QT-01 — Bảng điều khiển
@@ -705,6 +716,18 @@ flowchart LR
 | **Luồng chính** | 1. Quản trị viên mở `/admin/nhan-su` (`GET /api/admin/staff`, sắp theo `created_at`).<br>2. Bấm "Thêm nhân viên", điền form, chọn vai trò (bộ quyền tự tick), chọn cửa hàng, chỉnh ô tick nếu cần.<br>3. Server Action `saveStaff` kiểm quyền, kiểm dữ liệu bằng `zod`, gọi `POST /api/admin/staff` (tạo) hoặc `PUT /api/admin/staff/{id}` (sửa họ tên, SĐT, vai trò, cửa hàng, quyền).<br>4. Backend băm mật khẩu bằng bcrypt, kiểm email chưa dùng, kiểm cửa hàng tồn tại, bỏ trùng khoá quyền rồi lưu.<br>5. Khi nhân viên nghỉ việc: bấm **Khoá** → `PATCH /api/admin/staff/{id}/active` `{isActive: false}`; mở lại bằng **Mở khoá**.<br>6. Nhân viên quên mật khẩu: quản trị viên vào form sửa, nhập mật khẩu mới hai lần → `POST /api/admin/staff/{id}/password`. |
 | **Luồng thay thế / Quy tắc** | - **Email trùng** (kể cả trùng với khách hàng) → **409**, lỗi gắn vào ô email.<br>- Vai trò khác `ADMIN` mà **thiếu cửa hàng** hoặc cửa hàng không tồn tại → **422**. Chọn `ADMIN` thì `store_id = NULL`, `permissions = []` bất kể form gửi gì.<br>- Khoá quyền lạ hoặc `role = USER` bị `Literal` chặn ở biên API (**422**) — không thể tạo khách hàng hay biến nhân viên thành khách qua nhóm endpoint này; id của khách hàng trả **404** như không tồn tại.<br>- **Không tự sửa/khoá chính mình** (backend **400**, giao diện ẩn nút) để không tự khoá khỏi hệ thống. Không có ràng buộc "phải còn ít nhất một ADMIN" — hai quản trị viên vẫn có thể khoá lẫn nhau.<br>- **Khoá có hiệu lực ngay**: `deps.py` đọc lại `users` mỗi request và coi tài khoản `is_active = FALSE` như không có token (401); đăng nhập lại trả **403** "Tài khoản đã bị khoá". Đổi quyền cũng có hiệu lực ngay, không cần đăng nhập lại.<br>- Không có xoá tài khoản; không có luồng quên mật khẩu qua email (ngoài phạm vi).<br>- `permissions` là cột JSON; backend luôn gán list mới thay vì sửa tại chỗ vì SQLAlchemy không theo dõi thay đổi bên trong JSON. |
 | **Hậu điều kiện** | Nhân viên đăng nhập được, thấy đúng mục menu và đúng đơn hàng của cửa hàng mình; nhân viên đã khoá bị chặn ở mọi endpoint từ request kế tiếp. |
+
+#### UC-QT-08 — Quản lý khách hàng
+
+| Mục | Nội dung |
+|---|---|
+| **Mã UC** | UC-QT-08 |
+| **Tác nhân** | Quản trị viên (chỉ `ADMIN`) |
+| **Mô tả** | `/admin/khach-hang` liệt kê tài khoản `role = USER` (họ tên, email kèm SĐT, ngày đăng ký, **số đơn**, **tổng chi tiêu**, trạng thái), mới đăng ký trước, **20 khách/trang** (`?trang=`), ô tìm theo tên, email hoặc số điện thoại (`?q=`). `/admin/khach-hang/{id}` hiện hồ sơ, 3 chỉ số (số đơn, tổng chi tiêu, đơn gần nhất) và bảng lịch sử đơn dẫn sang trang chi tiết đơn. Nút **Khoá / Mở khoá** có ở cả hai trang. |
+| **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
+| **Luồng chính** | 1. Quản trị viên mở `/admin/khach-hang` (`GET /api/admin/customers?q=&page=`).<br>2. Backend lọc `role = USER` (và `LIKE` trên họ tên/email/SĐT nếu có từ khoá), đếm tổng, rồi `LEFT JOIN` với một subquery gom `orders` theo `user_id` để lấy số đơn, tổng chi tiêu, lần đặt gần nhất — cả trang chỉ một truy vấn.<br>3. Bấm **Xem** → `GET /api/admin/customers/{id}`: hồ sơ, chỉ số và mọi đơn của khách (mới nhất trước, kèm dòng đơn).<br>4. Bấm **Khoá** → Server Action `setCustomerActive` → `PATCH /api/admin/customers/{id}/active` `{isActive: false}`; mở lại bằng **Mở khoá**. Trang được làm mới tại chỗ, giữ nguyên từ khoá và số trang. |
+| **Luồng thay thế / Quy tắc** | - **Chỉ chạm tới khách hàng**: id của tài khoản nhân viên trả **404** như không tồn tại — đối xứng với UC-QT-07 (id của khách → 404).<br>- **Tổng chi tiêu** chỉ cộng đơn gắn tài khoản (`orders.user_id`) và **bỏ đơn `CANCELLED`** (cùng cách tính doanh thu ở UC-QT-01); số đơn đếm mọi trạng thái. Đơn khách vãng lai trùng email **không** được gộp vào. Đơn chuyển khoản quá hạn được tự huỷ (`expire_unpaid_orders`) trước khi tính.<br>- Tìm kiếm bỏ dấu nhờ collation `utf8mb4_unicode_ci` ("nguyen" khớp "Nguyễn").<br>- **Khoá có hiệu lực ngay** như UC-QT-07: token đang có bị coi như không có (401), đăng nhập lại trả **403** "Tài khoản đã bị khoá". Đơn cũ của khách vẫn giữ nguyên.<br>- Nhân viên không phải `ADMIN` không thấy mục menu; vào thẳng URL bị đưa về `/admin`, gọi thẳng API nhận **403**.<br>- Không có sửa hồ sơ, đặt lại mật khẩu hay xoá tài khoản khách từ khu quản trị — khách tự sửa hồ sơ ở UC-TK-03. |
+| **Hậu điều kiện** | Khách bị khoá không đăng nhập và không đặt hàng bằng tài khoản được nữa cho tới khi mở khoá. |
 
 ---
 
@@ -881,13 +904,14 @@ flowchart LR
 | UC-QT-05 Xử lý tin nhắn liên hệ | | | ✅ `contacts.manage` | ✅ | đảo cờ `handled` |
 | UC-QT-06 Giám sát hội thoại trợ lý ảo | | | ✅ `chats.view` | ✅ chỉ đọc | đếm tin bằng subquery, giới hạn 200 phiên |
 | UC-QT-07 Quản lý nhân sự | | | | ✅ | băm mật khẩu, kiểm email trùng (409), kiểm cửa hàng (422), chặn tự khoá (400) |
+| UC-QT-08 Quản lý khách hàng | chịu tác động | chịu tác động | | ✅ | gom số đơn/tổng chi tiêu bằng subquery, phân trang 20/trang, id nhân viên → 404 |
 | UC-TL-01 Hỏi trợ lý tư vấn | ✅ | ✅ gắn phiên vào tài khoản | ẩn trong khu `/admin` | ẩn trong khu `/admin` | nhồi danh mục vào prompt, gọi Gemini, dò tên SP để gắn thẻ, chặn hạn mức |
 | UC-TL-02 Xem lại lịch sử trò chuyện | ✅ theo `client_key` | ✅ | — | — | trả danh sách rỗng thay vì 404; 403 nếu phiên của người khác |
 | UC-TL-03 Xoá cuộc trò chuyện | ✅ | ✅ | — | — | `ON DELETE CASCADE`; xoá lặp vẫn 204 |
 | UC-HT-01 SEO | gián tiếp | gián tiếp | gián tiếp | gián tiếp | ✅ sinh sitemap/robots/metadata |
 | UC-HT-02 Xử lý lỗi | chịu tác động | chịu tác động | chịu tác động | chịu tác động | ✅ đổi lỗi mạng thành thông báo tiếng Việt, 404, ranh giới lỗi |
 
-**Tổng cộng 27 use case** trên 7 phân hệ.
+**Tổng cộng 28 use case** trên 7 phân hệ.
 
 ---
 
@@ -3335,13 +3359,13 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Dựng môi trường nhanh | `docker compose up -d` cho MySQL + phpMyAdmin; `python seed.py` nạp dữ liệu mẫu |
 | Không đụng MySQL sẵn có trên máy dev | Container ánh xạ cổng **3307** thay vì 3306 |
 | Tài liệu API luôn khớp mã nguồn | FastAPI tự sinh Swagger tại `/docs` từ chính các lớp Pydantic |
-| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 90 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 3 giỏ hàng có 3 kiểm tra ô số lượng gõ tay (chặn thập phân, chữ, 0); mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
+| Kiểm chứng hành vi sau khi đổi tầng backend | `node scripts/e2e.mjs` — 102 kiểm thử đầu-cuối chạy qua giao diện thật; 38 kiểm thử đầu **không bị sửa** khi chuyển stack, các mục thêm sau (trợ lý ảo, cửa hàng & phí giao hàng, mục 3 giỏ hàng có 3 kiểm tra ô số lượng gõ tay (chặn thập phân, chữ, 0); mục 8b tồn kho với 10 kiểm tra: trừ khi hoàn thành, không trừ hai lần, hoàn khi huỷ, banner thiếu hàng, nhãn "Hết hàng", từ chối đặt hàng; mục 12 nhân sự với 13 kiểm tra: tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu/trang chặn theo quyền, phạm vi đơn theo cửa hàng, khoá tài khoản chặn đăng nhập; mục 13 khách hàng với 12 kiểm tra: danh sách không lẫn nhân viên, tìm kiếm, lịch sử đơn, khoá chặn đăng nhập rồi mở khoá, nhân viên bị chặn) chạy đúng ở cả trạng thái chưa có `GEMINI_API_KEY` |
 
 ---
 
 ## Phụ lục A — Danh mục API endpoint
 
-Toàn bộ **39 endpoint** của backend FastAPI. Tài liệu tương tác được sinh tự động tại `http://localhost:8000/docs`.
+Toàn bộ **42 endpoint** của backend FastAPI. Tài liệu tương tác được sinh tự động tại `http://localhost:8000/docs`.
 
 **Cột "Quyền"**: *Công khai* = không cần token · *Đăng nhập* = cần token hợp lệ (401 nếu thiếu) · *Nhân viên* = tài khoản không phải `USER` · *`<khoá>`* = nhân viên có khoá đó trong `permissions` (hoặc `ADMIN`) · *ADMIN* = chỉ `role = ADMIN`. Thiếu token hoặc tài khoản bị khoá → 401, sai quyền → 403.
 
@@ -3428,6 +3452,16 @@ Nhóm này gắn `dependencies=[Depends(admin_user)]` ở **cấp router**: ch�
 | `PUT /api/admin/staff/{id}` | ADMIN | Sửa họ tên, SĐT, vai trò, cửa hàng, quyền (không đổi email); 400 nếu là chính mình | UC-QT-07 |
 | `PATCH /api/admin/staff/{id}/active` | ADMIN | `{isActive}` — khoá (nghỉ việc) hoặc mở khoá; 400 nếu là chính mình | UC-QT-07 |
 | `POST /api/admin/staff/{id}/password` | ADMIN | Đặt lại mật khẩu (204) | UC-QT-07 |
+
+### A.7c. Khách hàng — `customers` (3)
+
+Nhóm này gắn `dependencies=[Depends(admin_user)]` ở **cấp router**: chỉ `ADMIN`. Chỉ chạm tới tài khoản `role = USER` (id của nhân viên → 404).
+
+| Phương thức & đường dẫn | Quyền | Mô tả | Use case |
+|---|---|---|---|
+| `GET /api/admin/customers` | ADMIN | `?q=&page=&page_size=` (mặc định 20, tối đa 100) — `{items, total, page, pageSize}`; mỗi khách kèm `orderCount`, `totalSpent` (bỏ đơn huỷ), `lastOrderAt`; mới đăng ký trước | UC-QT-08 |
+| `GET /api/admin/customers/{id}` | ADMIN | Hồ sơ + chỉ số + mọi đơn của khách (mới nhất trước, kèm dòng đơn); 404 nếu không có hoặc là nhân viên | UC-QT-08 |
+| `PATCH /api/admin/customers/{id}/active` | ADMIN | `{isActive}` — khoá hoặc mở khoá; 404 nếu là nhân viên | UC-QT-08 |
 
 ### A.8. Trợ lý ảo — `chat` (3)
 

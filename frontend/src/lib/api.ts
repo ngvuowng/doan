@@ -296,6 +296,26 @@ export type Staff = Profile & {
   createdAt: string
 }
 
+/** Tài khoản khách hàng trong trang quản lý khách hàng (chỉ ADMIN). */
+export type Customer = Profile & {
+  /** false = đã khoá. */
+  isActive: boolean
+  createdAt: string
+  orderCount: number
+  /** Tổng tiền các đơn gắn tài khoản, không tính đơn đã huỷ. */
+  totalSpent: number
+  lastOrderAt: string | null
+}
+
+export type CustomerDetail = Customer & { orders: Order[] }
+
+export type CustomerPage = {
+  items: Customer[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export type StaffInput = {
   name: string
   phone: string | null
@@ -452,6 +472,18 @@ export const api = {
         request<void>(`/api/admin/staff/${id}/password`, {
           method: 'POST',
           body: { password },
+          auth: true,
+        }),
+    },
+
+    customers: {
+      list: (query: { q?: string; page?: number } = {}) =>
+        request<CustomerPage>('/api/admin/customers', { query, auth: true }),
+      get: (id: string) => findOrNull<CustomerDetail>(`/api/admin/customers/${id}`, { auth: true }),
+      setActive: (id: string, isActive: boolean) =>
+        request<unknown>(`/api/admin/customers/${id}/active`, {
+          method: 'PATCH',
+          body: { isActive },
           auth: true,
         }),
     },

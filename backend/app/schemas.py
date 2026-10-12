@@ -367,6 +367,34 @@ class StaffOut(UserOut):
     store: StoreOut | None = None
 
 
+# ---------- Khách hàng (quản trị) ----------
+
+
+class CustomerOut(UserOut):
+    is_active: bool
+    created_at: UtcDatetime
+
+
+class CustomerSummary(CustomerOut):
+    """Ba trường thống kê không nằm trên model, router tính từ bảng orders."""
+
+    order_count: int
+    # Không tính đơn đã huỷ, giống cách tính doanh thu ở bảng điều khiển.
+    total_spent: int
+    last_order_at: UtcDatetime | None = None
+
+
+class CustomerPage(ApiModel):
+    items: list[CustomerSummary]
+    total: int
+    page: int
+    page_size: int
+
+
+class CustomerDetail(CustomerSummary):
+    orders: list[OrderOut] = []
+
+
 # ---------- Tình trạng ----------
 
 

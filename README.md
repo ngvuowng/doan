@@ -14,7 +14,7 @@ Bản dựng lại (clone) của website **nongsan.maugiaodien.com**, kiến tr�
         • Server Action     →  gọi API   (zod kiểm tra form, JWT trong cookie httpOnly)
                      │  HTTP/JSON + Authorization: Bearer <JWT>
                      ▼
-      FastAPI (Python)         :8000        ← nghiệp vụ, 39 endpoint, Swagger ở /docs
+      FastAPI (Python)         :8000        ← nghiệp vụ, 42 endpoint, Swagger ở /docs
         • SQLAlchemy 2.0 + Alembic
         • Pydantic v2 · JWT HS256 · bcrypt
         • Trợ lý ảo: httpx  ──────────────→  Gemini API (Google)
@@ -154,6 +154,8 @@ qua giao diện. Đây là trùng lặp có chủ đích.
   từng tài khoản (8 khoá: xem/sửa sản phẩm, xem/đổi trạng thái/xác nhận thanh toán đơn,
   xem bài viết, xử lý liên hệ, xem hội thoại), sửa họ tên/SĐT, đặt lại mật khẩu, và
   **khoá/mở khoá** tài khoản khi nhân sự nghỉ việc
+- Khách hàng (chỉ `ADMIN`): tìm theo tên/email/SĐT, phân trang, xem số đơn và tổng chi
+  tiêu (không tính đơn huỷ), lịch sử đơn của từng khách, **khoá/mở khoá** tài khoản
 
 Phân quyền được kiểm ở **cả hai phía**: frontend chặn sớm để báo lỗi thân thiện và ẩn
 mục menu / nút không có quyền, backend kiểm lại trên từng endpoint `/api/admin/*` (thiếu
@@ -175,7 +177,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 90 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 102 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -216,7 +218,7 @@ _reference/          bản lưu trữ của site gốc (HTML trang chủ, RSS, d
 backend/             ← tầng nghiệp vụ (Python)
   app/models.py      10 bảng + 2 bảng nối (SQLAlchemy)
   app/schemas.py     Pydantic; đổi snake_case ↔ camelCase ở biên API
-  app/routers/       products · categories · posts · auth · orders · stores · contact · chat · admin · staff
+  app/routers/       products · categories · posts · auth · orders · stores · contact · chat · admin · staff · customers
   app/permissions.py bộ khoá quyền nhân viên + vai trò (khớp với frontend/src/lib/permissions.ts)
   app/shipping.py    bậc phí giao hàng theo km + haversine (khoảng cách khách → cửa hàng)
   app/inventory.py   trừ/hoàn tồn kho theo đơn (cờ stock_deducted_at + SELECT FOR UPDATE)
@@ -234,7 +236,7 @@ frontend/            ← tầng giao diện (TypeScript)
   src/lib/permissions.ts  bộ khoá quyền + nhãn tiếng Việt, bộ quyền tick sẵn theo vai trò, can()/isStaff()
   src/app/           các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
   src/components/    component giao diện, chia theo khu vực (có chat/ cho trợ lý ảo)
-  src/actions/       server action (đặt hàng, xác thực, quản trị, nhân sự, liên hệ)
+  src/actions/       server action (đặt hàng, xác thực, quản trị, nhân sự, khách hàng, liên hệ)
   public/images/     ảnh gốc và ảnh sản phẩm kleverfruits đã tải về
   scripts/           tải ảnh từ Wayback, nhập sản phẩm kleverfruits, kiểm thử đầu-cuối
 ```
@@ -292,14 +294,15 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 90 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
+Playwright/Puppeteer) và chạy 102 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
 menu, breadcrumb đủ chuỗi tổ tiên, danh mục cha gom sản phẩm của các con không trùng), ô số
 lượng gõ tay (chặn thập phân, chữ, 0), thêm giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
 (giả lập định vị ngay trong trang → tự chọn cửa hàng gần nhất, phí theo km), đăng nhập,
 tìm kiếm, blog, form liên hệ, toàn bộ luồng quản trị, tồn kho (hoàn thành đơn trừ kho,
 không trừ hai lần, huỷ hoàn kho, thiếu hàng báo lỗi, nhãn "Hết hàng", từ chối đặt hàng
 khi hết kho), nhân sự (tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu và trang chặn
-theo quyền, phạm vi đơn hàng theo cửa hàng, khoá tài khoản chặn đăng nhập), responsive
+theo quyền, phạm vi đơn hàng theo cửa hàng, khoá tài khoản chặn đăng nhập), khách hàng
+(danh sách không lẫn nhân viên, tìm kiếm, lịch sử đơn, khoá rồi mở khoá), responsive
 ở 375px, trang 404 và khung trợ lý ảo.
 
 ```bash

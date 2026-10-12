@@ -18,6 +18,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
     { href: '/admin/bai-viet', label: 'Bài viết', show: can(user, 'posts.view') },
     { href: '/admin/lien-he', label: 'Liên hệ', show: can(user, 'contacts.manage') },
     { href: '/admin/tro-ly-ao', label: 'Trợ lý ảo', show: can(user, 'chats.view') },
+    { href: '/admin/khach-hang', label: 'Khách hàng', show: user.role === 'ADMIN' },
     { href: '/admin/nhan-su', label: 'Nhân sự', show: user.role === 'ADMIN' },
   ]
     .filter((l) => l.show)

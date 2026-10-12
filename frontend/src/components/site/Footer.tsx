@@ -12,7 +12,7 @@ export async function Footer() {
   const posts = await api.posts.list({ limit: 4 })
 
   return (
-    <footer className="mt-auto bg-[linear-gradient(160deg,#1d2b12,#0f1a08)] text-neutral-300">
+    <footer className="mt-auto bg-[linear-gradient(160deg,#1d2b12,#0f1a08)] text-neutral-300 print:hidden">
       <div className="container-site grid gap-10 py-14 md:grid-cols-3">
         <section>
           <h3 className="mb-4 font-heading text-base font-bold uppercase text-white">Liên hệ</h3>

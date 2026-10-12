@@ -83,7 +83,7 @@ export function Header({ categories, userName, isStaff }: Props) {
   return (
     <>
       {/* Thanh trên cùng: 35px, nền xanh primary */}
-      <div className="hidden bg-primary text-white md:block">
+      <div className="hidden bg-primary text-white md:block print:hidden">
         <div className="container-site flex h-[35px] items-center justify-between text-[13px]">
           <span>{SITE.tagline}</span>
           <nav className="flex items-center gap-5">
@@ -105,7 +105,7 @@ export function Header({ categories, userName, isStaff }: Props) {
         </div>
       </div>
 
-      <header className="sticky top-0 z-40 bg-white/95 shadow-[2px_2px_15px_#00000033] backdrop-blur">
+      <header className="sticky top-0 z-40 bg-white/95 shadow-[2px_2px_15px_#00000033] backdrop-blur print:hidden">
         {/* Hàng chính: logo + tìm kiếm + giỏ hàng */}
         <div
           className={`container-site flex items-center gap-4 transition-[height] duration-300 ${

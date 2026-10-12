@@ -333,6 +333,50 @@ export type AdminStats = {
   recentOrders: Order[]
 }
 
+/** Giá trị của kỳ đang xem và kỳ liền trước có cùng số ngày. */
+export type ReportCompare = { current: number; previous: number }
+
+export type ReportKpis = {
+  /** Tổng tiền các đơn không bị huỷ, đã gồm phí giao — giống `AdminStats.revenue`. */
+  revenue: ReportCompare
+  shippingTotal: ReportCompare
+  /** Mọi đơn đặt trong kỳ, kể cả đơn đã huỷ. */
+  orderCount: ReportCompare
+  validOrderCount: ReportCompare
+  cancelledCount: ReportCompare
+  avgOrderValue: ReportCompare
+  /** Tỉ lệ 0..1. */
+  cancelRate: ReportCompare
+  itemsSold: ReportCompare
+  /** Tài khoản khách tạo trong kỳ, tính toàn hệ thống. */
+  newCustomers: ReportCompare
+}
+
+export type ReportGranularity = 'day' | 'month'
+
+export type AdminReport = {
+  /** Ngày "YYYY-MM-DD" theo giờ Việt Nam, tính cả hai đầu. */
+  start: string
+  end: string
+  previousStart: string
+  previousEnd: string
+  granularity: ReportGranularity
+  storeId: string | null
+  storeName: string | null
+  kpis: ReportKpis
+  /** Mỗi ngày (hoặc mỗi tháng — `bucket` là ngày đầu tháng) một điểm, kể cả khi không có đơn. */
+  series: { bucket: string; orderCount: number; revenue: number }[]
+  statusBreakdown: { status: string; orderCount: number; total: number }[]
+  /** Chỉ tính đơn không bị huỷ. */
+  paymentBreakdown: { method: string; orderCount: number; revenue: number }[]
+  /** Chỉ tính đơn không bị huỷ. */
+  storeBreakdown: { storeId: string | null; name: string; orderCount: number; revenue: number }[]
+  /** Doanh thu ở đây là tiền hàng, không gồm phí giao. */
+  topProducts: { productId: string | null; name: string; quantity: number; revenue: number }[]
+  lowStock: { id: string; name: string; slug: string; stock: number }[]
+  lowStockThreshold: number
+}
+
 export type ProductInput = {
   name: string
   slug: string
@@ -435,6 +479,8 @@ export const api = {
 
   admin: {
     stats: () => request<AdminStats>('/api/admin/stats', { auth: true }),
+    report: (query: { start?: string; end?: string; store_id?: string } = {}) =>
+      request<AdminReport>('/api/admin/reports', { query, auth: true }),
     products: () => request<Product[]>('/api/admin/products', { auth: true }),
     product: (id: string) => findOrNull<Product>(`/api/admin/products/${id}`, { auth: true }),
     createProduct: (body: ProductInput) =>

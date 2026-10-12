@@ -41,7 +41,11 @@ export default async function AdminDashboard() {
             value={String(pendingContactCount)}
             href={link('/admin/lien-he', can(user, 'contacts.manage'))}
           />
-          <Stat label="Doanh thu" value={formatPrice(revenue)} />
+          <Stat
+            label="Doanh thu"
+            value={formatPrice(revenue)}
+            href={link('/admin/bao-cao', user.role === 'ADMIN')}
+          />
         </div>
       </section>
 

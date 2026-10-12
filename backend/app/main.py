@@ -14,6 +14,7 @@ from app.routers import (
     orders,
     posts,
     products,
+    reports,
     staff,
     stores,
 )
@@ -36,7 +37,8 @@ app.add_middleware(
 )
 
 for module in (
-    products, categories, posts, auth, orders, stores, contact, chat, admin, staff, customers
+    products, categories, posts, auth, orders, stores, contact, chat, admin, staff, customers,
+    reports,
 ):
     app.include_router(module.router)
 

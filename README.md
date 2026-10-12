@@ -89,6 +89,13 @@ File `.env` nằm trong `.gitignore` — **không commit khoá lên git**.
 | Nhân viên bán hàng (Tân Bình)  | `banhang@halona.vn`   | `banhang123` |
 | Khách hàng                     | `khachhang@halona.vn` | `khach123`   |
 
+Seed còn tạo **8 khách hàng mẫu** (email `@example.com`, mật khẩu `khach123`) và **khoảng
+250 đơn hàng mẫu** rải trong 90 ngày gần nhất ở cả 3 cửa hàng, đủ trạng thái và phương
+thức thanh toán, để trang báo cáo có số liệu. Mốc thời gian tính lùi từ lúc chạy seed, nên
+chạy lại `python seed.py` là kỳ "30 ngày gần nhất" luôn có dữ liệu. Tồn kho đã trừ đúng
+theo các đơn mẫu đã hoàn thành / đã nhận tiền; 3 sản phẩm được để tồn thấp cho bảng
+"Sắp hết hàng".
+
 ## Công nghệ
 
 | Lớp | Lựa chọn |
@@ -100,6 +107,7 @@ File `.env` nằm trong `.gitignore` — **không commit khoá lên git**.
 | Xác thực | JWT HS256 (`python-jose`) + bcrypt, lưu trong cookie httpOnly |
 | Kiểm tra dữ liệu | `zod` ở form frontend, `pydantic` ở biên API |
 | Trợ lý ảo | Gemini API gọi qua REST bằng `httpx` (không dùng SDK) |
+| Biểu đồ | Recharts 3 (trang báo cáo thống kê) |
 
 **Vì sao kiểm tra dữ liệu hai lần:** `zod` sinh thông báo lỗi tiếng Việt theo từng ô nhập
 cho `useActionState`; `pydantic` là lớp bảo vệ ở biên API, chặn cả những request không đi
@@ -143,6 +151,14 @@ qua giao diện. Đây là trùng lặp có chủ đích.
 
 - Bảng điều khiển: thống kê sản phẩm, đơn hàng, doanh thu, liên hệ chưa xử lý (số đơn
   và doanh thu lọc theo cửa hàng của nhân viên; ADMIN thấy toàn bộ)
+- Báo cáo thống kê (chỉ `ADMIN`, `/admin/bao-cao`): chọn kỳ (7/30/90 ngày, tháng này, năm
+  nay hoặc tự chọn ngày) và lọc theo cửa hàng; 6 chỉ số chính (doanh thu, số đơn, giá trị
+  trung bình/đơn, sản phẩm đã bán, tỉ lệ huỷ, khách hàng mới) kèm **% tăng/giảm so với kỳ
+  liền trước**; biểu đồ doanh thu và số đơn theo ngày (theo tháng khi kỳ dài hơn 92 ngày);
+  cơ cấu theo trạng thái, phương thức thanh toán và cửa hàng; top 10 sản phẩm bán chạy;
+  sản phẩm sắp hết hàng. **Xuất CSV** (có BOM để Excel hiện đúng tiếng Việt) và **in báo
+  cáo** khổ A4 (ẩn menu, header, footer). Doanh thu tính như bảng điều khiển: tổng tiền đơn
+  không bị huỷ, đã gồm phí giao; ngày tính theo giờ Việt Nam
 - Sản phẩm: thêm, sửa, xoá, gán danh mục
 - Đơn hàng: xem chi tiết và đổi trạng thái; tồn kho **trừ đúng một lần** khi bấm "Đã nhận
   tiền" (đơn chuyển khoản) hoặc chuyển đơn sang Hoàn thành (đơn COD), **hoàn lại** khi huỷ
@@ -177,7 +193,7 @@ npm run dev           # môi trường phát triển
 npm run build         # build production (cần backend đang chạy)
 npm run lint          # ESLint
 npx tsc --noEmit      # kiểm tra kiểu
-node scripts/e2e.mjs  # 102 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
+node scripts/e2e.mjs  # 119 kiểm thử đầu-cuối (cần cả 3 tiến trình đang chạy)
 
 # Backend (trong backend/, đã kích hoạt .venv)
 uvicorn app.main:app --reload --port 8000
@@ -294,7 +310,7 @@ Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng t
 ## Kiểm thử
 
 `scripts/e2e.mjs` điều khiển Chrome thật qua DevTools Protocol (không cần cài
-Playwright/Puppeteer) và chạy 102 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
+Playwright/Puppeteer) và chạy 119 kiểm tra: hiển thị trang chủ, điều hướng catalog (mega
 menu, breadcrumb đủ chuỗi tổ tiên, danh mục cha gom sản phẩm của các con không trùng), ô số
 lượng gõ tay (chặn thập phân, chữ, 0), thêm giỏ hàng, đặt hàng cho khách vãng lai (chọn cửa hàng tay, phí chuẩn) và cho thành viên
 (giả lập định vị ngay trong trang → tự chọn cửa hàng gần nhất, phí theo km), đăng nhập,
@@ -302,8 +318,9 @@ tìm kiếm, blog, form liên hệ, toàn bộ luồng quản trị, tồn kho (
 không trừ hai lần, huỷ hoàn kho, thiếu hàng báo lỗi, nhãn "Hết hàng", từ chối đặt hàng
 khi hết kho), nhân sự (tạo nhân viên, bộ quyền tick sẵn theo vai trò, menu và trang chặn
 theo quyền, phạm vi đơn hàng theo cửa hàng, khoá tài khoản chặn đăng nhập), khách hàng
-(danh sách không lẫn nhân viên, tìm kiếm, lịch sử đơn, khoá rồi mở khoá), responsive
-ở 375px, trang 404 và khung trợ lý ảo.
+(danh sách không lẫn nhân viên, tìm kiếm, lịch sử đơn, khoá rồi mở khoá), báo cáo thống
+kê (chặn nhân viên, chọn kỳ, lọc cửa hàng, kỳ trống, file CSV có BOM, chế độ in), responsive
+ở 375px, trang 404 và khung trợ lý ảo. Chạy `python seed.py` trước để có đơn hàng mẫu.
 
 ```bash
 docker compose up -d                                    # cửa sổ 1

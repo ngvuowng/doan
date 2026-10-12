@@ -38,3 +38,27 @@ export function formatDateTime(date: Date | string): string {
     minute: '2-digit',
   })
 }
+
+/** Tiền rút gọn cho trục biểu đồ: "350k", "1,2 tr", "1,5 tỷ". */
+export function formatCompactPrice(amount: number): string {
+  const abs = Math.abs(amount)
+  const short = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 })
+  if (abs >= 1e9) return `${short(amount / 1e9)} tỷ`
+  if (abs >= 1e6) return `${short(amount / 1e6)} tr`
+  if (abs >= 1e3) return `${short(amount / 1e3)}k`
+  return String(amount)
+}
+
+/** Tỉ lệ 0..1 thành "12,5%". */
+export function formatPercent(ratio: number, digits = 1): string {
+  return `${(ratio * 100).toLocaleString('vi-VN', { maximumFractionDigits: digits })}%`
+}
+
+/**
+ * Ngày "YYYY-MM-DD" từ API thành "13/10/2026". Tách chuỗi thay vì `new Date(...)` vì
+ * chuỗi chỉ có ngày bị hiểu là nửa đêm UTC và có thể lệch một ngày khi đổi múi giờ.
+ */
+export function formatIsoDate(iso: string): string {
+  const [year, month, day] = iso.split('-')
+  return `${day}/${month}/${year}`
+}

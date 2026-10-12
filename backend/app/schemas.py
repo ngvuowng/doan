@@ -5,7 +5,7 @@ Next.js đang dùng đúng những tên đó (`salePrice`, `hoverImage`, `create
 `ApiModel` lo việc đổi tên này ở một chỗ duy nhất.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer, computed_field
@@ -393,6 +393,101 @@ class CustomerPage(ApiModel):
 
 class CustomerDetail(CustomerSummary):
     orders: list[OrderOut] = []
+
+
+# ---------- Báo cáo thống kê ----------
+
+
+class ReportCompare(ApiModel):
+    """Giá trị của kỳ đang xem và kỳ liền trước có cùng số ngày."""
+
+    current: int
+    previous: int
+
+
+class ReportRateCompare(ApiModel):
+    """Như `ReportCompare` nhưng là tỉ lệ 0..1."""
+
+    current: float
+    previous: float
+
+
+class ReportKpis(ApiModel):
+    # Doanh thu = tổng tiền các đơn không bị huỷ (đã gồm phí giao), giống /stats.
+    revenue: ReportCompare
+    shipping_total: ReportCompare
+    # Mọi đơn đặt trong kỳ, kể cả đơn đã huỷ.
+    order_count: ReportCompare
+    valid_order_count: ReportCompare
+    cancelled_count: ReportCompare
+    # revenue / valid_order_count — chia cho số đơn không huỷ.
+    avg_order_value: ReportCompare
+    cancel_rate: ReportRateCompare
+    items_sold: ReportCompare
+    # Tài khoản khách tạo trong kỳ, tính toàn hệ thống (không lọc theo cửa hàng).
+    new_customers: ReportCompare
+
+
+class ReportPoint(ApiModel):
+    """Một cột của biểu đồ: ngày (hoặc ngày đầu tháng khi gộp theo tháng)."""
+
+    bucket: date
+    order_count: int
+    revenue: int
+
+
+class ReportStatusRow(ApiModel):
+    status: str
+    order_count: int
+    total: int
+
+
+class ReportPaymentRow(ApiModel):
+    method: str
+    order_count: int
+    revenue: int
+
+
+class ReportStoreRow(ApiModel):
+    # None = đơn đặt trước khi có tính năng chọn cửa hàng.
+    store_id: str | None
+    name: str
+    order_count: int
+    revenue: int
+
+
+class ReportProductRow(ApiModel):
+    # None khi sản phẩm đã bị xoá; tên lấy từ ảnh chụp trong đơn.
+    product_id: str | None
+    name: str
+    quantity: int
+    # Chỉ tiền hàng, không gồm phí giao.
+    revenue: int
+
+
+class ReportLowStock(ApiModel):
+    id: str
+    name: str
+    slug: str
+    stock: int
+
+
+class AdminReport(ApiModel):
+    start: date
+    end: date
+    previous_start: date
+    previous_end: date
+    granularity: Literal["day", "month"]
+    store_id: str | None = None
+    store_name: str | None = None
+    kpis: ReportKpis
+    series: list[ReportPoint]
+    status_breakdown: list[ReportStatusRow]
+    payment_breakdown: list[ReportPaymentRow]
+    store_breakdown: list[ReportStoreRow]
+    top_products: list[ReportProductRow]
+    low_stock: list[ReportLowStock]
+    low_stock_threshold: int
 
 
 # ---------- Tình trạng ----------

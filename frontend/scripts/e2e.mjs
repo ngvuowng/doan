@@ -829,7 +829,7 @@ async function main() {
     const navLabels = await adminNavLabels()
     check(
       'menu quản trị chỉ hiện mục có quyền',
-      navLabels.includes('Sản phẩm') && navLabels.includes('Đơn hàng') && !navLabels.includes('Bài viết') && !navLabels.includes('Nhân sự') && !navLabels.includes('Khách hàng'),
+      navLabels.includes('Sản phẩm') && navLabels.includes('Đơn hàng') && !navLabels.includes('Bài viết') && !navLabels.includes('Nhân sự') && !navLabels.includes('Khách hàng') && !navLabels.includes('Báo cáo'),
       navLabels.join(','),
     )
     await goto('/admin/bai-viet')
@@ -838,7 +838,18 @@ async function main() {
     const staffProducts = await text()
     check('chỉ xem sản phẩm, không có nút thêm/sửa', staffProducts.includes('Bom mỹ') && !staffProducts.includes('Thêm sản phẩm'))
     await goto('/admin/don-hang')
-    check('nhân viên Tân Bình không thấy đơn của 120 Yên Lãng', (await text()).includes('Chưa có đơn hàng nào.'))
+    // Seed có đơn mẫu ở mọi cửa hàng: mọi đơn hiện ra phải là của Tân Bình, và không có hai
+    // đơn e2e đặt ở 120 Yên Lãng.
+    const tanBinhOrders = await evaluate(`return [...document.querySelectorAll('article')].map(a => a.innerText)`)
+    check(
+      'nhân viên Tân Bình chỉ thấy đơn của cửa hàng mình',
+      tanBinhOrders.length > 0 && tanBinhOrders.every((t) => t.includes('Tân Bình')),
+      String(tanBinhOrders.length),
+    )
+    check(
+      'nhân viên Tân Bình không thấy đơn của 120 Yên Lãng',
+      !tanBinhOrders.some((t) => t.includes(guestOrder) || t.includes(memberOrder)),
+    )
 
     await loginAs('thungan@halona.vn', 'thungan123')
     await goto('/admin/don-hang')
@@ -919,6 +930,96 @@ async function main() {
     await loginAs('thungan@halona.vn', 'thungan123')
     await goto('/admin/khach-hang')
     check('nhân viên không phải ADMIN bị đưa về tổng quan', (await url()) === '/admin', await url())
+
+    // ---- 14. Báo cáo ----
+    // Chỉ ADMIN. Seed có đơn mẫu trong 90 ngày gần nhất nên kỳ mặc định (30 ngày) có số liệu,
+    // còn tháng 1/2020 chắc chắn trống. Không so số tiền cụ thể vì e2e tự đặt thêm đơn.
+    // Chỉ thao tác bằng JS — xem ghi chú ở đầu mục 12.
+    console.log('\n14. Báo cáo')
+    // Đọc file CSV bằng fetch ngay trong trang để dùng cookie phiên của trình duyệt.
+    const fetchCsv = (query) =>
+      evaluate(`
+        return fetch('/admin/bao-cao/xuat-csv${query}').then(async (r) => {
+          const bytes = new Uint8Array(await r.clone().arrayBuffer());
+          return {
+            status: r.status,
+            type: r.headers.get('content-type') ?? '',
+            disposition: r.headers.get('content-disposition') ?? '',
+            bom: [...bytes.slice(0, 3)].join(','),
+            text: await r.text(),
+          };
+        });
+      `)
+
+    check('menu của thu ngân không có Báo cáo', !(await adminNavLabels()).includes('Báo cáo'))
+    await goto('/admin/bao-cao')
+    check('thu ngân vào báo cáo bị đưa về tổng quan', (await url()) === '/admin', await url())
+    check('thu ngân không tải được CSV', (await fetchCsv('')).status === 403)
+
+    await loginAs('admin@halona.vn', 'admin123')
+    check('menu quản trị của admin có mục Báo cáo', (await adminNavLabels()).includes('Báo cáo'))
+    await goto('/admin/bao-cao')
+    await sleep(1500) // chờ ResizeObserver đo khung rồi Recharts mới vẽ cột
+    const report = await text()
+    check(
+      'trang báo cáo hiện tiêu đề và chỉ số',
+      ['BÁO CÁO THỐNG KÊ', 'Doanh thu', 'Tỉ lệ huỷ', 'Khách hàng mới', 'so với kỳ trước'].every((t) => report.includes(t)),
+    )
+    check('biểu đồ doanh thu có cột', (await evaluate('return document.querySelectorAll(".recharts-bar-rectangle").length')) > 0)
+    check('có bảng top sản phẩm và sắp hết hàng', report.includes('SẢN PHẨM BÁN CHẠY') && report.includes('SẮP HẾT HÀNG'))
+
+    await evaluate(`
+      [...document.querySelectorAll('a')].find(a => a.textContent.trim() === '7 ngày').click();
+      return true;
+    `)
+    await sleep(2500)
+    check('chọn mốc 7 ngày đổi khoảng trên URL', (await url()).includes('tu='), await url())
+    check(
+      'mốc đang chọn được đánh dấu',
+      await evaluate(`return document.querySelector('a[aria-current="page"]')?.textContent.trim() === '7 ngày'`),
+    )
+
+    await goto('/admin/bao-cao?tu=2020-01-01&den=2020-01-31')
+    check('kỳ không có đơn hiện thông báo trống', (await text()).includes('Không có đơn hàng nào trong khoảng thời gian này.'))
+
+    const yenLangId = await evaluate(`
+      return [...document.querySelectorAll('select[name="cua-hang"] option')].find(o => o.textContent.includes('120 Yên Lãng'))?.value ?? null;
+    `)
+    await goto(`/admin/bao-cao?cua-hang=${yenLangId}`)
+    // Dòng mô tả ngay dưới tiêu đề (ô chọn cửa hàng luôn chứa tên mọi cửa hàng nên không dùng).
+    const subtitle = await evaluate(`
+      return [...document.querySelectorAll('h2')].find(h => h.textContent === 'Báo cáo thống kê')?.nextElementSibling?.textContent ?? '';
+    `)
+    check(
+      'lọc theo cửa hàng',
+      subtitle.includes('120 Yên Lãng') && !(await text()).includes('THEO CỬA HÀNG'),
+      subtitle,
+    )
+
+    const csv = await fetchCsv('?tu=2020-01-01&den=2020-01-31')
+    check(
+      'xuất CSV trả file đính kèm',
+      csv.status === 200 && csv.type.startsWith('text/csv') && csv.disposition.includes('attachment'),
+      `${csv.status} ${csv.type}`,
+    )
+    check('CSV có BOM UTF-8 cho Excel', csv.bom === '239,187,191', csv.bom)
+    check('CSV có các bảng số liệu', csv.text.includes('Chỉ số,Kỳ này,Kỳ trước,Thay đổi') && csv.text.includes('Top sản phẩm'))
+
+    // Giả lập chế độ in: header, footer, menu và bộ lọc ẩn, biểu đồ vẫn còn.
+    await goto('/admin/bao-cao')
+    await send('Emulation.setEmulatedMedia', { media: 'print' })
+    const printed = await evaluate(`
+      const hidden = (el) => !el || getComputedStyle(el).display === 'none';
+      const adminNav = [...document.querySelectorAll('nav')].find(n => n.textContent.includes('Tổng quan'));
+      return {
+        chrome: hidden(document.querySelector('header')) && hidden(document.querySelector('footer')) && hidden(adminNav),
+        filters: hidden(document.querySelector('form[action="/admin/bao-cao"]')?.parentElement),
+        chart: !!document.querySelector('.recharts-surface'),
+      };
+    `)
+    await send('Emulation.setEmulatedMedia', { media: '' })
+    check('bản in ẩn header, footer và menu', printed.chrome)
+    check('bản in ẩn bộ lọc, giữ biểu đồ', printed.filters && printed.chart)
   } finally {
     ws.close()
     chrome.kill()

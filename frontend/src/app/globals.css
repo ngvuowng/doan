@@ -169,3 +169,30 @@
     @apply my-5 border-l-4 border-primary bg-shell py-3 pl-4 italic;
   }
 }
+
+/* In ấn (trang báo cáo): khổ A4, giữ màu nền của thanh/biểu đồ. Header, footer và menu
+   quản trị tự ẩn bằng `print:hidden` ở từng component. */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  body {
+    font-size: 12px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Recharts đo chiều rộng theo màn hình và có thể chưa đo lại khi in. SVG có viewBox nên
+     chỉ cần ép khung theo bề ngang trang là biểu đồ co vừa khổ giấy. ResponsiveContainer
+     bọc biểu đồ trong một div rộng 0, nên phải ép cả div đó. */
+  .recharts-responsive-container > div,
+  .recharts-wrapper {
+    width: 100% !important;
+  }
+
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+}

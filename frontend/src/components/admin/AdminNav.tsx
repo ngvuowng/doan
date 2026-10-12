@@ -11,7 +11,7 @@ export function AdminNav({ links }: { links: NavLink[] }) {
   const pathname = usePathname()
 
   return (
-    <nav className="lg:w-56 lg:shrink-0">
+    <nav className="lg:w-56 lg:shrink-0 print:hidden">
       <ul className="flex gap-1 overflow-x-auto text-sm lg:flex-col lg:overflow-visible">
         {links.map((l) => {
           const active = l.href === '/admin' ? pathname === l.href : pathname.startsWith(l.href)

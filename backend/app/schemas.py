@@ -283,11 +283,11 @@ class ChatIn(ApiModel):
     # UUID do trình duyệt sinh và giữ ở localStorage, dùng để nhận lại phiên sau khi tải lại trang.
     client_key: str = Field(min_length=8, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
-    # Chủ đề khách bấm chọn trước khi hỏi. Giao diện luôn gửi; None chỉ để tương thích
-    # khi gọi tay qua Swagger (dùng prompt chung). Chuỗi lạ bị chặn 422.
+    # Chủ đề tư vấn, tuỳ chọn. Khung chat cho hỏi thẳng nên không gửi (None = prompt
+    # chung); vẫn nhận khi gọi tay qua Swagger. Chuỗi lạ bị chặn 422.
     mode: ChatMode | None = None
-    # Tên sản phẩm trong giỏ hàng (localStorage của trình duyệt), chỉ dùng cho chủ đề
-    # công thức để gợi ý đúng từ những gì khách đang có.
+    # Tên sản phẩm trong giỏ hàng (localStorage của trình duyệt), dùng cho prompt chung và
+    # chủ đề công thức để gợi ý đúng từ những gì khách đang có.
     cart_items: list[Annotated[str, Field(max_length=255)]] = Field(
         default_factory=list, max_length=20
     )

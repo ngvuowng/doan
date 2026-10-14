@@ -466,7 +466,7 @@ export const api = {
   },
 
   chat: {
-    send: (body: { clientKey: string; message: string; mode: ChatMode; cartItems: string[] }) =>
+    send: (body: { clientKey: string; message: string; cartItems: string[] }) =>
       request<ChatReply>('/api/chat/messages', { method: 'POST', body, auth: true }),
     history: (clientKey: string) =>
       request<ChatHistory>(`/api/chat/sessions/${encodeURIComponent(clientKey)}`, { auth: true }),

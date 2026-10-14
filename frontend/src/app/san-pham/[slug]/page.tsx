@@ -50,21 +50,23 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[slug
 
       <div className="container-site py-10">
         <div className="grid gap-10 lg:grid-cols-2">
-          <div className="relative overflow-hidden rounded-lg border border-line bg-white">
+          <div className="product-frame relative overflow-hidden rounded-lg border border-line">
             {percent !== null && (
               <span className="absolute left-3 top-3 z-10 rounded-full bg-sale px-2.5 py-1 text-xs font-semibold text-white">
                 -{percent}%
               </span>
             )}
             <div className="relative aspect-square">
-              <Image
-                src={product.image}
-                alt={product.name}
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-contain p-6"
-              />
+              <div className="absolute inset-6 overflow-hidden rounded-xl">
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-contain mix-blend-multiply"
+                />
+              </div>
             </div>
           </div>
 

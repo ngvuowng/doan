@@ -1,7 +1,8 @@
 """Bốn chủ đề tư vấn của trợ lý ảo, mỗi chủ đề một đoạn prompt riêng.
 
-Khách bấm chọn chủ đề trước khi gõ câu hỏi, nên Gemini không phải tự đoán khách đang
-cần gì. Mỗi chủ đề có thêm `temperature` riêng: tra cứu giá cần chính xác (thấp), gợi ý
+Khung chat đã bỏ bước chọn chủ đề (khách hỏi thẳng, dùng prompt chung), nhưng API vẫn
+nhận `mode` khi gọi tay và các tin cũ vẫn lưu `mode` để trang quản trị hiện nhãn chủ
+đề. Mỗi chủ đề có thêm `temperature` riêng: tra cứu giá cần chính xác (thấp), gợi ý
 công thức cần đa dạng (cao).
 
 Khoá của CHAT_MODES phải khớp với `ChatMode` (Pydantic kiểm ở biên API) và với

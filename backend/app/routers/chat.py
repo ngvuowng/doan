@@ -108,10 +108,11 @@ def send_message(data: ChatIn, request: Request, db: DbSession, user: OptionalUs
     ip_hash = _ip_hash(request)
     _assert_within_rate_limit(db, session, ip_hash)
 
-    # Chủ đề công thức: gom hoa quả khách đã mua (đơn cũ, cần đăng nhập) và đang có
-    # trong giỏ (frontend gửi kèm) để gợi ý đúng từ những gì khách có sẵn.
+    # Prompt chung (khung chat hỏi thẳng) và chủ đề công thức: gom hoa quả khách đã mua
+    # (đơn cũ, cần đăng nhập) và đang có trong giỏ (frontend gửi kèm) để gợi ý công thức
+    # đúng từ những gì khách có sẵn. Các chủ đề khác không cần.
     owned: list[str] = []
-    if data.mode == "recipe":
+    if data.mode in (None, "recipe"):
         if user is not None:
             owned += _purchased_names(db, user.id)
         owned += data.cart_items

@@ -2,25 +2,36 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/site/icons'
+
+const TOTAL = 2
+const AUTOPLAY_MS = 5000
 
 /**
  * Slider trang chủ (2 slide), dùng CSS scroll-snap thay vì thư viện ngoài.
  * Cả hai slide dựng bằng HTML/CSS theo token màu (ảnh banner cũ có màu in cứng trong ảnh).
+ * Tự chuyển slide sau 5 giây; tạm dừng khi rê chuột hoặc focus vào banner.
  */
 export function HeroSlider() {
   const trackRef = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
-  const total = 2
+  const [paused, setPaused] = useState(false)
 
-  function goTo(next: number) {
+  const goTo = useCallback((next: number) => {
     const track = trackRef.current
     if (!track) return
-    const target = ((next % total) + total) % total
+    const target = ((next % TOTAL) + TOTAL) % TOTAL
     track.scrollTo({ left: track.clientWidth * target, behavior: 'smooth' })
     setIndex(target)
-  }
+  }, [])
+
+  // Tự chuyển slide. Phụ thuộc index nên mỗi lần đổi slide (kể cả bấm nút, vuốt tay) đếm lại từ đầu.
+  useEffect(() => {
+    if (paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setTimeout(() => goTo(index + 1), AUTOPLAY_MS)
+    return () => clearTimeout(timer)
+  }, [index, paused, goTo])
 
   // Đồng bộ chấm chỉ báo khi người dùng tự vuốt slider.
   useEffect(() => {
@@ -41,7 +52,16 @@ export function HeroSlider() {
   }, [])
 
   return (
-    <section className="relative" aria-label="Banner chính">
+    <section
+      className="relative"
+      aria-label="Banner chính"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPaused(false)
+      }}
+    >
       <div
         ref={trackRef}
         className="snap-row flex snap-x snap-mandatory overflow-x-auto"
@@ -154,7 +174,7 @@ export function HeroSlider() {
 
       {/* Chấm chỉ báo nằm trong viên nền trắng để rõ trên cả slide sáng lẫn tối. */}
       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-white/75 px-2.5 py-1.5 backdrop-blur">
-        {Array.from({ length: total }, (_, i) => (
+        {Array.from({ length: TOTAL }, (_, i) => (
           <button
             key={i}
             type="button"

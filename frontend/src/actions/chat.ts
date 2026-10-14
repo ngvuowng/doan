@@ -8,7 +8,6 @@ import {
   type ChatMessage,
   type ProductCard,
 } from '@/lib/api'
-import { CHAT_MODE_IDS, type ChatMode } from '@/lib/chatModes'
 import type { FormState } from '@/lib/validation'
 
 /**
@@ -29,8 +28,7 @@ const schema = z.object({
     .trim()
     .min(1, 'Bạn nhập câu hỏi trước nhé')
     .max(1000, 'Câu hỏi dài quá, bạn rút gọn dưới 1000 ký tự giúp mình nhé'),
-  mode: z.enum(CHAT_MODE_IDS, { error: 'Bạn chọn chủ đề trước nhé' }),
-  // Tên sản phẩm trong giỏ, chỉ có ý nghĩa với chủ đề công thức; giới hạn khớp pydantic.
+  // Tên sản phẩm trong giỏ, để trợ lý gợi ý công thức từ đồ khách đang có; giới hạn khớp pydantic.
   cartItems: z.array(z.string().trim().max(255)).max(20).default([]),
 })
 
@@ -43,10 +41,9 @@ const schema = z.object({
 export async function sendChatMessage(
   clientKey: string,
   message: string,
-  mode: ChatMode,
   cartItems: string[] = [],
 ): Promise<ChatState> {
-  const parsed = schema.safeParse({ clientKey, message, mode, cartItems })
+  const parsed = schema.safeParse({ clientKey, message, cartItems })
   if (!parsed.success) return { formError: parsed.error.issues[0].message }
 
   try {

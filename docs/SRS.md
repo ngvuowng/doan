@@ -834,11 +834,11 @@ flowchart LR
 |---|---|
 | **Mã UC** | UC-TL-01 |
 | **Tác nhân** | Khách vãng lai, Khách hàng · (tác nhân phụ: Gemini API) |
-| **Mô tả** | Nút nổi ở góc phải mọi trang phía khách hàng mở khung chat. Khách **chọn một trong bốn chủ đề** trước khi gõ: giải đáp về sản phẩm đang bán, tư vấn chọn hoa quả theo nhu cầu, hướng dẫn bảo quản/sử dụng, và gợi ý công thức món ăn — nước ép — sinh tố. Mỗi chủ đề có đoạn system prompt và `temperature` riêng (`backend/app/chat_modes.py`) nên Gemini không phải tự đoán khách đang cần gì. |
+| **Mô tả** | Nút nổi ở góc phải mọi trang phía khách hàng mở khung chat. Khách **hỏi thẳng**, không phải chọn chủ đề trước; trợ lý lo cả bốn mảng: giải đáp về sản phẩm đang bán, tư vấn chọn hoa quả theo nhu cầu, hướng dẫn bảo quản/sử dụng, và gợi ý công thức món ăn — nước ép — sinh tố. Dưới lời chào có **4 câu gợi ý** (mỗi mảng một câu), bấm là gửi luôn. |
 | **Tiền điều kiện** | Backend có `GEMINI_API_KEY` trong `backend/.env`. Không cần đăng nhập. |
-| **Luồng chính** | 1. Khách mở khung chat; giao diện gọi `loadChatHistory(clientKey)` để nạp lịch sử cũ và **khôi phục chủ đề** của lượt hỏi gần nhất (nếu có).<br>2. Chưa có chủ đề thì khung chat hiện **bảng chọn 4 chủ đề**, ô nhập bị khoá. Khách bấm một chủ đề → trợ lý hiện câu giới thiệu kèm 3 câu hỏi mẫu, ô nhập mở với placeholder riêng của chủ đề.<br>3. Khách gõ câu hỏi; bong bóng của khách hiện **ngay**, kèm chỉ báo đang gõ.<br>4. Server Action `sendChatMessage(clientKey, message, mode, cartItems)` gọi `POST /api/chat/messages`; `cartItems` là tên hàng trong giỏ, chỉ gửi với chủ đề công thức.<br>5. Backend kiểm cấu hình, kiểm chủ sở hữu phiên, kiểm hạn mức.<br>6. Backend ghép system prompt = persona + quy tắc chung + **đoạn riêng của chủ đề** + **toàn bộ danh mục sản phẩm** (kèm ghi chú xuất xứ/bảo quản rút từ mô tả) + với chủ đề công thức: tên hoa quả khách đã mua (đơn cũ, nếu đăng nhập) và đang có trong giỏ; kèm tối đa 12 tin nhắn gần nhất làm ngữ cảnh.<br>7. Gọi Gemini qua REST (`httpx`) với `temperature` của chủ đề, nhận văn bản trả lời.<br>8. **Sau khi** có câu trả lời mới ghi CSDL: cặp `user` + `model` (cùng `mode`) trong một transaction.<br>9. Backend dò tên sản phẩm xuất hiện trong câu trả lời, trả kèm `suggestions`; giao diện dựng thẻ bấm được trỏ tới `/san-pham/{slug}`. |
-| **Luồng thay thế / Quy tắc** | - **Thiếu `GEMINI_API_KEY` → 503** kèm thông báo tiếng Việt, và **không ghi gì vào CSDL** để không để lại hội thoại cụt. Phần còn lại của website chạy bình thường.<br>- Timeout → 504 · mất kết nối/5xx → 502 · khoá sai → 503 · quá hạn mức → 429. Mỗi mã một câu tiếng Việt riêng, giao diện hiện bong bóng lỗi kèm nút **Thử lại**.<br>- Bị bộ lọc an toàn của Gemini chặn → vẫn trả **200** với câu từ chối lịch sự, không lộ lỗi kỹ thuật.<br>- **Chống bịa đặt**: prompt cấm giới thiệu sản phẩm ngoài danh sách được nhồi vào, cấm tự nghĩ ra giá, cấm chèn đường dẫn. Giá và slug trên thẻ gợi ý **luôn lấy từ MySQL**, nên kể cả khi model viết sai số trong câu chữ thì con số hiển thị vẫn đúng.<br>- Câu hỏi ngoài phạm vi (chính trị, lập trình, làm bài tập hộ…) bị từ chối ngắn gọn rồi hỏi lại về hoa quả. Prompt cũng dặn bỏ qua yêu cầu đòi quên quy tắc hay tiết lộ hướng dẫn.<br>- Câu hỏi thuộc **chủ đề khác** chủ đề đang chọn thì vẫn trả lời ngắn 1–2 câu rồi mời bấm "Đổi chủ đề", không từ chối.<br>- Nút **"Đổi chủ đề"** đưa về bảng chọn nhưng **giữ nguyên lịch sử**; khi phát lại ngữ cảnh, câu hỏi cũ thuộc chủ đề khác được gắn tag `[Chủ đề: …]` để model chỉ dùng làm ngữ cảnh.<br>- `mode` là tuỳ chọn ở biên API (gọi tay qua Swagger không có `mode` thì dùng prompt chung); chuỗi lạ bị `pydantic` chặn 422. `cartItems` tối đa 20 tên, mỗi tên ≤ 255 ký tự.<br>- Hạn mức: 20 câu hỏi/phiên và 60 câu hỏi/IP trong 10 phút → 429.<br>- Câu hỏi tối đa 1000 ký tự (`zod` chặn ở frontend, `pydantic` chặn lại ở biên API).<br>- Danh mục nhồi vào prompt giới hạn 80 sản phẩm; vượt quá thì prompt nói rõ đây là danh sách cắt bớt và mời khách dùng ô tìm kiếm.<br>- **Không streaming** — trả lời một lần, giao diện hiện chỉ báo đang gõ trong lúc chờ. |
-| **Hậu điều kiện** | Cặp câu hỏi–trả lời (kèm `mode`) được lưu vào `chat_messages`; `chat_sessions.updated_at` được cập nhật. |
+| **Luồng chính** | 1. Khách mở khung chat; giao diện gọi `loadChatHistory(clientKey)` để nạp lịch sử cũ (nếu có). Ô nhập mở sẵn ngay từ đầu.<br>2. Chưa có tin nhắn nào thì dưới lời chào hiện **4 câu gợi ý**; câu gợi ý tự ẩn sau câu hỏi đầu tiên và hiện lại khi khách bấm "Xoá trò chuyện".<br>3. Khách gõ câu hỏi (hoặc bấm một câu gợi ý); bong bóng của khách hiện **ngay**, kèm chỉ báo đang gõ.<br>4. Server Action `sendChatMessage(clientKey, message, cartItems)` gọi `POST /api/chat/messages`; `cartItems` là tên hàng trong giỏ, luôn gửi kèm để trợ lý gợi ý công thức từ đồ khách đang có.<br>5. Backend kiểm cấu hình, kiểm chủ sở hữu phiên, kiểm hạn mức.<br>6. Backend ghép system prompt = persona + quy tắc chung + **đoạn nhiệm vụ chung** (bao cả 4 mảng) + **toàn bộ danh mục sản phẩm** (kèm ghi chú xuất xứ/bảo quản rút từ mô tả) + tên hoa quả khách đã mua (đơn cũ, nếu đăng nhập) và đang có trong giỏ; kèm tối đa 12 tin nhắn gần nhất làm ngữ cảnh.<br>7. Gọi Gemini qua REST (`httpx`), nhận văn bản trả lời.<br>8. **Sau khi** có câu trả lời mới ghi CSDL: cặp `user` + `model` trong một transaction.<br>9. Backend dò tên sản phẩm xuất hiện trong câu trả lời, trả kèm `suggestions`; giao diện dựng thẻ bấm được trỏ tới `/san-pham/{slug}`. |
+| **Luồng thay thế / Quy tắc** | - **Thiếu `GEMINI_API_KEY` → 503** kèm thông báo tiếng Việt, và **không ghi gì vào CSDL** để không để lại hội thoại cụt. Phần còn lại của website chạy bình thường.<br>- Timeout → 504 · mất kết nối/5xx → 502 · khoá sai → 503 · quá hạn mức → 429. Mỗi mã một câu tiếng Việt riêng, giao diện hiện bong bóng lỗi kèm nút **Thử lại**.<br>- Bị bộ lọc an toàn của Gemini chặn → vẫn trả **200** với câu từ chối lịch sự, không lộ lỗi kỹ thuật.<br>- **Chống bịa đặt**: prompt cấm giới thiệu sản phẩm ngoài danh sách được nhồi vào, cấm tự nghĩ ra giá, cấm chèn đường dẫn. Giá và slug trên thẻ gợi ý **luôn lấy từ MySQL**, nên kể cả khi model viết sai số trong câu chữ thì con số hiển thị vẫn đúng.<br>- Câu hỏi ngoài phạm vi (chính trị, lập trình, làm bài tập hộ…) bị từ chối ngắn gọn rồi hỏi lại về hoa quả. Prompt cũng dặn bỏ qua yêu cầu đòi quên quy tắc hay tiết lộ hướng dẫn.<br>- `mode` (một trong 4 chủ đề) vẫn là trường tuỳ chọn ở biên API: khung chat không gửi nên dùng prompt chung; gọi tay qua Swagger có `mode` thì dùng đoạn prompt và `temperature` riêng của chủ đề (`backend/app/chat_modes.py`), câu hỏi cũ thuộc chủ đề khác được gắn tag `[Chủ đề: …]` khi phát lại ngữ cảnh. Chuỗi lạ bị `pydantic` chặn 422. `cartItems` tối đa 20 tên, mỗi tên ≤ 255 ký tự.<br>- Hạn mức: 20 câu hỏi/phiên và 60 câu hỏi/IP trong 10 phút → 429.<br>- Câu hỏi tối đa 1000 ký tự (`zod` chặn ở frontend, `pydantic` chặn lại ở biên API).<br>- Danh mục nhồi vào prompt giới hạn 80 sản phẩm; vượt quá thì prompt nói rõ đây là danh sách cắt bớt và mời khách dùng ô tìm kiếm.<br>- **Không streaming** — trả lời một lần, giao diện hiện chỉ báo đang gõ trong lúc chờ. |
+| **Hậu điều kiện** | Cặp câu hỏi–trả lời được lưu vào `chat_messages` (`mode` NULL với tin gửi từ khung chat); `chat_sessions.updated_at` được cập nhật. |
 
 #### UC-TL-02 — Xem lại lịch sử trò chuyện
 
@@ -872,7 +872,7 @@ flowchart LR
 | **Tác nhân** | Quản trị viên |
 | **Mô tả** | Trang `/admin/tro-ly-ao` liệt kê các cuộc trò chuyện gần nhất và cho xem toàn văn từng cuộc, để kiểm chứng trợ lý có tư vấn sai hay bịa sản phẩm không. |
 | **Tiền điều kiện** | Đăng nhập với `role = ADMIN`. |
-| **Luồng chính** | 1. `GET /api/admin/chats` trả 200 phiên gần nhất (tên khách hoặc "Khách vãng lai", số tin, tiêu đề).<br>2. Bấm một dòng → `?id=…` → `GET /api/admin/chats/{id}` trả toàn văn; mỗi câu hỏi của khách có nhãn chủ đề (`mode`) để đối chiếu câu trả lời có bám đúng chủ đề không. |
+| **Luồng chính** | 1. `GET /api/admin/chats` trả 200 phiên gần nhất (tên khách hoặc "Khách vãng lai", số tin, tiêu đề).<br>2. Bấm một dòng → `?id=…` → `GET /api/admin/chats/{id}` trả toàn văn; câu hỏi có lưu `mode` (tin từ thời còn bước chọn chủ đề, hoặc gọi API có `mode`) hiện kèm nhãn chủ đề. |
 | **Luồng thay thế / Quy tắc** | - **Chỉ đọc**: không sửa, không xoá, không phân trang (backend đã giới hạn 200 bản ghi).<br>- Nút nổi của trợ lý bị **ẩn** trong khu `/admin` — quản trị viên không cần công cụ bán hàng.<br>- Số tin nhắn ở danh sách đếm bằng subquery, không nạp toàn bộ tin của từng phiên. |
 | **Hậu điều kiện** | Quản trị viên nắm được chất lượng tư vấn của trợ lý. |
 
@@ -1774,12 +1774,12 @@ sequenceDiagram
     AC->>API: GET /api/chat/sessions/{clientKey}
     API->>DB: SELECT chat_messages ORDER BY created_at
     DB-->>API: Danh sách tin (rỗng nếu chưa từng hỏi)
-    API-->>UI: messages (khôi phục chủ đề của lượt hỏi gần nhất)
+    API-->>UI: messages (rỗng thì hiện 4 câu gợi ý dưới lời chào)
 
-    U->>UI: Bấm chọn chủ đề (nếu chưa có) rồi gõ câu hỏi và gửi
+    U->>UI: Gõ câu hỏi (hoặc bấm một câu gợi ý) và gửi
     UI->>UI: Hiện bong bóng của khách NGAY + chỉ báo đang gõ
-    UI->>SA: sendChatMessage(clientKey, message, mode, cartItems)
-    SA->>SA: zod kiểm (1..1000 ký tự, mode ∈ 4 chủ đề)
+    UI->>SA: sendChatMessage(clientKey, message, cartItems)
+    SA->>SA: zod kiểm (1..1000 ký tự, tối đa 20 tên hàng trong giỏ)
     SA->>AC: api.chat.send
     AC->>API: POST /api/chat/messages
 
@@ -1791,19 +1791,19 @@ sequenceDiagram
         API->>DB: COUNT tin nhắn role='user' gần đây
         API-->>UI: 429 "Bạn đang gửi hơi nhanh..."
     else Bình thường
-        opt mode = recipe và đã đăng nhập
+        opt Đã đăng nhập
             API->>DB: SELECT order_items.name của các đơn gần nhất
         end
         API->>DB: SELECT products + categories (tối đa 80)
         DB-->>API: Danh mục sản phẩm
-        API->>DB: SELECT 12 tin nhắn gần nhất làm ngữ cảnh<br/>(gắn tag [Chủ đề: …] cho lượt khác chủ đề)
-        API->>GM: POST generateContent<br/>systemInstruction = persona + đoạn chủ đề + danh mục (+ hoa quả đã mua/giỏ)<br/>temperature theo chủ đề · thinkingBudget = 0
+        API->>DB: SELECT 12 tin nhắn gần nhất làm ngữ cảnh
+        API->>GM: POST generateContent<br/>systemInstruction = persona + nhiệm vụ chung + danh mục (+ hoa quả đã mua/giỏ)<br/>thinkingBudget = 0
         alt Gemini lỗi
             GM-->>API: timeout / 5xx / 401 / 429
             API-->>UI: 504 / 502 / 503 / 429 kèm câu tiếng Việt riêng
         else Gemini trả lời
             GM-->>API: Văn bản trả lời
-            API->>DB: INSERT cặp (user, model) cùng mode trong MỘT transaction
+            API->>DB: INSERT cặp (user, model) trong MỘT transaction
             API->>API: match_products — dò tên SP trong câu trả lời
             API-->>UI: reply + suggestions (giá & slug lấy từ MySQL)
             UI-->>U: Bong bóng trả lời + thẻ sản phẩm bấm được
@@ -2665,11 +2665,11 @@ classDiagram
 | `ChatSession.userId` | `NULL` = khách vãng lai. Khi khách đăng nhập rồi hỏi tiếp, phiên được gắn tài khoản và từ đó có kiểm chủ sở hữu (403 với người khác). |
 | `ChatSession.ipHash` | SHA-256 của IP kèm muối `AUTH_SECRET`. Chỉ dùng đếm hạn mức — **không lưu IP thật**. |
 | `ChatMessage.role` | Dùng **đúng hai chuỗi của Gemini** (`user` / `model`) nên phát lại lịch sử không cần bảng ánh xạ. |
-| `ChatMessage.mode` | Chủ đề khách chọn ở lượt hỏi đó (`product` / `advice` / `storage` / `recipe`); `NULL` với tin trước khi có tính năng chọn chủ đề. Lưu ở **cả hai dòng** của một cặp hỏi–đáp vì câu trả lời cũng được sinh dưới prompt của chủ đề đó; trang quản trị hiện thành nhãn, khung chat đọc lại để khôi phục chủ đề khi mở lại. |
+| `ChatMessage.mode` | Chủ đề của lượt hỏi đó (`product` / `advice` / `storage` / `recipe`) khi request có gửi `mode`; `NULL` với tin gửi từ khung chat (khách hỏi thẳng, prompt chung). Lưu ở **cả hai dòng** của một cặp hỏi–đáp vì câu trả lời cũng được sinh dưới prompt của chủ đề đó; trang quản trị hiện thành nhãn. |
 | `ChatModeSpec` | Bốn bản ghi cố định trong `backend/app/chat_modes.py`: nhãn tiếng Việt, đoạn hướng dẫn riêng nhồi vào system prompt, và `temperature` (tra cứu giá 0.2 → gợi ý công thức 0.7). Danh sách id phải khớp `frontend/src/lib/chatModes.ts`. |
 | `ChatReply` | Lớp tính toán, **không có bảng**. `suggestions` do `matchProducts` dò tên sản phẩm trong câu trả lời rồi lấy dữ liệu **từ MySQL**, không phải do mô hình sinh ra. |
 | `GeminiClient` | Bọc một lời gọi REST bằng `httpx`. `isConfigured()` cho phép router trả 503 **trước khi** chạm CSDL khi thiếu khoá. |
-| `ChatPrompt` | Không giữ trạng thái; dựng lại system prompt cho **mỗi** request để danh mục sản phẩm luôn mới. System prompt = persona + quy tắc chung + đoạn của chủ đề + danh mục (kèm ghi chú xuất xứ/bảo quản rút từ HTML mô tả) + với chủ đề công thức: hoa quả khách đã mua/đang có trong giỏ. `historyTurn` gắn tag `[Chủ đề: …]` cho câu hỏi cũ khác chủ đề hiện tại. |
+| `ChatPrompt` | Không giữ trạng thái; dựng lại system prompt cho **mỗi** request để danh mục sản phẩm luôn mới. System prompt = persona + quy tắc chung + đoạn nhiệm vụ chung (hoặc đoạn của chủ đề nếu request có `mode`) + danh mục (kèm ghi chú xuất xứ/bảo quản rút từ HTML mô tả) + hoa quả khách đã mua/đang có trong giỏ (prompt chung và chủ đề công thức). Khi request có `mode`, `historyTurn` gắn tag `[Chủ đề: …]` cho câu hỏi cũ khác chủ đề đó. |
 
 ---
 
@@ -2858,7 +2858,7 @@ erDiagram
         varchar36 session_id FK "ON DELETE CASCADE"
         varchar10 role "'user' | 'model' — đúng tên vai trò của Gemini"
         text content
-        varchar20 mode "chủ đề khách chọn; NULL với tin cũ"
+        varchar20 mode "chủ đề nếu request có gửi; NULL với tin từ khung chat"
         datetime6 created_at
     }
 ```
@@ -3139,7 +3139,7 @@ CREATE TABLE chat_messages (
     -- 'user' | 'model' — đúng tên vai trò của Gemini nên phát lại lịch sử khỏi phải ánh xạ
     role       VARCHAR(10) NOT NULL,
     content    TEXT        NOT NULL,
-    -- 'product' | 'advice' | 'storage' | 'recipe' — chủ đề khách chọn; NULL với tin cũ
+    -- 'product' | 'advice' | 'storage' | 'recipe' — chủ đề nếu request có gửi; NULL với tin từ khung chat
     mode       VARCHAR(20) NULL,
     created_at DATETIME(6) NOT NULL,
     PRIMARY KEY (id),
@@ -3467,7 +3467,7 @@ Nhóm này gắn `dependencies=[Depends(admin_user)]` ở **cấp router**: ch�
 
 | Phương thức & đường dẫn | Quyền | Mô tả | Use case |
 |---|---|---|---|
-| `POST /api/chat/messages` | Công khai | Body `{clientKey, message, mode, cartItems}`; `mode` là chủ đề (`product`/`advice`/`storage`/`recipe`, tuỳ chọn — thiếu thì dùng prompt chung), `cartItems` là tên hàng trong giỏ (≤ 20, chỉ dùng cho chủ đề công thức). Trả câu trả lời trong một lượt kèm `suggestions` là các sản phẩm được nhắc tên. **503** khi thiếu `GEMINI_API_KEY`, 504 timeout, 502 mất kết nối, 429 quá hạn mức, 422 `mode` lạ | UC-TL-01 |
+| `POST /api/chat/messages` | Công khai | Body `{clientKey, message, mode?, cartItems}`; `mode` là chủ đề (`product`/`advice`/`storage`/`recipe`, tuỳ chọn — khung chat không gửi nên dùng prompt chung), `cartItems` là tên hàng trong giỏ (≤ 20, dùng cho prompt chung và chủ đề công thức). Trả câu trả lời trong một lượt kèm `suggestions` là các sản phẩm được nhắc tên. **503** khi thiếu `GEMINI_API_KEY`, 504 timeout, 502 mất kết nối, 429 quá hạn mức, 422 `mode` lạ | UC-TL-01 |
 | `GET /api/chat/sessions/{clientKey}` | Công khai | Lịch sử hội thoại của một trình duyệt; chưa có thì trả danh sách rỗng (**không** 404); 403 nếu phiên đã gắn tài khoản khác | UC-TL-02 |
 | `DELETE /api/chat/sessions/{clientKey}` | Công khai | Xoá cuộc trò chuyện (204); tin nhắn đi theo nhờ `ON DELETE CASCADE`; xoá hai lần vẫn là 204 | UC-TL-03 |
 

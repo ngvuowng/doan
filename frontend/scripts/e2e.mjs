@@ -689,20 +689,12 @@ async function main() {
     check('mở được khung trợ lý', chat.includes('Trợ lý Halona'))
     check('có lời chào tiếng Việt', chat.includes('Mình là trợ lý của Halona Fruist'))
 
-    // Khách phải chọn chủ đề trước: bảng chọn có 4 nút, ô nhập bị khoá.
-    const modeCount = 'return document.querySelectorAll("[data-chat-mode]").length'
-    const inputDisabled = 'return document.querySelector("#halona-chat-input").disabled'
-    check('hiện 4 nút chọn chủ đề', (await evaluate(modeCount)) === 4)
-    check('chưa chọn chủ đề thì chưa gõ được', (await evaluate(inputDisabled)) === true)
-
-    await evaluate(`
-      document.querySelector('[data-chat-mode="product"]').click();
-      return true;
-    `)
-    await sleep(300)
+    // Không có bước chọn chủ đề: mở ra là gõ được ngay, kèm 4 câu gợi ý dưới lời chào.
+    const suggestionCount = 'return document.querySelectorAll("[data-chat-suggestion]").length'
+    check('hiện 4 câu gợi ý', (await evaluate(suggestionCount)) === 4)
     check(
-      'chọn chủ đề xong thì mở ô nhập',
-      (await evaluate(inputDisabled)) === false && (await text()).includes('Chủ đề: Sản phẩm'),
+      'gõ được ngay không cần chọn chủ đề',
+      (await evaluate('return document.querySelector("#halona-chat-input").disabled')) === false,
     )
 
     await evaluate(`
@@ -715,6 +707,7 @@ async function main() {
     `)
     await sleep(800)
     check('hiện ngay bong bóng câu hỏi', (await text()).includes('Táo nhập khẩu giá bao nhiêu?'))
+    check('hỏi rồi thì ẩn câu gợi ý', (await evaluate(suggestionCount)) === 0)
 
     let settled = false
     for (let i = 0; i < 30; i++) {
@@ -725,18 +718,6 @@ async function main() {
       if (settled) break
     }
     check('trợ lý trả lời hoặc báo lỗi cấu hình rõ ràng', settled === true)
-
-    // Đổi chủ đề giữa chừng: bảng chọn hiện lại nhưng lịch sử không mất.
-    await evaluate(`
-      document.querySelector('[data-chat-switch]').click();
-      return true;
-    `)
-    await sleep(300)
-    check(
-      'Đổi chủ đề hiện lại bảng chọn',
-      (await evaluate(modeCount)) === 4 && (await evaluate(inputDisabled)) === true,
-    )
-    check('đổi chủ đề vẫn giữ lịch sử', (await text()).includes('Táo nhập khẩu giá bao nhiêu?'))
 
     await send('Input.dispatchKeyEvent', {
       type: 'keyDown',

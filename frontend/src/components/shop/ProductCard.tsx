@@ -29,7 +29,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
   return (
     <article className="group flex flex-col rounded-2xl bg-white p-2.5 pb-4 text-center ring-1 ring-line transition-shadow duration-300 hover:shadow-[0_18px_40px_-24px_rgb(31_77_58/0.45)] sm:p-3 sm:pb-5">
-      <div className="relative mb-3 overflow-hidden rounded-xl bg-white">
+      <div className="product-frame relative mb-3 overflow-hidden rounded-xl">
         {percent !== null && (
           <span className="absolute left-2 top-2 z-10 rounded-full bg-sale px-2 py-0.5 text-[11px] font-semibold text-white">
             -{percent}%
@@ -43,25 +43,29 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
         <Link href={`/san-pham/${product.slug}`} className="block">
           <div className="relative aspect-square">
-            <Image
-              src={product.image}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className={`object-contain p-2 transition-all duration-500 ${
-                product.hoverImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'
-              }`}
-            />
-            {product.hoverImage && (
+            {/* Khung lùi vào để lộ nền product-frame và bo góc ảnh vuông. Không đặt transform/opacity
+                lên khung này: nó tạo stacking context, ảnh sẽ không hoà màu (multiply) với nền. */}
+            <div className="absolute inset-3 overflow-hidden rounded-lg sm:inset-4">
               <Image
-                src={product.hoverImage}
-                alt=""
-                aria-hidden
+                src={product.image}
+                alt={product.name}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-contain p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                className={`object-contain mix-blend-multiply transition-all duration-500 ${
+                  product.hoverImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'
+                }`}
               />
-            )}
+              {product.hoverImage && (
+                <Image
+                  src={product.hoverImage}
+                  alt=""
+                  aria-hidden
+                  fill
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="object-contain opacity-0 mix-blend-multiply transition-opacity duration-300 group-hover:opacity-100"
+                />
+              )}
+            </div>
           </div>
         </Link>
       </div>

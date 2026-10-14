@@ -12,7 +12,7 @@ export function OrderDetail({ order, heading }: { order: Order; heading?: string
   return (
     <section className="rounded-lg border border-line">
       {heading && (
-        <h3 className="border-b border-line px-5 py-3 font-heading text-base font-bold uppercase">
+        <h3 className="border-b border-line px-5 py-3 font-heading text-base font-bold">
           {heading}
         </h3>
       )}

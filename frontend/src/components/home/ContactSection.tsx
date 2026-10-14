@@ -36,7 +36,7 @@ export function ContactSection() {
             <ContactForm />
           </div>
 
-          <div className="overflow-hidden rounded-md bg-shell">
+          <div className="self-start overflow-hidden rounded-2xl bg-shell">
             <iframe
               src={`https://www.youtube.com/embed/${SITE.youtubeId}`}
               title="Giới thiệu Halona Fruits"

@@ -17,7 +17,7 @@ export default async function AdminProductsPage() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-bold uppercase">Sản phẩm ({products.length})</h2>
+        <h2 className="font-heading text-lg font-bold">Sản phẩm ({products.length})</h2>
         {canEdit && (
           <Link href="/admin/san-pham/moi" className="btn-primary">
             + Thêm sản phẩm

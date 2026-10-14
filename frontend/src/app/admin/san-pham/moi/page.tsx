@@ -11,7 +11,7 @@ export default async function NewProductPage() {
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">Thêm sản phẩm</h2>
+      <h2 className="mb-4 font-heading text-lg font-bold">Thêm sản phẩm</h2>
       <div className="rounded-lg border border-line p-5">
         <ProductForm
           categories={categories}

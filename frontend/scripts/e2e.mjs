@@ -153,10 +153,16 @@ async function main() {
     console.log('1. Trang chủ')
     await goto('/')
     const home = await text()
-    check('hiện đủ 3 khối sản phẩm', ['TRÁI CÂY NHẬP KHẨU', 'TRÁI CÂY NỘI ĐỊA', 'NƯỚC ÉP'].every((t) => home.includes(t)))
+    // Đối chiếu đúng tiêu đề khối: tên danh mục cũng xuất hiện ở thẻ banner phía trên.
+    const sectionTitles = await evaluate(`return [...document.querySelectorAll('h2.section-title')].map(h => h.innerText)`)
+    check(
+      'hiện đủ 3 khối sản phẩm',
+      ['Trái cây nhập khẩu', 'Trái cây nội địa', 'Nước ép'].every((t) => sectionTitles.some((h) => h.startsWith(t))),
+      JSON.stringify(sectionTitles),
+    )
     check('hiện đủ 4 sản phẩm', ['Bom mỹ', 'Vải nhập khẩu', 'Táo nhập khẩu', 'Cà chua Đà Lạt'].every((t) => home.includes(t)))
     check('hiện giá khuyến mãi', home.includes('180.000₫') && home.includes('30.000₫'))
-    check('hiện khối bài viết', home.includes('CÓ THỂ BẠN CẦN'))
+    check('hiện khối bài viết', home.includes('Có thể bạn cần'))
     const broken = await evaluate(
       'return [...document.images].filter(i => i.complete && i.naturalWidth === 0).map(i => i.currentSrc || i.src)',
     )
@@ -236,8 +242,8 @@ async function main() {
     await goto('/san-pham/bom-my')
     const detail = await text()
     check('chi tiết SP hiện tên + giá', detail.includes('Bom mỹ') && detail.includes('180.000₫'))
-    check('chi tiết SP có mô tả', detail.includes('MÔ TẢ SẢN PHẨM'))
-    check('chi tiết SP có SP liên quan', detail.includes('SẢN PHẨM LIÊN QUAN'))
+    check('chi tiết SP có mô tả', detail.includes('Mô tả sản phẩm'))
+    check('chi tiết SP có SP liên quan', detail.includes('Sản phẩm liên quan'))
 
     // ---- 3. Thêm vào giỏ hàng ----
     console.log('\n3. Giỏ hàng')
@@ -277,7 +283,10 @@ async function main() {
       return true;
     `)
     await sleep(900)
-    check('drawer giỏ hàng mở sau khi thêm', (await text()).includes('GIỎ HÀNG'))
+    check(
+      'drawer giỏ hàng mở sau khi thêm',
+      await evaluate(`return document.querySelector('[role="dialog"][aria-label="Giỏ hàng"]') !== null`),
+    )
     const badge = await evaluate(`
       const el = document.querySelector('[aria-label^="Giỏ hàng,"]');
       return el ? el.getAttribute('aria-label') : null;
@@ -479,7 +488,9 @@ async function main() {
     check('admin đăng nhập vào /admin', (await url()) === '/admin', await url())
 
     const dash = await text()
-    check('dashboard hiện thống kê', dash.includes('TỔNG QUAN') && dash.includes('Doanh thu'))
+    // "Tổng quan" cũng là một mục của menu quản trị, nên kiểm theo tiêu đề h2.
+    const dashHeading = await evaluate(`return [...document.querySelectorAll('h2')].some(h => h.innerText === 'Tổng quan')`)
+    check('dashboard hiện thống kê', dashHeading && dash.includes('Doanh thu'))
     check('dashboard hiện đơn vừa đặt', /HL-[0-9A-F]{6}/.test(dash))
 
     await goto('/admin/don-hang')
@@ -675,7 +686,7 @@ async function main() {
     `)
     await sleep(900)
     const chat = await text()
-    check('mở được khung trợ lý', chat.includes('TRỢ LÝ HALONA'))
+    check('mở được khung trợ lý', chat.includes('Trợ lý Halona'))
     check('có lời chào tiếng Việt', chat.includes('Mình là trợ lý của Halona Fruist'))
 
     // Khách phải chọn chủ đề trước: bảng chọn có 4 nút, ô nhập bị khoá.
@@ -963,10 +974,10 @@ async function main() {
     const report = await text()
     check(
       'trang báo cáo hiện tiêu đề và chỉ số',
-      ['BÁO CÁO THỐNG KÊ', 'Doanh thu', 'Tỉ lệ huỷ', 'Khách hàng mới', 'so với kỳ trước'].every((t) => report.includes(t)),
+      ['Báo cáo thống kê', 'Doanh thu', 'Tỉ lệ huỷ', 'Khách hàng mới', 'so với kỳ trước'].every((t) => report.includes(t)),
     )
     check('biểu đồ doanh thu có cột', (await evaluate('return document.querySelectorAll(".recharts-bar-rectangle").length')) > 0)
-    check('có bảng top sản phẩm và sắp hết hàng', report.includes('SẢN PHẨM BÁN CHẠY') && report.includes('SẮP HẾT HÀNG'))
+    check('có bảng top sản phẩm và sắp hết hàng', report.includes('sản phẩm bán chạy') && report.includes('Sắp hết hàng (tồn'))
 
     await evaluate(`
       [...document.querySelectorAll('a')].find(a => a.textContent.trim() === '7 ngày').click();
@@ -992,7 +1003,7 @@ async function main() {
     `)
     check(
       'lọc theo cửa hàng',
-      subtitle.includes('120 Yên Lãng') && !(await text()).includes('THEO CỬA HÀNG'),
+      subtitle.includes('120 Yên Lãng') && !(await text()).includes('Theo cửa hàng'),
       subtitle,
     )
 

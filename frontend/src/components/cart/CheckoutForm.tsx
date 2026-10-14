@@ -119,7 +119,7 @@ export function CheckoutForm({ defaults, stores: initialStores }: Props) {
       />
 
       <div>
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Thông tin giao hàng</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Thông tin giao hàng</h2>
 
         {state.formError && <FormError className="mb-4">{state.formError}</FormError>}
 
@@ -193,7 +193,7 @@ export function CheckoutForm({ defaults, stores: initialStores }: Props) {
           </div>
         </div>
 
-        <h2 className="mb-1 mt-8 font-heading text-lg font-bold uppercase">Cửa hàng giao hàng</h2>
+        <h2 className="mb-1 mt-8 font-heading text-lg font-bold">Cửa hàng giao hàng</h2>
         <p className="mb-3 text-sm text-muted">
           Chọn cửa hàng gần bạn nhất để tối ưu phí giao hàng. Phí tính theo khoảng cách từ cửa
           hàng tới vị trí của bạn.
@@ -248,7 +248,7 @@ export function CheckoutForm({ defaults, stores: initialStores }: Props) {
         </div>
         {state.errors?.storeId && <FieldError>{state.errors.storeId}</FieldError>}
 
-        <h2 className="mb-3 mt-8 font-heading text-lg font-bold uppercase">
+        <h2 className="mb-3 mt-8 font-heading text-lg font-bold">
           Phương thức thanh toán
         </h2>
         <div className="space-y-2">
@@ -289,7 +289,7 @@ export function CheckoutForm({ defaults, stores: initialStores }: Props) {
       </div>
 
       <aside className="h-fit rounded-lg border border-line p-5">
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Đơn hàng của bạn</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Đơn hàng của bạn</h2>
 
         <ul className="divide-y divide-line">
           {items.map((line) => (

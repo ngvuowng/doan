@@ -22,8 +22,8 @@ export default function AboutPage() {
       <div className="container-site py-10">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div>
-            <p className="font-accent text-2xl text-primary">{SITE.name}</p>
-            <h2 className="mt-2 font-heading text-3xl font-bold uppercase">
+            <p className="font-heading text-2xl italic text-accent">{SITE.name}</p>
+            <h2 className="mt-2 font-heading text-3xl font-bold">
               Thực phẩm sạch cho mọi gia đình Việt
             </h2>
             <p className="mt-4 text-muted">{SITE.description}</p>

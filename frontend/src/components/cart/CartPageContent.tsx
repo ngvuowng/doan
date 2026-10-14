@@ -125,7 +125,7 @@ export function CartPageContent() {
       </div>
 
       <aside className="h-fit rounded-lg border border-line p-5">
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Cộng giỏ hàng</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Cộng giỏ hàng</h2>
         <dl className="space-y-2.5 text-sm">
           <div className="flex justify-between">
             <dt className="text-muted">Tạm tính</dt>

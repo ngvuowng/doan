@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Fragment, useEffect, useState } from 'react'
 import { SITE } from '@/lib/site'
 import type { CategoryNode } from '@/lib/catalog'
@@ -22,6 +22,7 @@ type Props = {
 
 export function Header({ categories, userName, isStaff }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
   const { count, openCart } = useCart()
   const [stuck, setStuck] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -105,7 +106,11 @@ export function Header({ categories, userName, isStaff }: Props) {
         </div>
       </div>
 
-      <header className="sticky top-0 z-40 bg-white/95 shadow-[2px_2px_15px_#00000033] backdrop-blur print:hidden">
+      <header
+        className={`sticky top-0 z-40 border-b border-line bg-cream/90 backdrop-blur transition-shadow duration-300 print:hidden ${
+          stuck ? 'shadow-[0_12px_32px_-20px_rgb(28_36_33/0.45)]' : ''
+        }`}
+      >
         {/* Hàng chính: logo + tìm kiếm + giỏ hàng */}
         <div
           className={`container-site flex items-center gap-4 transition-[height] duration-300 ${
@@ -139,11 +144,11 @@ export function Header({ categories, userName, isStaff }: Props) {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Tìm kiếm sản phẩm..."
               aria-label="Tìm kiếm sản phẩm"
-              className="h-10 w-full rounded-l-md border border-r-0 border-line px-3.5 text-sm focus:border-primary focus:outline-none"
+              className="h-10 w-full rounded-l-full border border-r-0 border-line bg-white pl-4 pr-3 text-sm focus:border-primary focus:outline-none"
             />
             <button
               type="submit"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-r-md bg-primary text-white hover:bg-primary-dark"
+              className="grid h-10 w-11 shrink-0 place-items-center rounded-r-full bg-primary text-white hover:bg-primary-dark"
               aria-label="Tìm kiếm"
             >
               <SearchIcon className="h-4 w-4" />
@@ -166,7 +171,7 @@ export function Header({ categories, userName, isStaff }: Props) {
             >
               <CartIcon className="h-6 w-6" />
               {count > 0 && (
-                <span className="absolute right-0 top-0 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-semibold text-white">
+                <span className="absolute right-0 top-0 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold text-white">
                   {count}
                 </span>
               )}
@@ -175,10 +180,10 @@ export function Header({ categories, userName, isStaff }: Props) {
         </div>
 
         {/* Thanh menu chính */}
-        <nav className="hidden border-t border-line bg-shell lg:block">
-          <div className="container-site flex items-center gap-1">
+        <nav className="hidden border-t border-line lg:block">
+          <div className="container-site flex items-center justify-center gap-1">
             {navLinks.map((l) => (
-              <HeaderLink key={l.href} href={l.href}>
+              <HeaderLink key={l.href} href={l.href} current={isCurrent(pathname, l.href)}>
                 {l.label}
               </HeaderLink>
             ))}
@@ -204,7 +209,8 @@ export function Header({ categories, userName, isStaff }: Props) {
                     <Link
                       href={`/danh-muc-san-pham/${group.slug}`}
                       onClick={() => setOpenMenu(null)}
-                      className="py-3 pl-3 pr-1 text-[13px] font-medium uppercase tracking-wide text-ink transition-colors hover:text-primary"
+                      aria-current={isCurrent(pathname, `/danh-muc-san-pham/${group.slug}`) ? 'page' : undefined}
+                      className={`${NAV_LINK} pl-3 pr-1 after:left-3 after:right-1`}
                     >
                       {group.name}
                     </Link>
@@ -220,9 +226,10 @@ export function Header({ categories, userName, isStaff }: Props) {
                       </button>
                     )}
                   </div>
+                  {/* Menu nằm giữa thanh nên bảng canh giữa theo mục cha, tránh tràn mép phải. */}
                   {columns.length > 0 && (
                     <div
-                      className={`absolute left-0 top-full z-50 gap-8 whitespace-nowrap border border-line bg-white p-5 shadow-lg ${
+                      className={`absolute left-1/2 top-full z-50 -translate-x-1/2 gap-8 whitespace-nowrap rounded-xl border border-line bg-white p-6 shadow-[0_24px_48px_-24px_rgb(28_36_33/0.35)] ${
                         open ? 'flex' : 'hidden'
                       }`}
                     >
@@ -231,7 +238,7 @@ export function Header({ categories, userName, isStaff }: Props) {
                           <Link
                             href={`/danh-muc-san-pham/${col.heading.slug}`}
                             onClick={() => setOpenMenu(null)}
-                            className="mb-2 block border-b border-line pb-2 text-[13px] font-semibold uppercase tracking-wide text-ink hover:text-primary"
+                            className="mb-2 block border-b border-line pb-2 text-sm font-semibold text-primary hover:text-accent"
                           >
                             {col.heading.name}
                           </Link>
@@ -254,7 +261,7 @@ export function Header({ categories, userName, isStaff }: Props) {
             })}
 
             {tailLinks.map((l) => (
-              <HeaderLink key={l.href} href={l.href}>
+              <HeaderLink key={l.href} href={l.href} current={isCurrent(pathname, l.href)}>
                 {l.label}
               </HeaderLink>
             ))}
@@ -273,7 +280,7 @@ export function Header({ categories, userName, isStaff }: Props) {
           />
           <div className="absolute left-0 top-0 flex h-full w-[80%] max-w-xs flex-col bg-white">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <span className="font-heading font-bold uppercase">Danh mục</span>
+              <span className="font-heading font-bold">Danh mục</span>
               <button type="button" onClick={() => setMobileOpen(false)} aria-label="Đóng menu">
                 <XIcon className="h-5 w-5" />
               </button>
@@ -350,12 +357,20 @@ function megaColumns(group: CategoryNode): MenuColumn[] {
   return columns
 }
 
-function HeaderLink({ href, children }: { href: string; children: React.ReactNode }) {
+/** Trang chủ chỉ khớp đúng "/"; các mục khác khớp cả trang con (vd. /chuyen-muc/tin-tuc/...). */
+function isCurrent(pathname: string, href: string) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
+}
+
+// Gạch chân đỏ cherry hiện khi rê chuột và cố định ở trang đang mở.
+const NAV_LINK =
+  'relative py-3 text-sm font-medium text-ink transition-colors hover:text-primary aria-[current=page]:text-primary ' +
+  'after:absolute after:bottom-1.5 after:h-0.5 after:origin-left after:scale-x-0 after:rounded-full after:bg-accent ' +
+  'after:transition-transform hover:after:scale-x-100 aria-[current=page]:after:scale-x-100'
+
+function HeaderLink({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
   return (
-    <Link
-      href={href}
-      className="px-3 py-3 text-[13px] font-medium uppercase tracking-wide text-ink transition-colors hover:text-primary"
-    >
+    <Link href={href} aria-current={current ? 'page' : undefined} className={`${NAV_LINK} px-3 after:inset-x-3`}>
       {children}
     </Link>
   )

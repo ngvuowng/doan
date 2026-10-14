@@ -6,8 +6,8 @@ export type Crumb = { label: string; href?: string }
 export function PageHeader({ title, crumbs = [] }: { title: string; crumbs?: Crumb[] }) {
   return (
     <div className="border-b border-line bg-shell">
-      <div className="container-site py-7">
-        <h1 className="font-heading text-2xl font-bold uppercase md:text-3xl">{title}</h1>
+      <div className="container-site py-8 md:py-10">
+        <h1 className="font-heading text-3xl font-semibold text-primary md:text-4xl">{title}</h1>
         <nav aria-label="Breadcrumb" className="mt-2 text-sm text-muted">
           <ol className="flex flex-wrap items-center gap-1.5">
             <li>

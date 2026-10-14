@@ -10,7 +10,7 @@ export function PostSidebar({ categories, recent, activeSlug }: Props) {
   return (
     <aside className="space-y-8 lg:w-64 lg:shrink-0">
       <section>
-        <h2 className="mb-3 font-heading text-base font-bold uppercase">Chuyên mục</h2>
+        <h2 className="mb-3 font-heading text-base font-bold">Chuyên mục</h2>
         <ul className="space-y-1 text-sm">
           <li>
             <Link
@@ -41,7 +41,7 @@ export function PostSidebar({ categories, recent, activeSlug }: Props) {
       </section>
 
       <section>
-        <h2 className="mb-3 font-heading text-base font-bold uppercase">Bài viết mới</h2>
+        <h2 className="mb-3 font-heading text-base font-bold">Bài viết mới</h2>
         <ul className="space-y-2.5 text-sm">
           {recent.map((p) => (
             <li key={p.slug}>

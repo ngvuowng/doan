@@ -4,18 +4,17 @@ import { ABOUT_LINKS, SITE } from '@/lib/site'
 import { FacebookIcon, MailIcon, MapPinIcon, PhoneIcon } from '@/components/site/icons'
 
 /**
- * Footer 3 cột theo bản gốc: Liên hệ / Tin tức / Về chúng tôi.
- * Bản gốc dùng ảnh nền phủ lớp đen rgba(0,0,0,.605); ảnh đó không có trong bản
- * lưu trữ nên thay bằng gradient tối cùng tông.
+ * Footer 3 cột theo bản gốc: Liên hệ / Tin tức / Về chúng tôi, nền xanh rừng đậm
+ * có quầng sáng nhẹ ở góc trên trái.
  */
 export async function Footer() {
   const posts = await api.posts.list({ limit: 4 })
 
   return (
-    <footer className="mt-auto bg-[linear-gradient(160deg,#1d2b12,#0f1a08)] text-neutral-300 print:hidden">
+    <footer className="mt-auto bg-primary-dark bg-[radial-gradient(ellipse_at_top_left,var(--color-primary),transparent_60%)] text-white/70 print:hidden">
       <div className="container-site grid gap-10 py-14 md:grid-cols-3">
         <section>
-          <h3 className="mb-4 font-heading text-base font-bold uppercase text-white">Liên hệ</h3>
+          <h3 className="mb-4 font-heading text-xl font-semibold text-white">Liên hệ</h3>
           <p className="mb-5 text-sm leading-6">{SITE.description}</p>
           <ul className="space-y-3 text-sm">
             <li className="flex gap-3">
@@ -49,7 +48,7 @@ export async function Footer() {
         </section>
 
         <section>
-          <h3 className="mb-4 font-heading text-base font-bold uppercase text-white">Tin tức</h3>
+          <h3 className="mb-4 font-heading text-xl font-semibold text-white">Tin tức</h3>
           <ul className="space-y-3 text-sm">
             {posts.map((p) => (
               <li key={p.slug}>
@@ -62,7 +61,7 @@ export async function Footer() {
         </section>
 
         <section>
-          <h3 className="mb-4 font-heading text-base font-bold uppercase text-white">
+          <h3 className="mb-4 font-heading text-xl font-semibold text-white">
             Về chúng tôi
           </h3>
           <ul className="space-y-3 text-sm">

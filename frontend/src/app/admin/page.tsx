@@ -19,7 +19,7 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Tổng quan</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Tổng quan</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <Stat
             label="Sản phẩm"
@@ -50,7 +50,7 @@ export default async function AdminDashboard() {
       </section>
 
       <section>
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Đơn hàng gần đây</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Đơn hàng gần đây</h2>
         {recentOrders.length === 0 ? (
           <p className="rounded-lg border border-line py-12 text-center text-muted">
             Chưa có đơn hàng nào.

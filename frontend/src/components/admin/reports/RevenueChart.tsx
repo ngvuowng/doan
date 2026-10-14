@@ -16,11 +16,11 @@ import { formatCompactPrice, formatPrice } from '@/lib/format'
 export type ChartPoint = { label: string; longLabel: string; revenue: number; orderCount: number }
 
 // Cùng giá trị với --color-primary, --color-primary-dark, --color-line, --color-muted.
-const BAR = '#669933'
-const BAR_ACTIVE = '#557f2a'
-const GRID = '#e6e6e6'
-const TICK = { fill: '#777777', fontSize: 12 }
-const CURSOR = { fill: 'rgba(102, 153, 51, 0.08)' }
+const BAR = '#1f4d3a'
+const BAR_ACTIVE = '#163a2c'
+const GRID = '#e6e0d5'
+const TICK = { fill: '#6b716d', fontSize: 12 }
+const CURSOR = { fill: 'rgba(31, 77, 58, 0.08)' }
 const SYNC_ID = 'bao-cao'
 
 function PointTooltip({ active, payload }: TooltipContentProps) {

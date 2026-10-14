@@ -63,7 +63,7 @@ export function ChatWidget() {
         aria-label={isOpen ? 'Đóng trợ lý tư vấn' : 'Mở trợ lý tư vấn Halona'}
         aria-expanded={isOpen}
         aria-controls="halona-chat-panel"
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary-dark sm:bottom-6 sm:right-6"
+        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg ring-2 ring-white transition-colors hover:bg-primary-dark sm:bottom-6 sm:right-6"
       >
         {isOpen ? <XIcon className="h-6 w-6" /> : <ChatIcon className="h-7 w-7" />}
       </button>

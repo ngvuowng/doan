@@ -6,10 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/site/icons'
 
 /**
- * Slider trang chủ (2 slide như bản gốc), dùng CSS scroll-snap thay vì thư viện ngoài.
- *
- * Slide 1 của bản gốc (`banner-home-1.png`) không có trong kho lưu trữ Wayback nên
- * được dựng lại bằng HTML/CSS theo đúng tông màu và thông điệp của site.
+ * Slider trang chủ (2 slide), dùng CSS scroll-snap thay vì thư viện ngoài.
+ * Cả hai slide dựng bằng HTML/CSS theo token màu (ảnh banner cũ có màu in cứng trong ảnh).
  */
 export function HeroSlider() {
   const trackRef = useRef<HTMLDivElement>(null)
@@ -49,60 +47,91 @@ export function HeroSlider() {
         className="snap-row flex snap-x snap-mandatory overflow-x-auto"
         style={{ scrollbarWidth: 'none' }}
       >
-        {/* Slide 1 — dựng lại bằng CSS (ảnh gốc không còn trong kho lưu trữ) */}
+        {/* Slide 1 — nền be, đĩa xanh rừng lớn tràn mép phải, trên đó là "đĩa" kem đựng táo.
+            Ảnh táo có nền trắng đặc nên đặt trên nền kem với mix-blend-multiply cho nền tan đi. */}
         <div className="relative w-full shrink-0 snap-start">
-          <div className="relative aspect-[16/7] w-full overflow-hidden bg-[linear-gradient(115deg,#4e7a24_0%,#669933_45%,#8fbc5a_100%)] md:aspect-[1920/650]">
-            <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-white/10" />
-            <div className="absolute -bottom-32 right-10 h-96 w-96 rounded-full bg-black/10" />
+          <div className="relative aspect-[16/7] min-h-[280px] w-full overflow-hidden bg-shell md:aspect-[1920/650]">
+            <div className="absolute right-[-40%] top-1/2 aspect-square h-[120%] -translate-y-1/2 rounded-full bg-primary md:right-[-6%] md:h-[140%]" />
+            <div className="pointer-events-none absolute right-[-8%] top-1/2 aspect-square h-[64%] -translate-y-1/2 rounded-full bg-cream shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)] md:right-[8%] md:h-[80%]">
+              <Image
+                src="/images/product-tao-nhap-khau.png"
+                alt=""
+                aria-hidden
+                fill
+                priority
+                sizes="(max-width: 768px) 40vw, 30vw"
+                className="object-contain p-[14%] mix-blend-multiply"
+              />
+            </div>
+            <div className="absolute bottom-[14%] right-[33%] hidden h-12 w-12 rounded-full bg-accent md:block lg:right-[34%]" />
 
             <div className="container-site relative flex h-full items-center">
-              <div className="max-w-lg text-white">
-                <p className="mb-2 font-accent text-xl md:text-3xl">Halona Fruits</p>
-                <h2 className="font-heading text-2xl font-bold uppercase leading-tight text-white sm:text-4xl md:text-5xl">
-                  Trái cây tươi sạch
-                  <br />
-                  mỗi ngày
+              <div className="max-w-[58%] md:max-w-xl">
+                <h2 className="font-heading text-3xl font-semibold leading-[1.1] text-primary sm:text-5xl lg:text-6xl">
+                  Trái cây tươi sạch mỗi ngày
                 </h2>
-                <p className="mt-3 hidden text-sm text-white/90 sm:block md:text-base">
+                <p className="mt-4 hidden max-w-md text-base text-muted sm:block">
                   Nhà cung cấp thực phẩm tươi sạch hàng đầu khu vực phía nam.
                 </p>
-                <Link
-                  href="/cua-hang"
-                  className="mt-5 inline-flex rounded-full bg-white px-7 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-ink hover:text-white"
-                >
-                  Mua sắm ngay
-                </Link>
-              </div>
-
-              <div className="pointer-events-none absolute bottom-0 right-4 hidden h-[85%] w-[38%] md:block">
-                <Image
-                  src="/images/product-tao-nhap-khau.png"
-                  alt=""
-                  aria-hidden
-                  fill
-                  priority
-                  sizes="38vw"
-                  className="object-contain object-bottom drop-shadow-2xl"
-                />
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link href="/cua-hang" className="btn-primary">
+                    Mua sắm ngay
+                  </Link>
+                  <Link href="/danh-muc-san-pham/qua-tang-trai-cay" className="btn-outline hidden sm:inline-flex">
+                    Xem quà tặng
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Slide 2 — banner gốc phục hồi từ Wayback */}
+        {/* Slide 2 — nền xanh rừng, hai ảnh giỏ quà xếp chồng */}
         <div className="relative w-full shrink-0 snap-start">
-          <Link href="/cua-hang" className="block">
-            <div className="relative aspect-[16/7] w-full md:aspect-[1343/503]">
-              <Image
-                src="/images/hero-2.jpg"
-                alt="Halona Fruits - trái cây nhập khẩu"
-                fill
-                priority
-                sizes="100vw"
-                className="object-cover"
-              />
+          <div className="relative aspect-[16/7] min-h-[280px] w-full overflow-hidden bg-primary-dark md:aspect-[1920/650]">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_45%,var(--color-primary)_0%,transparent_60%)]" />
+
+            <div className="container-site relative flex h-full items-center">
+              <div className="max-w-xl text-white md:max-w-[46%]">
+                <h2 className="font-heading text-3xl font-semibold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
+                  Quà tặng trái cây cao cấp
+                </h2>
+                <p className="mt-4 hidden max-w-md text-base text-white/75 sm:block">
+                  Giỏ quà gói sẵn cho sinh nhật, khai trương và lễ Tết.
+                </p>
+                <Link href="/danh-muc-san-pham/qua-tang-trai-cay" className="btn-accent mt-6">
+                  Chọn giỏ quà
+                </Link>
+              </div>
+
+              <div className="pointer-events-none absolute inset-y-0 right-4 hidden w-[48%] md:block">
+                <div className="absolute right-[34%] top-[14%] aspect-square h-[62%] rotate-[-6deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-2xl">
+                  <div className="relative h-full w-full overflow-hidden rounded-xl">
+                    <Image
+                      src="/images/product-hop-qua-trai-cay-chuc-mung-cao-cap-mix-dua-nhat.jpg"
+                      alt=""
+                      aria-hidden
+                      fill
+                      sizes="25vw"
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+                <div className="absolute bottom-[10%] right-[4%] aspect-square h-[68%] rotate-[4deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-2xl">
+                  <div className="relative h-full w-full overflow-hidden rounded-xl">
+                    <Image
+                      src="/images/product-gio-qua-trai-cay-chuc-mung-vip.jpg"
+                      alt=""
+                      aria-hidden
+                      fill
+                      sizes="25vw"
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
 
@@ -110,7 +139,7 @@ export function HeroSlider() {
         type="button"
         onClick={() => goTo(index - 1)}
         aria-label="Banner trước"
-        className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow transition-colors hover:bg-primary hover:text-white"
+        className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow transition-colors hover:bg-white hover:text-primary md:grid"
       >
         <ChevronLeftIcon className="h-5 w-5" />
       </button>
@@ -118,12 +147,13 @@ export function HeroSlider() {
         type="button"
         onClick={() => goTo(index + 1)}
         aria-label="Banner kế tiếp"
-        className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow transition-colors hover:bg-primary hover:text-white"
+        className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow transition-colors hover:bg-white hover:text-primary md:grid"
       >
         <ChevronRightIcon className="h-5 w-5" />
       </button>
 
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+      {/* Chấm chỉ báo nằm trong viên nền trắng để rõ trên cả slide sáng lẫn tối. */}
+      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-white/75 px-2.5 py-1.5 backdrop-blur">
         {Array.from({ length: total }, (_, i) => (
           <button
             key={i}
@@ -131,9 +161,7 @@ export function HeroSlider() {
             onClick={() => goTo(i)}
             aria-label={`Chuyển đến banner ${i + 1}`}
             aria-current={i === index}
-            className={`h-2.5 w-2.5 rounded-full border border-white transition-colors ${
-              i === index ? 'bg-white' : 'bg-white/30'
-            }`}
+            className={`h-2 rounded-full transition-all ${i === index ? 'w-5 bg-primary' : 'w-2 bg-primary/25'}`}
           />
         ))}
       </div>

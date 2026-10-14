@@ -24,7 +24,7 @@ import { RevenueChart } from '@/components/admin/reports/RevenueChart'
 export const metadata: Metadata = { title: 'Báo cáo thống kê' }
 
 const SECTION = 'rounded-lg border border-line p-4 break-inside-avoid'
-const SECTION_TITLE = 'mb-4 font-heading text-base font-bold uppercase'
+const SECTION_TITLE = 'mb-4 font-heading text-base font-bold'
 
 export default async function AdminReportPage({ searchParams }: PageProps<'/admin/bao-cao'>) {
   await requireAdmin()
@@ -54,7 +54,7 @@ export default async function AdminReportPage({ searchParams }: PageProps<'/admi
           <p className="hidden text-xs uppercase tracking-wide text-muted print:block">
             Halona Fruist · Lập ngày {formatIsoDate(today)}
           </p>
-          <h2 className="font-heading text-lg font-bold uppercase">Báo cáo thống kê</h2>
+          <h2 className="font-heading text-lg font-bold">Báo cáo thống kê</h2>
           <p className="mt-1 text-sm text-muted">
             {formatIsoDate(report.start)} – {formatIsoDate(report.end)} · so với{' '}
             {formatIsoDate(report.previousStart)} – {formatIsoDate(report.previousEnd)} ·{' '}

@@ -28,7 +28,7 @@ export default async function AdminCustomerDetailPage({
       <section className="rounded-lg border border-line">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
           <div className="flex items-center gap-3">
-            <h2 className="font-heading text-lg font-bold uppercase">{customer.name}</h2>
+            <h2 className="font-heading text-lg font-bold">{customer.name}</h2>
             <span
               className={`rounded-full px-2 py-0.5 text-xs ${
                 customer.isActive ? 'bg-primary/15 text-primary-dark' : 'bg-red-100 text-red-700'
@@ -70,7 +70,7 @@ export default async function AdminCustomerDetailPage({
       </section>
 
       <section>
-        <h3 className="mb-4 font-heading text-lg font-bold uppercase">Lịch sử đơn hàng</h3>
+        <h3 className="mb-4 font-heading text-lg font-bold">Lịch sử đơn hàng</h3>
         {customer.orders.length === 0 ? (
           <p className="rounded-lg border border-line py-12 text-center text-muted">
             Khách hàng chưa có đơn hàng nào.

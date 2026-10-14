@@ -75,7 +75,7 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[slug
               {product.salePrice !== null && (
                 <span className="text-lg text-muted line-through">{formatPrice(product.price)}</span>
               )}
-              <span className="font-heading text-3xl font-bold text-primary">
+              <span className="font-heading text-3xl font-bold text-accent">
                 {formatPrice(price)}
               </span>
             </div>
@@ -125,13 +125,13 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[slug
         </div>
 
         <section className="mt-12 border-t border-line pt-8">
-          <h2 className="mb-4 font-heading text-xl font-bold uppercase">Mô tả sản phẩm</h2>
+          <h2 className="mb-4 font-heading text-xl font-bold">Mô tả sản phẩm</h2>
           <div className="rich-text" dangerouslySetInnerHTML={{ __html: product.description }} />
         </section>
 
         {related.length > 0 && (
           <section className="mt-12 border-t border-line pt-8">
-            <h2 className="mb-6 font-heading text-xl font-bold uppercase">Sản phẩm liên quan</h2>
+            <h2 className="mb-6 font-heading text-xl font-bold">Sản phẩm liên quan</h2>
             <ProductGrid products={related} />
           </section>
         )}

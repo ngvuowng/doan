@@ -14,7 +14,7 @@ export default async function AdminStaffPage() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-bold uppercase">Nhân sự ({staff.length})</h2>
+        <h2 className="font-heading text-lg font-bold">Nhân sự ({staff.length})</h2>
         <Link href="/admin/nhan-su/moi" className="btn-primary">
           + Thêm nhân viên
         </Link>

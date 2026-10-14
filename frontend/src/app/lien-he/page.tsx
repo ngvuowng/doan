@@ -20,7 +20,7 @@ export default async function ContactPage() {
       <div className="container-site py-10">
         <div className="grid gap-10 lg:grid-cols-2">
           <section>
-            <h2 className="mb-4 font-heading text-lg font-bold uppercase">Thông tin liên hệ</h2>
+            <h2 className="mb-4 font-heading text-lg font-bold">Thông tin liên hệ</h2>
             <ul className="space-y-4 text-sm">
               <li className="flex gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
@@ -99,7 +99,7 @@ export default async function ContactPage() {
           </section>
 
           <section>
-            <h2 className="mb-4 font-heading text-lg font-bold uppercase">Gửi liên hệ</h2>
+            <h2 className="mb-4 font-heading text-lg font-bold">Gửi liên hệ</h2>
             <ContactForm />
           </section>
         </div>

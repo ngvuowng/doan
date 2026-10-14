@@ -15,7 +15,7 @@ export default async function AdminChatPage({ searchParams }: PageProps<'/admin/
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">
+      <h2 className="mb-4 font-heading text-lg font-bold">
         Hội thoại trợ lý ảo ({sessions.length})
       </h2>
 

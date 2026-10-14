@@ -28,8 +28,8 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   const soldOut = product.stock <= 0
 
   return (
-    <article className="group flex flex-col text-center">
-      <div className="relative mb-3 overflow-hidden rounded-md border border-line bg-white">
+    <article className="group flex flex-col rounded-2xl bg-white p-2.5 pb-4 text-center ring-1 ring-line transition-shadow duration-300 hover:shadow-[0_18px_40px_-24px_rgb(31_77_58/0.45)] sm:p-3 sm:pb-5">
+      <div className="relative mb-3 overflow-hidden rounded-xl bg-white">
         {percent !== null && (
           <span className="absolute left-2 top-2 z-10 rounded-full bg-sale px-2 py-0.5 text-[11px] font-semibold text-white">
             -{percent}%
@@ -48,7 +48,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
               alt={product.name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className={`object-contain p-3 transition-all duration-500 ${
+              className={`object-contain p-2 transition-all duration-500 ${
                 product.hoverImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'
               }`}
             />
@@ -59,24 +59,24 @@ export function ProductCard({ product }: { product: ProductCardData }) {
                 aria-hidden
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-contain p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                className="object-contain p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
               />
             )}
           </div>
         </Link>
       </div>
 
-      <h3 className="font-sans text-sm font-normal">
+      <h3 className="line-clamp-2 px-1 font-sans text-sm font-medium leading-snug">
         <Link href={`/san-pham/${product.slug}`} className="hover:text-primary">
           {product.name}
         </Link>
       </h3>
 
-      <p className="mt-1 flex items-center justify-center gap-2">
+      <p className="mb-3 mt-1.5 flex flex-wrap items-center justify-center gap-x-2">
         {product.salePrice !== null && (
           <span className="old-price text-sm text-muted line-through">{formatPrice(product.price)}</span>
         )}
-        <span className="font-medium text-primary">{formatPrice(price)}</span>
+        <span className="font-semibold text-accent">{formatPrice(price)}</span>
       </p>
 
       <button
@@ -91,7 +91,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             image: product.image,
           })
         }
-        className="mx-auto mt-3 rounded-full border border-line bg-white px-6 py-1.5 text-sm text-ink transition-colors enabled:hover:border-primary enabled:hover:bg-primary enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="mx-auto mt-auto w-full max-w-[200px] rounded-full bg-primary/5 px-3 py-2 text-[13px] font-medium sm:text-sm text-primary ring-1 ring-primary/15 transition-colors enabled:hover:bg-primary enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
         {soldOut ? 'Hết hàng' : 'Thêm vào giỏ hàng'}
       </button>

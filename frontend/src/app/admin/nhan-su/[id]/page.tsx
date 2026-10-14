@@ -18,7 +18,7 @@ export default async function EditStaffPage({ params }: PageProps<'/admin/nhan-s
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">Sửa: {staff.name}</h2>
+      <h2 className="mb-4 font-heading text-lg font-bold">Sửa: {staff.name}</h2>
       <div className="rounded-lg border border-line p-5">
         <StaffForm
           stores={stores}
@@ -34,7 +34,7 @@ export default async function EditStaffPage({ params }: PageProps<'/admin/nhan-s
         />
       </div>
 
-      <h3 className="mb-4 mt-8 font-heading text-base font-bold uppercase">Đặt lại mật khẩu</h3>
+      <h3 className="mb-4 mt-8 font-heading text-base font-bold">Đặt lại mật khẩu</h3>
       <div className="rounded-lg border border-line p-5">
         <StaffPasswordForm staffId={staff.id} />
       </div>

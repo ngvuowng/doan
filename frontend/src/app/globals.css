@@ -1,23 +1,26 @@
 @import "tailwindcss";
 
 /*
- * Design tokens trích từ bản lưu trữ của nongsan.maugiaodien.com.
- * Giao diện gốc dùng theme Flatsome (theme thương mại) — ở đây dựng lại bằng CSS
- * tự viết dựa trên các giá trị quan sát được, không chép file CSS của theme.
+ * Design tokens: xanh rừng sâu làm màu chính, nền kem ấm, đỏ cherry (lấy từ chữ "Fruits"
+ * của logo) làm điểm nhấn cho giá, khuyến mãi và nút phụ. Biểu đồ quản trị dùng lại các giá
+ * trị này dưới dạng hex trong `components/admin/reports/RevenueChart.tsx` — đổi thì sửa cả hai.
  */
 @theme {
-  --color-primary: #669933;
-  --color-primary-dark: #557f2a;
-  --color-primary-light: #7fb045;
-  --color-ink: #0a0a0a;
-  --color-muted: #777777;
-  --color-line: #e6e6e6;
-  --color-shell: #f1f1f1;
-  --color-sale: #d0021b;
+  --color-primary: #1f4d3a;
+  --color-primary-dark: #163a2c;
+  /* Chỉ dùng trên nền tối (footer). */
+  --color-primary-light: #a9cdb6;
+  --color-accent: #c53a3a;
+  --color-accent-dark: #a52f2f;
+  --color-ink: #1c2421;
+  --color-muted: #6b716d;
+  --color-line: #e6e0d5;
+  --color-shell: #f3eee5;
+  --color-cream: #faf7f2;
+  --color-sale: #c53a3a;
 
-  --font-sans: var(--font-roboto), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-heading: var(--font-roboto-condensed), var(--font-roboto), system-ui, sans-serif;
-  --font-accent: var(--font-pattaya), var(--font-roboto-condensed), cursive;
+  --font-sans: var(--font-be-vietnam), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: var(--font-lora), Georgia, "Times New Roman", serif;
 
   /* Chiều cao header theo bản gốc: top 35px, main 90px, thu còn 50px khi cuộn. */
   --height-header-top: 35px;
@@ -31,7 +34,7 @@
   }
 
   body {
-    background: #ffffff;
+    background: var(--color-cream);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 15px;
@@ -44,7 +47,7 @@
   h4,
   h5 {
     font-family: var(--font-heading);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.25;
     color: var(--color-ink);
   }
@@ -57,20 +60,24 @@
 }
 
 @layer components {
-  /* Nút bo tròn 20px, chữ thường, weight bình thường — đúng như bản gốc.
-     Tailwind 4 không cho @apply một class component khác, nên các biến thể
-     dùng chung phần nền qua selector gộp. */
+  /* Nút bo tròn, chữ thường. Tailwind 4 không cho @apply một class component khác,
+     nên các biến thể dùng chung phần nền qua selector gộp. */
   .btn,
   .btn-primary,
+  .btn-accent,
   .btn-outline,
   .btn-dark {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5
-           text-sm font-normal leading-none transition-colors duration-200
+           text-sm font-medium leading-none transition-colors duration-200
            disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
     @apply bg-primary text-white hover:bg-primary-dark;
+  }
+
+  .btn-accent {
+    @apply bg-accent text-white hover:bg-accent-dark;
   }
 
   .btn-outline {
@@ -86,14 +93,14 @@
     @apply mx-auto w-full max-w-[1200px] px-4;
   }
 
-  /* Tiêu đề section: chữ in hoa, có gạch chân ngắn màu primary ở giữa. */
+  /* Tiêu đề section: serif, có gạch chân ngắn màu cherry ở giữa. */
   .section-title {
-    @apply text-center font-heading text-2xl font-bold uppercase tracking-wide md:text-3xl;
+    @apply text-center font-heading text-3xl font-semibold text-primary md:text-4xl;
   }
 
   .section-title::after {
     content: "";
-    @apply mx-auto mt-3 block h-[3px] w-16 rounded-full bg-primary;
+    @apply mx-auto mt-4 block h-[3px] w-12 rounded-full bg-accent;
   }
 
   .field {

@@ -19,7 +19,7 @@ export default async function AdminCustomersPage({ searchParams }: PageProps<'/a
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-bold uppercase">Khách hàng ({total})</h2>
+        <h2 className="font-heading text-lg font-bold">Khách hàng ({total})</h2>
         {/* Form GET: từ khoá nằm trên URL nên phân trang và nút Khoá giữ được bộ lọc. */}
         <form action="/admin/khach-hang" className="flex w-full gap-2 sm:w-auto">
           <input

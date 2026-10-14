@@ -10,15 +10,15 @@ const FEATURES = [
 
 export function FeatureStrip() {
   return (
-    <section className="border-y border-line bg-white py-8">
+    <section className="border-y border-line bg-white py-9">
       <div className="container-site grid grid-cols-2 gap-6 lg:grid-cols-4">
         {FEATURES.map(({ Icon, title, text }) => (
           <div key={title} className="flex items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
               <Icon className="h-5 w-5" />
             </span>
             <div>
-              <h3 className="font-heading text-sm font-bold uppercase">{title}</h3>
+              <h3 className="font-sans text-sm font-semibold">{title}</h3>
               <p className="text-xs text-muted">{text}</p>
             </div>
           </div>

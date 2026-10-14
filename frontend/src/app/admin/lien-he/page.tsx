@@ -12,7 +12,7 @@ export default async function AdminContactPage() {
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">
+      <h2 className="mb-4 font-heading text-lg font-bold">
         Tin nhắn liên hệ ({messages.length})
       </h2>
 

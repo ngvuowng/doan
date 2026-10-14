@@ -167,7 +167,7 @@ export function ChatPanel({ clientKey, onClose }: Props) {
     >
       <header className="flex items-center justify-between gap-2 bg-primary px-4 py-3 text-white sm:rounded-t-xl">
         <div>
-          <h2 className="font-heading text-base font-bold uppercase">Trợ lý Halona</h2>
+          <h2 className="font-heading text-base font-bold">Trợ lý Halona</h2>
           <p className="text-xs text-white/80">
             {modeInfo ? `Chủ đề: ${modeInfo.shortLabel}` : 'Tư vấn hoa quả · trả lời trong vài giây'}
           </p>

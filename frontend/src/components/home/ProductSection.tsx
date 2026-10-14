@@ -6,7 +6,7 @@ type Props = {
   subtitle?: string | null
   href?: string
   products: ProductCardData[]
-  /** Biến thể nền tối có lớp phủ, dùng cho section "Các loại nước ép" như bản gốc. */
+  /** Biến thể nền xanh rừng, dùng cho section nước ép như bản gốc. */
   dark?: boolean
 }
 
@@ -15,22 +15,20 @@ export function ProductSection({ title, subtitle, href, products, dark }: Props)
   if (products.length === 0) return null
 
   return (
-    <section className={`py-12 ${dark ? 'relative bg-ink text-white' : ''}`}>
-      {dark && <div className="absolute inset-0 bg-[linear-gradient(160deg,#26350f,#0f1a08)]" />}
-
+    <section
+      className={`py-14 ${
+        dark ? 'bg-[linear-gradient(160deg,var(--color-primary),var(--color-primary-dark))] text-white' : ''
+      }`}
+    >
       <div className="container-site relative">
         <header className="mb-8 text-center">
           <h2 className={`section-title ${dark ? 'text-white' : ''}`}>{title}</h2>
           {subtitle && (
-            <p className={`mt-3 text-sm ${dark ? 'text-neutral-300' : 'text-muted'}`}>{subtitle}</p>
+            <p className={`mt-3 text-sm ${dark ? 'text-white/70' : 'text-muted'}`}>{subtitle}</p>
           )}
         </header>
 
-        <div
-          className={`grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 ${
-            dark ? '[&_.old-price]:text-neutral-400 [&_h3_a]:text-white' : ''
-          }`}
-        >
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -38,7 +36,7 @@ export function ProductSection({ title, subtitle, href, products, dark }: Props)
 
         {href && (
           <div className="mt-10 text-center">
-            <Link href={href} className={dark ? 'btn bg-white text-primary hover:bg-primary hover:text-white' : 'btn-outline'}>
+            <Link href={href} className={dark ? 'btn bg-white text-primary hover:bg-accent hover:text-white' : 'btn-outline'}>
               Xem thêm
             </Link>
           </div>

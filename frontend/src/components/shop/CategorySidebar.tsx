@@ -13,7 +13,7 @@ export function CategorySidebar({
 }) {
   return (
     <aside className="lg:w-60 lg:shrink-0">
-      <h2 className="mb-3 font-heading text-base font-bold uppercase">Danh mục sản phẩm</h2>
+      <h2 className="mb-3 font-heading text-base font-bold">Danh mục sản phẩm</h2>
       <ul className="space-y-1 text-sm">
         <li>
           <Link

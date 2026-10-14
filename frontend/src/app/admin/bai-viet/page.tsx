@@ -13,7 +13,7 @@ export default async function AdminPostsPage() {
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">Bài viết ({posts.length})</h2>
+      <h2 className="mb-4 font-heading text-lg font-bold">Bài viết ({posts.length})</h2>
 
       <div className="overflow-x-auto rounded-lg border border-line">
         <table className="w-full min-w-[640px] text-sm">

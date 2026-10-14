@@ -74,7 +74,7 @@ export default async function PostPage({ params }: PageProps<'/tin-tuc/[slug]'>)
 
           {related.length > 0 && (
             <section className="mt-12 border-t border-line pt-8">
-              <h2 className="mb-6 font-heading text-xl font-bold uppercase">Bài viết liên quan</h2>
+              <h2 className="mb-6 font-heading text-xl font-bold">Bài viết liên quan</h2>
               <div className="grid gap-6 sm:grid-cols-3">
                 {related.map((p) => (
                   <PostCard key={p.slug} post={p} />

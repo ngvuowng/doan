@@ -24,7 +24,7 @@ export default async function AccountPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">
+        <h2 className="mb-4 font-heading text-lg font-bold">
           Xin chào, {user.name}
         </h2>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -38,7 +38,7 @@ export default async function AccountPage() {
       </section>
 
       <section className="rounded-lg border border-line p-5">
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Thông tin tài khoản</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Thông tin tài khoản</h2>
         <ProfileForm
           defaults={{
             name: user.name,

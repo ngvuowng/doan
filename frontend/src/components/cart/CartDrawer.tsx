@@ -28,7 +28,7 @@ export function CartDrawer() {
         aria-label="Giỏ hàng"
       >
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="font-heading text-lg font-bold uppercase">Giỏ hàng</h2>
+          <h2 className="font-heading text-lg font-bold">Giỏ hàng</h2>
           <button type="button" onClick={closeCart} aria-label="Đóng giỏ hàng" className="p-1">
             <XIcon className="h-5 w-5" />
           </button>

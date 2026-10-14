@@ -15,13 +15,13 @@ export function BlogSection({ posts }: { posts: BlogCardData[] }) {
   if (posts.length === 0) return null
 
   return (
-    <section className="bg-shell py-12">
+    <section className="bg-shell py-14">
       <div className="container-site">
         <h2 className="section-title mb-8">“Có thể bạn cần”</h2>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((post) => (
-            <article key={post.slug} className="group flex flex-col overflow-hidden rounded-md bg-white">
+            <article key={post.slug} className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-line">
               <Link href={`/tin-tuc/${post.slug}`} className="relative block aspect-[3/2] overflow-hidden">
                 <Image
                   src={post.image}
@@ -36,7 +36,7 @@ export function BlogSection({ posts }: { posts: BlogCardData[] }) {
                 <time dateTime={post.publishedAt} className="text-xs text-muted">
                   {formatDate(post.publishedAt)}
                 </time>
-                <h3 className="mt-1.5 font-heading text-base leading-snug">
+                <h3 className="mt-1.5 font-heading text-lg font-semibold leading-snug">
                   <Link href={`/tin-tuc/${post.slug}`} className="hover:text-primary">
                     {post.title}
                   </Link>
@@ -44,9 +44,9 @@ export function BlogSection({ posts }: { posts: BlogCardData[] }) {
                 <p className="mt-2 line-clamp-3 text-sm text-muted">{post.excerpt}</p>
                 <Link
                   href={`/tin-tuc/${post.slug}`}
-                  className="mt-3 self-start text-sm text-primary hover:underline"
+                  className="mt-auto self-start pt-3 text-sm font-medium text-primary underline decoration-accent decoration-2 underline-offset-4 hover:text-accent"
                 >
-                  Đọc tiếp →
+                  Đọc tiếp
                 </Link>
               </div>
             </article>

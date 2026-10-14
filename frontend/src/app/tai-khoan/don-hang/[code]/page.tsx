@@ -31,7 +31,7 @@ export default async function MyOrderDetailPage({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-bold uppercase">Đơn hàng {order.code}</h2>
+        <h2 className="font-heading text-lg font-bold">Đơn hàng {order.code}</h2>
         <div className="flex items-center gap-2">
           <StatusBadge status={order.status} />
           {order.paymentMethod === 'BANK' && <PaymentBadge status={order.paymentStatus} />}

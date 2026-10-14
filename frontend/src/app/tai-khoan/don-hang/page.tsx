@@ -27,7 +27,7 @@ export default async function MyOrdersPage() {
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">Đơn hàng của tôi</h2>
+      <h2 className="mb-4 font-heading text-lg font-bold">Đơn hàng của tôi</h2>
 
       <div className="overflow-x-auto rounded-lg border border-line">
         <table className="w-full min-w-[600px] text-sm">

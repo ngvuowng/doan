@@ -23,7 +23,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<'/admi
   if (orders.length === 0) {
     return (
       <>
-        <h2 className="mb-4 font-heading text-lg font-bold uppercase">Đơn hàng</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold">Đơn hàng</h2>
         {error && <FormError className="mb-4">{error}</FormError>}
         <p className="rounded-lg border border-line py-16 text-center text-muted">
           Chưa có đơn hàng nào.
@@ -34,7 +34,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<'/admi
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">Đơn hàng ({orders.length})</h2>
+      <h2 className="mb-4 font-heading text-lg font-bold">Đơn hàng ({orders.length})</h2>
       {error && <FormError className="mb-4">{error}</FormError>}
 
       <div className="space-y-4">

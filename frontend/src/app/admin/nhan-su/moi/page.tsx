@@ -14,7 +14,7 @@ export default async function NewStaffPage() {
 
   return (
     <>
-      <h2 className="mb-4 font-heading text-lg font-bold uppercase">Thêm nhân viên</h2>
+      <h2 className="mb-4 font-heading text-lg font-bold">Thêm nhân viên</h2>
       <div className="rounded-lg border border-line p-5">
         <StaffForm
           stores={stores}

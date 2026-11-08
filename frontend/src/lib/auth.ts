@@ -4,9 +4,12 @@ import { api, ApiError, type Profile } from '@/lib/api'
 import { can, type Permission } from '@/lib/permissions'
 import { clearSessionToken, setSessionToken } from '@/lib/session'
 
-/** Lưu token do backend cấp vào cookie httpOnly sau khi đăng nhập/đăng ký thành công. */
-export async function createSession(token: string) {
-  await setSessionToken(token)
+/**
+ * Lưu token do backend cấp vào cookie httpOnly sau khi đăng nhập/đăng ký thành công.
+ * `persistent = false` chỉ giữ đến khi đóng trình duyệt (xem `setSessionToken`).
+ */
+export async function createSession(token: string, persistent = true) {
+  await setSessionToken(token, persistent)
 }
 
 export async function destroySession() {

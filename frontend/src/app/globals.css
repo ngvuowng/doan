@@ -113,6 +113,23 @@
     @apply mb-1.5 block text-sm font-medium text-ink;
   }
 
+  /* Ô nhập kiểu gạch chân trên thẻ kính mờ (trang đăng nhập/đăng ký). Chừa chỗ bên phải
+     cho icon; bóng trong ở cạnh dưới làm vạch dày lên khi focus mà không xô layout. */
+  .field-glass {
+    @apply w-full rounded-none border-0 border-b border-white/80 bg-transparent py-2 pr-8
+           text-sm text-white transition-shadow
+           focus:border-white focus:shadow-[0_1px_0_0_#fff] focus:outline-none;
+  }
+
+  /* Chrome tô nền vàng/trắng cho ô tự điền — giữ chữ trắng và đẩy màu nền đi rất chậm. */
+  .field-glass:-webkit-autofill,
+  .field-glass:-webkit-autofill:hover,
+  .field-glass:-webkit-autofill:focus {
+    -webkit-text-fill-color: #fff;
+    caret-color: #fff;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
   /* Nền nhạt cố định phía sau ảnh sản phẩm (card + trang chi tiết). Ảnh đặt mix-blend-multiply
      để nền trắng của ảnh PNG cũ hoà vào màu này thay vì thành ô trắng. */
   .product-frame {

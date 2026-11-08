@@ -12,14 +12,18 @@ export async function getSessionToken(): Promise<string | null> {
   return (await cookies()).get(COOKIE_NAME)?.value ?? null
 }
 
-export async function setSessionToken(token: string) {
+/**
+ * `persistent = false` (bỏ tick "Nhớ tôi") ghi cookie phiên — không có maxAge nên trình
+ * duyệt tự xoá khi đóng. Token bên trong vẫn có hạn 7 ngày do backend đặt.
+ */
+export async function setSessionToken(token: string, persistent = true) {
   const store = await cookies()
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: MAX_AGE_SECONDS,
+    ...(persistent && { maxAge: MAX_AGE_SECONDS }),
   })
 }
 

@@ -30,13 +30,15 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     password: formData.get('password'),
   })
   if (!parsed.success) return { errors: collectIssues(parsed.error) }
+  // Checkbox "Nhớ tôi": không tick thì trình duyệt không gửi field này.
+  const remember = formData.get('remember') === 'on'
 
   let role: string
   try {
     // Backend trả cùng một thông báo cho email sai lẫn mật khẩu sai, nên không
     // lộ được email nào đã đăng ký.
     const { token, user } = await api.auth.login(parsed.data.email, parsed.data.password)
-    await createSession(token)
+    await createSession(token, remember)
     role = user.role
   } catch (error) {
     if (error instanceof ApiError) return { formError: error.detail }

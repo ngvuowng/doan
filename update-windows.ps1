@@ -10,9 +10,17 @@ $backend = Join-Path $root 'backend'
 $frontend = Join-Path $root 'frontend'
 $py = Join-Path $backend '.venv\Scripts\python.exe'
 $pidFile = Join-Path $env:TEMP 'halona-pids.txt'
+# Commit cua lan chay thanh cong gan nhat. Nam trong .next nen da bi git bo qua,
+# va tu mat khi build hong (.next bi xoa) -> lan sau build lai tu dau.
+$stamp = Join-Path $frontend '.next\deployed-commit'
 
 function Step($text) { Write-Host "`n==> $text" -ForegroundColor Cyan }
 function Check($what) { if ($LASTEXITCODE -ne 0) { throw "Loi o buoc: $what" } }
+# Co file nao khop mau thay doi tu lan chay truoc khong (khong ro thi coi nhu co).
+function Changed($pattern) {
+  if ($null -eq $changed) { return $true }
+  return [bool]($changed | Where-Object { $_ -like $pattern })
+}
 
 # Mo mot cua so PowerShell rieng chay lenh, tra ve process de lan sau tat ca cay tien trinh.
 function Open-Window($title, $dir, $command) {
@@ -45,11 +53,19 @@ try {
   Set-Location $root
   # npm tren may nay co the da ghi lai file lock; bo thay doi do de git pull khong bi chan.
   git checkout -- frontend/package-lock.json
-  $before = git rev-parse HEAD
   git pull --ff-only
   Check 'git pull. May nay co file bi sua tay? Xem bang: git status'
-  $changed = @(git diff --name-only $before HEAD)
-  Write-Host "$($changed.Count) file thay doi"
+
+  # So voi commit cua lan chay thanh cong truoc (khong phai voi truoc khi pull), nen
+  # git pull bang tay hay lan truoc build loi thi lan nay van biet can lam lai gi.
+  # $changed = $null nghia la khong biet, cai va build lai het.
+  $changed = $null
+  if (Test-Path $stamp) {
+    $changed = @(git diff --name-only (Get-Content $stamp).Trim() HEAD)
+    if ($LASTEXITCODE -ne 0) { $changed = $null }
+  }
+  if ($null -eq $changed) { Write-Host 'Chua ro lan chay truoc, se cai va build lai tu dau' }
+  else { Write-Host "$($changed.Count) file thay doi tu lan chay truoc" }
 
   Step 'Bat CSDL (Docker)'
   docker compose up -d
@@ -57,7 +73,7 @@ try {
 
   Step 'Backend'
   Set-Location $backend
-  if ($changed -contains 'backend/requirements.txt') {
+  if (Changed 'backend/requirements.txt') {
     & $py -m pip install -r requirements.txt
     Check 'pip install'
   }
@@ -77,12 +93,11 @@ try {
 
   Step 'Frontend'
   Set-Location $frontend
-  if (-not (Test-Path 'node_modules') -or ($changed -contains 'frontend/package-lock.json')) {
+  if (-not (Test-Path 'node_modules') -or (Changed 'frontend/package-lock.json')) {
     npm ci
     Check 'npm ci'
   }
-  $frontendChanged = $changed | Where-Object { $_ -like 'frontend/*' }
-  if (-not (Test-Path '.next\BUILD_ID') -or $frontendChanged) {
+  if (-not (Test-Path '.next\BUILD_ID') -or (Changed 'frontend/*')) {
     npm run build
     Check 'npm run build'
   } else {
@@ -91,6 +106,8 @@ try {
   $fe = Open-Window 'Halona frontend' $frontend 'npm start'
 
   $be, $fe | ForEach-Object { "$($_.Id)|$($_.StartTime.Ticks)" } | Set-Content $pidFile
+  Set-Location $root
+  git rev-parse HEAD | Set-Content $stamp
   Write-Host "`nXong. Web: http://localhost:3000 va https://nguyenvuong.id.vn" -ForegroundColor Green
 } catch {
   Write-Host "`nLOI: $_" -ForegroundColor Red

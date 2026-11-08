@@ -153,3 +153,33 @@ export const SendIcon = ({ className }: IconProps) => (
     <path d="M4 11.5 20.5 4l-7 16.5-2.2-6.8L4 11.5Z" />
   </svg>
 )
+
+export const ClockIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+)
+
+export const PlayIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+    <path d="M8 5.5v13a1 1 0 0 0 1.53.85l10.4-6.5a1 1 0 0 0 0-1.7L9.53 4.65A1 1 0 0 0 8 5.5Z" />
+  </svg>
+)
+
+/** Nhánh lá nhỏ trang trí hai bên dòng phụ đề vàng. `flip` lật ngang cho nhánh bên phải. */
+export const SprigIcon = ({ className, flip }: IconProps & { flip?: boolean }) => (
+  <svg
+    viewBox="0 0 28 12"
+    fill="currentColor"
+    className={`${className ?? ''} ${flip ? '-scale-x-100' : ''}`}
+    aria-hidden
+  >
+    <path d="M0 6.4h20v-.8H0z" />
+    <path d="M27.5 6c-2.6-2.7-5.6-3.1-8-1.2 2.4 1.9 5.4 1.5 8 1.2Z" />
+    <path d="M17 6c-.6-2.6-2.6-4.3-5.4-4.6.6 2.6 2.6 4.2 5.4 4.6Z" />
+    <path d="M17 6c-.6 2.6-2.6 4.3-5.4 4.6.6-2.6 2.6-4.2 5.4-4.6Z" />
+    <path d="M10 6C9.5 4 8 2.7 5.9 2.4 6.4 4.4 7.9 5.7 10 6Z" />
+    <path d="M10 6c-.5 2-2 3.3-4.1 3.6.5-2 2-3.3 4.1-3.6Z" />
+  </svg>
+)

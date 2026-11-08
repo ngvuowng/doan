@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { SITE } from '@/lib/site'
 import { formatDate } from '@/lib/format'
+import { SectionHeading } from '@/components/home/SectionHeading'
 
 export type BlogCardData = {
   slug: string
@@ -10,41 +12,50 @@ export type BlogCardData = {
   publishedAt: string
 }
 
-/** Khối "CÓ THỂ BẠN CẦN" ở trang chủ: 4 bài viết mới nhất. */
+/**
+ * Khối "Có thể bạn cần" ở trang chủ: 4 bài viết mới nhất, card kiểu mẫu Bean (nhãn ngày vàng
+ * đè lên ảnh, "Đăng bởi", link đọc tiếp gạch chân chuyển vàng khi rê chuột).
+ */
 export function BlogSection({ posts }: { posts: BlogCardData[] }) {
   if (posts.length === 0) return null
 
   return (
-    <section className="bg-shell py-14">
+    <section className="bg-shell py-14 md:py-20">
       <div className="container-site">
-        <h2 className="section-title mb-8">“Có thể bạn cần”</h2>
+        <SectionHeading eyebrow="Góc trái cây" title="Có thể bạn cần" className="mb-8 md:mb-12" />
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((post) => (
-            <article key={post.slug} className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-line">
-              <Link href={`/tin-tuc/${post.slug}`} className="relative block aspect-[3/2] overflow-hidden">
+            <article key={post.slug} className="group flex flex-col">
+              <Link href={`/tin-tuc/${post.slug}`} className="relative block aspect-[4/3] overflow-hidden rounded-[14px]">
                 <Image
                   src={post.image}
                   alt={post.title}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-              </Link>
-
-              <div className="flex flex-1 flex-col p-4">
-                <time dateTime={post.publishedAt} className="text-xs text-muted">
+                <time
+                  dateTime={post.publishedAt}
+                  className="absolute bottom-3 left-3 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-primary-dark"
+                >
                   {formatDate(post.publishedAt)}
                 </time>
-                <h3 className="mt-1.5 font-heading text-lg font-semibold leading-snug">
-                  <Link href={`/tin-tuc/${post.slug}`} className="hover:text-primary">
+              </Link>
+
+              <div className="flex flex-1 flex-col pt-4">
+                <p className="text-xs text-muted">
+                  Đăng bởi: <span className="font-medium text-gold-ink">{SITE.name}</span>
+                </p>
+                <h3 className="mt-1.5 line-clamp-2 font-heading text-lg leading-snug font-medium">
+                  <Link href={`/tin-tuc/${post.slug}`} className="transition-colors hover:text-gold-ink">
                     {post.title}
                   </Link>
                 </h3>
-                <p className="mt-2 line-clamp-3 text-sm text-muted">{post.excerpt}</p>
+                <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted">{post.excerpt}</p>
                 <Link
                   href={`/tin-tuc/${post.slug}`}
-                  className="mt-auto self-start pt-3 text-sm font-medium text-primary underline decoration-accent decoration-2 underline-offset-4 hover:text-accent"
+                  className="mt-auto self-start pt-4 text-xs font-semibold tracking-[0.12em] text-primary uppercase underline decoration-primary/40 underline-offset-[6px] transition-colors hover:text-gold-ink hover:decoration-accent"
                 >
                   Đọc tiếp
                 </Link>

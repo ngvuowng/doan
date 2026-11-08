@@ -3280,7 +3280,7 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 | Token phiên không được lộ ra JavaScript trong trình duyệt | JWT chỉ nằm trong cookie `httpOnly`, `sameSite=lax`, `secure` khi production; lớp gọi API đánh dấu `server-only` | `src/lib/session.ts`, `src/lib/api.ts` |
 | Khoá ký phải bắt buộc cấu hình | Thiếu `AUTH_SECRET` (hoặc `DATABASE_URL`) thì API **không khởi động được**, thay vì chạy với khoá mặc định | `backend/app/config.py` |
 | Quyền bị thu hồi / tài khoản bị khoá phải có hiệu lực ngay | Mỗi request xác thực đều **đọc lại bảng `users`** thay vì tin payload token; `is_active = FALSE` bị coi như không có token | `backend/app/deps.py` |
-| Khu quản trị không truy cập được bằng cách gọi thẳng API | `Depends(staff_user)` gắn ở **cấp router** `/api/admin/*` (401 thiếu token, 403 khách hàng) và `require("<khoá>")` trên từng endpoint; `/api/admin/staff/*` chỉ `admin_user`; frontend chỉ chặn sớm cho thân thiện | `backend/app/routers/admin.py`, `backend/app/routers/staff.py`, `src/app/admin/layout.tsx` |
+| Khu quản trị không truy cập được bằng cách gọi thẳng API | `Depends(staff_user)` gắn ở **cấp router** `/api/admin/*` (401 thiếu token, 403 khách hàng) và `require("<khoá>")` trên từng endpoint; `/api/admin/staff/*` chỉ `admin_user`; frontend chỉ chặn sớm cho thân thiện | `backend/app/routers/admin.py`, `backend/app/routers/staff.py`, `src/app/(site)/admin/layout.tsx` |
 | Nhân viên không thấy dữ liệu cửa hàng khác | Truy vấn đơn hàng và thống kê ghép điều kiện `store_id`; đơn ngoài phạm vi trả 404 như không tồn tại | `backend/app/routers/admin.py` |
 | Không tự thăng quyền / không biến khách thành nhân viên | Đăng ký luôn `USER`; nhóm `/api/admin/staff` chỉ `ADMIN`, `Literal` loại `USER` khỏi vai trò hợp lệ, id khách trả 404; không tự sửa/khoá chính mình (400) | `backend/app/routers/staff.py`, `backend/app/permissions.py` |
 | Số tiền không được client quyết định | Backend đọc lại giá từ CSDL, tính phí giao hàng theo khoảng cách và tính lại `total`; client chỉ gửi `productId`, `quantity`, `storeId` và toạ độ (tuỳ chọn) | `backend/app/routers/orders.py`, `backend/app/shipping.py` |
@@ -3297,7 +3297,7 @@ Mỗi dòng ghi **yêu cầu → cách hệ thống đáp ứng → nơi kiểm 
 |---|---|---|
 | Trang cửa hàng không tải toàn bộ catalog | Phân trang **phía CSDL** 12 sản phẩm/trang bằng `LIMIT/OFFSET` | `src/lib/catalog.ts`, `backend/app/routers/products.py` |
 | Không lặp truy vấn khi nạp quan hệ | `selectinload` cho `Order.items`, `Product.categories`, `Post.categories` — tránh N+1 | các router backend |
-| Nhiều nguồn dữ liệu độc lập không chờ nhau | Trang chủ, trang danh mục, trang tin tức, sitemap đều dùng `Promise.all` | `src/app/page.tsx`, `src/app/sitemap.ts` |
+| Nhiều nguồn dữ liệu độc lập không chờ nhau | Trang chủ, trang danh mục, trang tin tức, sitemap đều dùng `Promise.all` | `src/app/(site)/page.tsx`, `src/app/sitemap.ts` |
 | Không gọi trùng backend trong một lượt render | `cache: 'no-store'` **không** tắt việc gộp request — Next bỏ trường `cache` khỏi khoá gộp, nên các `GET` giống hệt nhau trong cùng lượt render chỉ đi một vòng | `src/lib/api.ts` |
 | Kết nối MySQL nhàn rỗi không gây lỗi | `pool_pre_ping=True` — MySQL tự ngắt kết nối sau 8 tiếng, ping trước khi dùng lại | `backend/app/database.py` |
 | Dữ liệu quản trị sửa xong phải thấy ngay | Không giữ Data Cache giữa các request; `revalidatePath` sau mỗi thao tác ghi | `src/actions/admin.ts` |

@@ -1,13 +1,14 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import loginBg from '../../../public/images/login-bg.jpg'
 
 /**
- * Khung trang đăng nhập/đăng ký: ảnh trái cây phủ kín vùng giữa header và footer, thẻ
- * "kính mờ" đặt chính giữa.
+ * Khung trang đăng nhập/đăng ký: trang riêng toàn màn hình (nhóm `app/(auth)/`, không có
+ * header/footer), ảnh trái cây phủ kín và thẻ "kính mờ" đặt chính giữa.
  */
 export function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-var(--height-header-top)-var(--height-header-main))] items-center justify-center overflow-hidden px-4 py-12 md:py-16">
+    <main className="relative isolate flex min-h-svh flex-1 items-center justify-center overflow-hidden px-4 py-12">
       <Image
         src={loginBg}
         alt=""
@@ -23,7 +24,13 @@ export function AuthShell({ title, children }: { title: string; children: React.
       <div className="w-full max-w-md rounded-2xl border border-white/50 bg-white/10 p-8 text-white shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-10">
         <h1 className="mb-6 text-center font-sans text-3xl font-bold text-white">{title}</h1>
         {children}
+        {/* Trang không có header nên cần một lối quay về. */}
+        <p className="mt-6 text-center text-xs">
+          <Link href="/" className="text-white/75 hover:text-white hover:underline">
+            ← Về trang chủ
+          </Link>
+        </p>
       </div>
-    </section>
+    </main>
   )
 }

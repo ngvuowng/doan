@@ -3,9 +3,9 @@
 import './globals.css'
 
 /**
- * Bắt lỗi xảy ra ngay trong root layout — `error.tsx` không làm được việc này vì
- * nó nằm *bên trong* layout. Từ khi tách backend riêng, header và footer đều gọi
- * API nên backend chết là cả layout hỏng, phải có lớp chặn ở đây.
+ * Lớp chặn cuối cho lỗi xảy ra ngay trong root layout — `error.tsx` không làm được việc
+ * này vì nó nằm *bên trong* layout. Header/footer (gọi API) nay ở `app/(site)/layout.tsx`
+ * nên backend chết sẽ do `app/error.tsx` bắt; file này chỉ còn phòng hờ.
  */
 export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
   return (

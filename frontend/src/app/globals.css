@@ -1,17 +1,20 @@
 @import "tailwindcss";
 
 /*
- * Design tokens: xanh rừng sâu làm màu chính, nền kem ấm, đỏ cherry (lấy từ chữ "Fruits"
- * của logo) làm điểm nhấn cho giá, khuyến mãi và nút phụ. Biểu đồ quản trị dùng lại các giá
- * trị này dưới dạng hex trong `components/admin/reports/RevenueChart.tsx` — đổi thì sửa cả hai.
+ * Design tokens theo phong cách mẫu "Bean Restaurant" nhưng giữ nền kem sáng: xanh đen làm màu
+ * chính, vàng đồng làm điểm nhấn (nút, đường kẻ, phụ đề), đỏ cherry chỉ còn cho giá và khuyến mãi.
+ * Vàng #c09342 trên nền kem chỉ đạt ~2.6:1 nên chữ vàng dùng `gold-ink` (~4.9:1), còn nút vàng
+ * dùng chữ xanh đen. Biểu đồ quản trị dùng lại các giá trị này dưới dạng hex trong
+ * `components/admin/reports/RevenueChart.tsx` — đổi thì sửa cả hai.
  */
 @theme {
-  --color-primary: #1f4d3a;
-  --color-primary-dark: #163a2c;
-  /* Chỉ dùng trên nền tối (footer). */
-  --color-primary-light: #a9cdb6;
-  --color-accent: #c53a3a;
-  --color-accent-dark: #a52f2f;
+  --color-primary: #102b2a;
+  --color-primary-dark: #041e1d;
+  /* Chỉ dùng trên nền tối (footer, dải số liệu). */
+  --color-primary-light: #e7cf98;
+  --color-accent: #c09342;
+  --color-accent-dark: #a57a30;
+  --color-gold-ink: #8a6528;
   --color-ink: #1c2421;
   --color-muted: #6b716d;
   --color-line: #e6e0d5;
@@ -19,13 +22,13 @@
   --color-cream: #faf7f2;
   --color-sale: #c53a3a;
 
-  --font-sans: var(--font-be-vietnam), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-heading: var(--font-lora), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-montserrat), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: var(--font-fraunces), Georgia, "Times New Roman", serif;
 
-  /* Chiều cao header theo bản gốc: top 35px, main 90px, thu còn 50px khi cuộn. */
-  --height-header-top: 35px;
-  --height-header-main: 90px;
-  --height-header-stuck: 50px;
+  /* Chiều cao header: thanh trên 40px, hàng chính 84px, thu còn 64px khi cuộn. */
+  --height-header-top: 40px;
+  --height-header-main: 84px;
+  --height-header-stuck: 64px;
 }
 
 @layer base {
@@ -47,7 +50,7 @@
   h4,
   h5 {
     font-family: var(--font-heading);
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.25;
     color: var(--color-ink);
   }
@@ -67,21 +70,22 @@
   .btn-accent,
   .btn-outline,
   .btn-dark {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5
-           text-sm font-medium leading-none transition-colors duration-200
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3
+           text-sm font-semibold leading-none transition-colors duration-200
            disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-dark;
+    @apply bg-primary text-white hover:bg-accent hover:text-primary-dark;
   }
 
+  /* Nút vàng: chữ xanh đen vì chữ trắng trên vàng không đủ tương phản. */
   .btn-accent {
-    @apply bg-accent text-white hover:bg-accent-dark;
+    @apply bg-accent text-primary-dark hover:bg-primary hover:text-white;
   }
 
   .btn-outline {
-    @apply border border-current bg-white text-ink
+    @apply border border-accent bg-transparent text-ink
            hover:border-primary hover:bg-primary hover:text-white;
   }
 
@@ -93,14 +97,46 @@
     @apply mx-auto w-full max-w-[1200px] px-4;
   }
 
-  /* Tiêu đề section: serif, có gạch chân ngắn màu cherry ở giữa. */
+  /* Tiêu đề section: serif cỡ lớn, phía trên là dòng phụ đề vàng in hoa (`.eyebrow`). */
   .section-title {
-    @apply text-center font-heading text-3xl font-semibold text-primary md:text-4xl;
+    @apply font-heading text-[26px] leading-tight font-medium text-balance text-primary md:text-[32px] lg:text-[40px];
   }
 
-  .section-title::after {
+  .eyebrow {
+    @apply inline-flex items-center gap-3 text-[13px] font-semibold tracking-[0.14em] text-gold-ink uppercase;
+  }
+
+  /* Khung vàng lùi vào trong ảnh. Đặt trên khung có `relative overflow-hidden` và bo góc. */
+  .gold-frame::before {
     content: "";
-    @apply mx-auto mt-4 block h-[3px] w-12 rounded-full bg-accent;
+    position: absolute;
+    inset: 12px;
+    z-index: 2;
+    border: 2px solid var(--color-accent);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  @media (min-width: 768px) {
+    .gold-frame::before {
+      inset: 15px;
+    }
+  }
+
+  /* Vòm: bo tròn hai góc trên. */
+  .arch {
+    border-radius: 999px 999px 0 0;
+  }
+
+  /* Hàng chấm vàng nối tên món với giá trong bảng giá. */
+  .dotted-leader {
+    flex: 1 1 auto;
+    min-width: 24px;
+    height: 2px;
+    margin: 0 4px 5px;
+    background-image: radial-gradient(circle, var(--color-accent) 0.9px, transparent 1.1px);
+    background-size: 6px 2px;
+    background-repeat: repeat-x;
   }
 
   .field {

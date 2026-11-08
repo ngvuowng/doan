@@ -12,10 +12,6 @@ export default async function LoginPage() {
   return (
     <AuthShell title="Đăng nhập">
       <LoginForm />
-      <p className="mt-6 border-t border-white/20 pt-4 text-xs leading-relaxed text-white/75">
-        Tài khoản demo — quản trị: <code>admin@halona.vn</code> / <code>admin123</code>; khách:{' '}
-        <code>khachhang@halona.vn</code> / <code>khach123</code>
-      </p>
     </AuthShell>
   )
 }

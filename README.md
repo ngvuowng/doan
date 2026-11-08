@@ -251,6 +251,8 @@ frontend/            ← tầng giao diện (TypeScript)
   src/lib/auth.ts    phiên đăng nhập; lib/session.ts giữ cookie; requirePermission() chặn trang quản trị theo quyền
   src/lib/permissions.ts  bộ khoá quyền + nhãn tiếng Việt, bộ quyền tick sẵn theo vai trò, can()/isStaff()
   src/app/           các route (giữ nguyên đường dẫn tiếng Việt của bản gốc)
+    (site)/          trang có header/footer — nhóm route, tên nhóm không vào URL
+    (auth)/          đăng nhập/đăng ký: trang riêng toàn màn hình, không header/footer
   src/components/    component giao diện, chia theo khu vực (có chat/ cho trợ lý ảo)
   src/actions/       server action (đặt hàng, xác thực, quản trị, nhân sự, khách hàng, liên hệ)
   public/images/     ảnh gốc và ảnh sản phẩm kleverfruits đã tải về

@@ -1,51 +1,64 @@
+import Image from 'next/image'
 import { SITE } from '@/lib/site'
 import { ContactForm } from '@/components/site/ContactForm'
-import { MailIcon, MapPinIcon, PhoneIcon } from '@/components/site/icons'
+import { SectionHeading } from '@/components/home/SectionHeading'
+import { ClockIcon, MailIcon, MapPinIcon, PhoneIcon } from '@/components/site/icons'
 
 /**
- * Khối "Liên hệ tư vấn mua hàng" ở trang chủ.
- * Bản gốc nhúng thêm Facebook Page và video YouTube — giữ lại video, bỏ iframe
- * Facebook vì nó cần app id còn hiệu lực của chủ site gốc.
+ * Khối "Liên hệ tư vấn mua hàng" theo bố cục khối đặt bàn của mẫu Bean: ảnh viền vàng kèm thẻ
+ * thông tin liên hệ bên trái, thẻ form bên phải. Video giới thiệu đã chuyển lên dải số liệu.
  */
 export function ContactSection() {
+  const tel = SITE.phone.replace(/\./g, '')
+
   return (
-    <section className="py-12">
-      <div className="container-site">
-        <h2 className="section-title mb-8">Liên hệ tư vấn mua hàng</h2>
+    <section className="bg-shell py-14 md:py-20">
+      <div className="container-site grid items-stretch gap-8 lg:grid-cols-2 lg:gap-12">
+        <div className="gold-frame relative min-h-[360px] overflow-hidden rounded-[20px]">
+          <Image
+            src="/images/login-bg.jpg"
+            alt=""
+            aria-hidden
+            fill
+            sizes="(max-width: 1024px) 100vw, 580px"
+            className="object-cover object-[20%_60%]"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgb(4_30_29/0.88)_100%)]" />
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div>
-            <ul className="mb-6 space-y-3 text-sm">
-              <li className="flex gap-3">
-                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>{SITE.address}</span>
-              </li>
-              <li className="flex gap-3">
-                <PhoneIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <a href={`tel:${SITE.phone.replace(/\./g, '')}`} className="hover:text-primary">
-                  {SITE.phone}
-                </a>
-              </li>
-              <li className="flex gap-3">
-                <MailIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <a href={`mailto:${SITE.email}`} className="hover:text-primary">
-                  {SITE.email}
-                </a>
-              </li>
-            </ul>
-            <ContactForm />
-          </div>
+          <ul className="absolute inset-x-0 bottom-0 z-10 space-y-3 p-7 text-sm text-white md:p-9">
+            <li className="flex gap-3">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <span>{SITE.address}</span>
+            </li>
+            <li className="flex gap-3">
+              <PhoneIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <a href={`tel:${tel}`} className="hover:text-accent">
+                {SITE.phone}
+              </a>
+            </li>
+            <li className="flex gap-3">
+              <MailIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <a href={`mailto:${SITE.email}`} className="hover:text-accent">
+                {SITE.email}
+              </a>
+            </li>
+            <li className="flex gap-3">
+              <ClockIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <span>Tư vấn 8h - 21h mỗi ngày</span>
+            </li>
+          </ul>
+        </div>
 
-          <div className="self-start overflow-hidden rounded-2xl bg-shell">
-            <iframe
-              src={`https://www.youtube.com/embed/${SITE.youtubeId}`}
-              title="Giới thiệu Halona Fruits"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              loading="lazy"
-              className="aspect-video w-full"
-            />
-          </div>
+        <div className="rounded-[20px] bg-white p-6 ring-1 ring-line md:p-10">
+          <SectionHeading align="left" eyebrow="Liên hệ trực tuyến" title="Liên hệ tư vấn mua hàng" />
+          <p className="mb-6 mt-3 text-sm text-muted">
+            Vui lòng gọi{' '}
+            <a href={`tel:${tel}`} className="font-semibold text-gold-ink hover:underline">
+              {SITE.phone}
+            </a>{' '}
+            hoặc điền thông tin bên dưới, chúng tôi sẽ liên hệ lại sớm nhất.
+          </p>
+          <ContactForm />
         </div>
       </div>
     </section>

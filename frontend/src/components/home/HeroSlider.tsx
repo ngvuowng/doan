@@ -3,15 +3,22 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { SITE } from '@/lib/site'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/site/icons'
 
 const TOTAL = 2
 const AUTOPLAY_MS = 5000
 
+// Hai slide cùng chiều cao cố định theo breakpoint để chữ không bị cắt trên màn hình hẹp.
+const SLIDE = 'relative h-[480px] w-full shrink-0 snap-start overflow-hidden sm:h-[540px] lg:h-[640px]'
+const ARROW =
+  'absolute top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 ' +
+  'text-white backdrop-blur-sm transition-colors hover:border-accent hover:bg-accent hover:text-primary-dark md:grid'
+
 /**
- * Slider trang chủ (2 slide), dùng CSS scroll-snap thay vì thư viện ngoài.
- * Cả hai slide dựng bằng HTML/CSS theo token màu (ảnh banner cũ có màu in cứng trong ảnh).
- * Tự chuyển slide sau 5 giây; tạm dừng khi rê chuột hoặc focus vào banner.
+ * Slider trang chủ (2 slide) kiểu mẫu Bean: ảnh tràn màn hình phủ lớp tối, chữ serif lớn ở giữa.
+ * Dùng CSS scroll-snap thay vì thư viện ngoài. Tự chuyển slide sau 5 giây; tạm dừng khi rê chuột
+ * hoặc focus vào banner.
  */
 export function HeroSlider() {
   const trackRef = useRef<HTMLDivElement>(null)
@@ -67,88 +74,95 @@ export function HeroSlider() {
         className="snap-row flex snap-x snap-mandatory overflow-x-auto"
         style={{ scrollbarWidth: 'none' }}
       >
-        {/* Slide 1 — nền be, đĩa xanh rừng lớn tràn mép phải, trên đó là "đĩa" kem đựng táo.
-            Ảnh táo có nền trắng đặc nên đặt trên nền kem với mix-blend-multiply cho nền tan đi. */}
-        <div className="relative w-full shrink-0 snap-start">
-          <div className="relative aspect-[16/7] min-h-[280px] w-full overflow-hidden bg-shell md:aspect-[1920/650]">
-            <div className="absolute right-[-40%] top-1/2 aspect-square h-[120%] -translate-y-1/2 rounded-full bg-primary md:right-[-6%] md:h-[140%]" />
-            <div className="pointer-events-none absolute right-[-8%] top-1/2 aspect-square h-[64%] -translate-y-1/2 rounded-full bg-cream shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)] md:right-[8%] md:h-[80%]">
-              <Image
-                src="/images/product-tao-nhap-khau.png"
-                alt=""
-                aria-hidden
-                fill
-                priority
-                sizes="(max-width: 768px) 40vw, 30vw"
-                className="object-contain p-[14%] mix-blend-multiply"
-              />
-            </div>
-            <div className="absolute bottom-[14%] right-[33%] hidden h-12 w-12 rounded-full bg-accent md:block lg:right-[34%]" />
+        {/* Slide 1 — ảnh trái cây tràn khung, phủ gradient xanh đen, chữ căn giữa. */}
+        <div className={SLIDE}>
+          <Image
+            src="/images/login-bg.jpg"
+            alt=""
+            aria-hidden
+            fill
+            preload
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgb(4_30_29/0.55)_0%,rgb(4_30_29/0.72)_100%)]" />
 
-            <div className="container-site relative flex h-full items-center">
-              <div className="max-w-[58%] md:max-w-xl">
-                <h2 className="font-heading text-3xl font-semibold leading-[1.1] text-primary sm:text-5xl lg:text-6xl">
-                  Trái cây tươi sạch mỗi ngày
-                </h2>
-                <p className="mt-4 hidden max-w-md text-base text-muted sm:block">
-                  Nhà cung cấp thực phẩm tươi sạch hàng đầu khu vực phía nam.
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Link href="/cua-hang" className="btn-primary">
-                    Mua sắm ngay
-                  </Link>
-                  <Link href="/danh-muc-san-pham/qua-tang-trai-cay" className="btn-outline hidden sm:inline-flex">
-                    Xem quà tặng
-                  </Link>
-                </div>
-              </div>
+          <div className="container-site relative flex h-full flex-col items-center justify-center text-center text-white">
+            <p className="eyebrow text-primary-light">
+              <span aria-hidden className="h-px w-8 bg-accent" />
+              {SITE.name}
+              <span aria-hidden className="h-px w-8 bg-accent" />
+            </p>
+            <h1 className="mt-4 max-w-3xl font-heading text-[34px] leading-[1.12] font-medium text-balance text-white sm:text-5xl lg:text-[64px]">
+              Trái Cây Tươi Sạch Mỗi Ngày
+            </h1>
+            <p className="mt-4 max-w-xl text-sm text-white/80 sm:text-base">
+              Tuyển chọn trái cây nhập khẩu và đặc sản vùng miền, giao tận nơi trong ngày.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/cua-hang" className="btn-accent">
+                Mua sắm ngay
+              </Link>
+              <Link
+                href="/danh-muc-san-pham/qua-tang-trai-cay"
+                className="btn border border-white/60 text-white hover:border-accent hover:bg-accent hover:text-primary-dark"
+              >
+                Xem quà tặng
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Slide 2 — nền xanh rừng, hai ảnh giỏ quà xếp chồng */}
-        <div className="relative w-full shrink-0 snap-start">
-          <div className="relative aspect-[16/7] min-h-[280px] w-full overflow-hidden bg-primary-dark md:aspect-[1920/650]">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_45%,var(--color-primary)_0%,transparent_60%)]" />
+        {/* Slide 2 — nền xanh đen, hai ảnh giỏ quà trong khung viền vàng. Trên mobile chỉ giữ
+            một ảnh mờ làm nền cho đỡ trống. */}
+        <div className={`${SLIDE} bg-primary`}>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_75%_40%,rgb(192_147_66/0.22)_0%,transparent_60%)]" />
+          <Image
+            src="/images/product-gio-qua-trai-cay-chuc-mung-vip.jpg"
+            alt=""
+            aria-hidden
+            fill
+            sizes="100vw"
+            className="object-cover opacity-20 md:hidden"
+          />
 
-            <div className="container-site relative flex h-full items-center">
-              <div className="max-w-xl text-white md:max-w-[46%]">
-                <h2 className="font-heading text-3xl font-semibold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
-                  Quà tặng trái cây cao cấp
-                </h2>
-                <p className="mt-4 hidden max-w-md text-base text-white/75 sm:block">
-                  Giỏ quà gói sẵn cho sinh nhật, khai trương và lễ Tết.
-                </p>
-                <Link href="/danh-muc-san-pham/qua-tang-trai-cay" className="btn-accent mt-6">
-                  Chọn giỏ quà
-                </Link>
+          <div className="container-site relative flex h-full items-center">
+            <div className="max-w-xl text-white md:max-w-[46%]">
+              <p className="eyebrow text-primary-light">
+                <span aria-hidden className="h-px w-8 bg-accent" />
+                Quà tặng cao cấp
+              </p>
+              <h2 className="mt-4 font-heading text-[34px] leading-[1.12] font-medium text-balance text-white sm:text-5xl lg:text-[56px]">
+                Giỏ Quà Trái Cây Sang Trọng
+              </h2>
+              <p className="mt-4 max-w-md text-sm text-white/75 sm:text-base">
+                Gói sẵn cho sinh nhật, khai trương và lễ Tết — chọn mẫu, chúng tôi giao tận tay.
+              </p>
+              <Link href="/danh-muc-san-pham/qua-tang-trai-cay" className="btn-accent mt-8">
+                Chọn giỏ quà
+              </Link>
+            </div>
+
+            <div className="pointer-events-none absolute inset-y-0 right-4 hidden w-[48%] md:block">
+              <div className="gold-frame absolute right-[36%] top-[12%] aspect-[4/5] h-[62%] overflow-hidden rounded-[20px] shadow-2xl">
+                <Image
+                  src="/images/product-hop-qua-trai-cay-chuc-mung-cao-cap-mix-dua-nhat.jpg"
+                  alt=""
+                  aria-hidden
+                  fill
+                  sizes="25vw"
+                  className="object-cover"
+                />
               </div>
-
-              <div className="pointer-events-none absolute inset-y-0 right-4 hidden w-[48%] md:block">
-                <div className="absolute right-[34%] top-[14%] aspect-square h-[62%] rotate-[-6deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-2xl">
-                  <div className="relative h-full w-full overflow-hidden rounded-xl">
-                    <Image
-                      src="/images/product-hop-qua-trai-cay-chuc-mung-cao-cap-mix-dua-nhat.jpg"
-                      alt=""
-                      aria-hidden
-                      fill
-                      sizes="25vw"
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
-                <div className="absolute bottom-[10%] right-[4%] aspect-square h-[68%] rotate-[4deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-2xl">
-                  <div className="relative h-full w-full overflow-hidden rounded-xl">
-                    <Image
-                      src="/images/product-gio-qua-trai-cay-chuc-mung-vip.jpg"
-                      alt=""
-                      aria-hidden
-                      fill
-                      sizes="25vw"
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
+              <div className="gold-frame absolute bottom-[10%] right-[2%] aspect-[4/5] h-[68%] overflow-hidden rounded-[20px] shadow-2xl">
+                <Image
+                  src="/images/product-gio-qua-trai-cay-chuc-mung-vip.jpg"
+                  alt=""
+                  aria-hidden
+                  fill
+                  sizes="25vw"
+                  className="object-cover"
+                />
               </div>
             </div>
           </div>
@@ -159,7 +173,7 @@ export function HeroSlider() {
         type="button"
         onClick={() => goTo(index - 1)}
         aria-label="Banner trước"
-        className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow transition-colors hover:bg-white hover:text-primary md:grid"
+        className={`${ARROW} left-4`}
       >
         <ChevronLeftIcon className="h-5 w-5" />
       </button>
@@ -167,13 +181,12 @@ export function HeroSlider() {
         type="button"
         onClick={() => goTo(index + 1)}
         aria-label="Banner kế tiếp"
-        className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow transition-colors hover:bg-white hover:text-primary md:grid"
+        className={`${ARROW} right-4`}
       >
         <ChevronRightIcon className="h-5 w-5" />
       </button>
 
-      {/* Chấm chỉ báo nằm trong viên nền trắng để rõ trên cả slide sáng lẫn tối. */}
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-white/75 px-2.5 py-1.5 backdrop-blur">
+      <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-2">
         {Array.from({ length: TOTAL }, (_, i) => (
           <button
             key={i}
@@ -181,7 +194,7 @@ export function HeroSlider() {
             onClick={() => goTo(i)}
             aria-label={`Chuyển đến banner ${i + 1}`}
             aria-current={i === index}
-            className={`h-2 rounded-full transition-all ${i === index ? 'w-5 bg-primary' : 'w-2 bg-primary/25'}`}
+            className={`h-2.5 rounded-full transition-all ${i === index ? 'w-7 bg-accent' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
           />
         ))}
       </div>

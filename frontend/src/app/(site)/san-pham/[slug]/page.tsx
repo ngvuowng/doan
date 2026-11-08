@@ -77,7 +77,7 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[slug
               {product.salePrice !== null && (
                 <span className="text-lg text-muted line-through">{formatPrice(product.price)}</span>
               )}
-              <span className="font-heading text-3xl font-bold text-accent">
+              <span className="font-heading text-3xl font-bold text-sale">
                 {formatPrice(price)}
               </span>
             </div>

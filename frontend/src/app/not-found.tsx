@@ -1,9 +1,14 @@
 import Link from 'next/link'
 import { PageHeader } from '@/components/site/PageHeader'
+import { SiteChrome } from '@/components/site/SiteChrome'
 
+/**
+ * 404 gốc: render thay cho layout `(site)` (cả URL không khớp route lẫn `notFound()` từ
+ * các trang trong site), nên tự bọc `SiteChrome` để vẫn có header/footer.
+ */
 export default function NotFound() {
   return (
-    <>
+    <SiteChrome>
       <PageHeader title="Không tìm thấy trang" crumbs={[{ label: 'Lỗi 404' }]} />
       <div className="container-site py-20 text-center">
         <p className="font-heading text-6xl font-bold text-primary">404</p>
@@ -23,6 +28,6 @@ export default function NotFound() {
           </Link>
         </div>
       </div>
-    </>
+    </SiteChrome>
   )
 }

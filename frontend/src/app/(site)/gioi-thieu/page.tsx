@@ -22,7 +22,7 @@ export default function AboutPage() {
       <div className="container-site py-10">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div>
-            <p className="font-heading text-2xl italic text-accent">{SITE.name}</p>
+            <p className="font-heading text-2xl italic text-gold-ink">{SITE.name}</p>
             <h2 className="mt-2 font-heading text-3xl font-bold">
               Thực phẩm sạch cho mọi gia đình Việt
             </h2>
@@ -49,7 +49,7 @@ export default function AboutPage() {
         </div>
 
         <section id="linh-vuc" className="mt-14 scroll-mt-32">
-          <h2 className="section-title mb-8">Lĩnh vực hoạt động</h2>
+          <h2 className="section-title mb-8 text-center">Lĩnh vực hoạt động</h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { Icon: LeafIcon, title: 'Trái cây nhập khẩu', text: 'Nguồn hàng chính ngạch từ Mỹ, Úc, Nhật, Hàn Quốc.' },
@@ -69,7 +69,7 @@ export default function AboutPage() {
         </section>
 
         <section id="chat-luong" className="mt-14 scroll-mt-32">
-          <h2 className="section-title mb-8">Chính sách chất lượng</h2>
+          <h2 className="section-title mb-8 text-center">Chính sách chất lượng</h2>
           <ul className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
             {[
               'Sản phẩm có nguồn gốc, chứng từ nhập khẩu rõ ràng',
@@ -86,7 +86,7 @@ export default function AboutPage() {
         </section>
 
         <section id="triet-li" className="mt-14 scroll-mt-32">
-          <h2 className="section-title mb-8">Triết lí kinh doanh</h2>
+          <h2 className="section-title mb-8 text-center">Triết lí kinh doanh</h2>
           <blockquote className="mx-auto max-w-2xl rounded-lg bg-primary/5 p-6 text-center">
             <p className="font-heading text-xl font-bold text-primary-dark">
               “Bán thứ mình dám cho gia đình mình ăn.”
@@ -99,7 +99,7 @@ export default function AboutPage() {
         </section>
 
         <section id="nang-luc" className="mt-14 scroll-mt-32">
-          <h2 className="section-title mb-8">Năng lực - cơ sở vật chất</h2>
+          <h2 className="section-title mb-8 text-center">Năng lực - cơ sở vật chất</h2>
           <div className="grid gap-6 sm:grid-cols-3">
             {[
               { Icon: TruckIcon, title: 'Đội xe lạnh riêng', text: 'Giao nội thành TP. HCM trong 2 giờ, giữ nhiệt suốt hành trình.' },

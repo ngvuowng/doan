@@ -4,13 +4,13 @@ import { AccountNav } from '@/components/account/AccountNav'
 import { PageHeader } from '@/components/site/PageHeader'
 
 /**
- * Bọc khu vực tài khoản. Các trang đăng nhập/đăng ký nằm trong cùng thư mục nhưng
- * tự chuyển hướng khi đã đăng nhập, nên ở đây chỉ dựng khung cho người đã đăng nhập.
+ * Bọc khu vực tài khoản cho người đã đăng nhập. Trang đăng nhập/đăng ký cùng URL
+ * `/tai-khoan/...` nhưng nằm ở nhóm `app/(auth)/` nên không đi qua layout này.
  */
 export default async function AccountLayout({ children }: LayoutProps<'/tai-khoan'>) {
   const user = await getCurrentUser()
 
-  // Chưa đăng nhập: để từng trang con tự xử lý (dang-nhap / dang-ky render form riêng).
+  // Chưa đăng nhập: để từng trang con tự chuyển hướng về trang đăng nhập.
   if (!user) return <>{children}</>
 
   return (

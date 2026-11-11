@@ -97,6 +97,12 @@ try {
     npm ci
     Check 'npm ci'
   }
+  # Next luu anh da toi uu theo URL (giu toi 4 gio). Anh moi trung ten file cu se van hien
+  # ban cu, nen xoa bo nho dem nay moi khi thu muc anh thay doi.
+  if ((Changed 'frontend/public/images/*') -and (Test-Path '.next\cache\images')) {
+    Remove-Item '.next\cache\images' -Recurse -Force
+    Write-Host 'Da xoa bo nho dem anh cu cua Next'
+  }
   if (-not (Test-Path '.next\BUILD_ID') -or (Changed 'frontend/*')) {
     npm run build
     Check 'npm run build'

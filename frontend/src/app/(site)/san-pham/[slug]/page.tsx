@@ -64,7 +64,7 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[slug
                   fill
                   priority
                   sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-contain mix-blend-multiply"
+                  className="object-cover"
                 />
               </div>
             </div>

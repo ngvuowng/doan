@@ -46,7 +46,7 @@ export function OrderDetail({ order, heading }: { order: Order; heading?: string
         {order.items.map((item) => (
           <li key={item.id} className="flex items-center gap-3 py-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-line">
-              <Image src={item.image} alt={item.name} fill sizes="56px" className="object-contain p-1" />
+              <Image src={item.image} alt={item.name} fill sizes="56px" className="object-cover" />
             </div>
             <div className="flex-1 text-sm">
               <p className="font-medium">{item.name}</p>

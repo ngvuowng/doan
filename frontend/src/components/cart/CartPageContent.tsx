@@ -49,7 +49,7 @@ export function CartPageContent() {
                       href={`/san-pham/${line.slug}`}
                       className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-line"
                     >
-                      <Image src={line.image} alt={line.name} fill sizes="64px" className="object-contain p-1" />
+                      <Image src={line.image} alt={line.name} fill sizes="64px" className="object-cover" />
                     </Link>
                     <Link href={`/san-pham/${line.slug}`} className="font-medium hover:text-primary">
                       {line.name}
@@ -87,7 +87,7 @@ export function CartPageContent() {
           {items.map((line) => (
             <li key={line.productId} className="flex gap-3 py-4">
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-line">
-                <Image src={line.image} alt={line.name} fill sizes="80px" className="object-contain p-1" />
+                <Image src={line.image} alt={line.name} fill sizes="80px" className="object-cover" />
               </div>
               <div className="flex-1">
                 <Link href={`/san-pham/${line.slug}`} className="font-medium hover:text-primary">

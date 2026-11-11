@@ -10,6 +10,8 @@
  *
  * Chạy: npm run fetch:kleverfruits  (rồi `python seed.py` trong backend/)
  * Thứ tự lấy = thứ tự feed; kleverfruits có thể xếp lại nên xem `git diff _reference/` trước khi commit.
+ * LƯU Ý: ảnh trong public/images đã được thay bằng bộ ảnh riêng (ảnh đã có thì script bỏ qua) và
+ * JSON đã bỏ tay các sản phẩm không có ảnh mới; chạy lại script sẽ lấy lại các sản phẩm đó kèm ảnh cũ.
  */
 import { writeFile, mkdir, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -19,8 +21,8 @@ const SITE = 'https://kleverfruits.com.vn'
 const OUT = join(process.cwd(), 'public', 'images')
 const DATA = join(process.cwd(), '..', '_reference', 'kleverfruits-products.json')
 const PER_CATEGORY = 6
-/** Slug 4 sản phẩm gốc trong seed.py — handle kleverfruits không được trùng. */
-const ORIGINAL_SLUGS = ['bom-my', 'vai-nhap-khau', 'tao-nhap-khau', 'ca-chua-da-lat']
+/** Slug sản phẩm gốc trong seed.py — handle kleverfruits không được trùng. */
+const ORIGINAL_SLUGS = ['vai-nhap-khau', 'tao-nhap-khau', 'ca-chua-da-lat']
 
 type Mapping = { category: string; collections: string[]; skip?: RegExp }
 

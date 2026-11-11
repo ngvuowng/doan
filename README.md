@@ -124,8 +124,9 @@ qua giao diện. Đây là trùng lặp có chủ đích.
   tặng trái cây · 5 danh mục Halona · Trái cây tươi hàng ngày (mở khi rê chuột hoặc bấm
   mũi tên, đóng bằng Esc/bấm ra ngoài — không dựa vào `group-hover:` vì Tailwind v4 bọc
   nó trong `@media (hover: hover)`);
-  7 danh mục lá của menu có **sản phẩm thật nhập từ kleverfruits.com.vn** (6 sản
-  phẩm/danh mục, ảnh tải về máy)
+  7 danh mục lá của menu có **sản phẩm thật nhập từ kleverfruits.com.vn** (5–6 sản
+  phẩm/danh mục); danh mục "Các loại rau củ quả" có 6 rau củ hữu cơ cộng "Cà chua Đà Lạt".
+  Toàn bộ ảnh sản phẩm là bộ ảnh riêng của dự án (`public/images/product-*.jpg`)
 - Cửa hàng và trang danh mục: danh mục nhiều cấp, hiện 3 cấp (trang danh mục cha gom sản
   phẩm của toàn bộ cây con), lọc theo danh mục, sắp xếp, phân trang
 - Chi tiết sản phẩm: chọn số lượng (gõ tay hoặc +/−, chỉ nhận số nguyên, chặn theo tồn kho),
@@ -220,7 +221,8 @@ cd ../backend && python seed.py             # nạp lại CSDL
 ```
 
 kleverfruits có thể xếp lại thứ tự bộ sưu tập theo thời gian, nên xem `git diff _reference/`
-trước khi commit bản mới.
+trước khi commit bản mới. Lưu ý: ảnh sản phẩm đã được thay bằng bộ ảnh riêng (ảnh đã có thì script
+bỏ qua) và JSON đã bỏ các sản phẩm không có ảnh mới, nên chạy lại script sẽ lấy lại các sản phẩm đó.
 
 ## Cấu trúc thư mục
 
@@ -295,7 +297,7 @@ Header      35px (top) + 90px (chính), thu còn 50px khi cuộn
 | Thumbnail bài "Eat Clean" | Không được lưu trữ → dùng ảnh SVG trang trí cùng tông màu |
 | Ảnh hover trên card sản phẩm | Bản gốc dùng chung **một** ảnh cho cả 4 sản phẩm (rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo) → thay bằng hiệu ứng phóng to nhẹ |
 | Iframe Facebook Page | Cần App ID còn hiệu lực của chủ site gốc → bỏ, giữ lại video YouTube |
-| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng một mục "Sản phẩm" xổ mega menu 3 cột theo kleverfruits.com.vn (2 nhóm Quà tặng trái cây / Trái cây tươi hàng ngày là con của "Sản phẩm" — cây 3 cấp); 5 danh mục Halona giữ nguyên dưới "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; 7 danh mục lá nạp 6 sản phẩm thật/danh mục từ kleverfruits.com.vn (JSON công khai của Haravan, ảnh tải về `public/images`); 2 danh mục hạt/rau củ không có tương đương nên để trống |
+| Menu chính | Bản gốc chỉ có một mục "Cửa hàng #Halona" xổ 5 danh mục phẳng → thay bằng một mục "Sản phẩm" xổ mega menu 3 cột theo kleverfruits.com.vn (2 nhóm Quà tặng trái cây / Trái cây tươi hàng ngày là con của "Sản phẩm" — cây 3 cấp); 5 danh mục Halona giữ nguyên dưới "Sản phẩm", "Nước ép" đổi tên thành "Nước ép trái cây" nhưng giữ slug `nuoc-ep`; 7 danh mục lá nạp sản phẩm thật từ kleverfruits.com.vn (JSON công khai của Haravan); danh mục rau củ (đổi tên thành "Các loại rau củ quả", giữ slug) có 6 rau củ hữu cơ khai báo trong `seed.py`; danh mục hạt để trống; "Bom mỹ" đã bỏ vì không có ảnh mới |
 
 Các lỗi chính tả của bản gốc được **giữ nguyên** cho đúng tinh thần bản clone:
 "Halona Fru**i**st" (tên site) và "Or**a**gnic" (tên danh mục).

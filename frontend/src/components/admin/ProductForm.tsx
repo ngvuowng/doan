@@ -68,7 +68,7 @@ export function ProductForm({ product, categories }: Props) {
         <input
           name="image"
           defaultValue={product.image}
-          placeholder="/images/product-bom-my.png"
+          placeholder="/images/product-vai-nhap-khau.jpg"
           className="field"
           required
         />

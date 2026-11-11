@@ -213,7 +213,7 @@ export function ChatPanel({ clientKey, onClose }: Props) {
                           alt={product.name}
                           fill
                           sizes="48px"
-                          className="object-contain p-0.5"
+                          className="object-cover"
                         />
                       </span>
                       <span className="min-w-0 flex-1">

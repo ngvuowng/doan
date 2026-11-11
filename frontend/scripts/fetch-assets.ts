@@ -14,12 +14,8 @@ const OUT = join(process.cwd(), 'public', 'images')
 
 /** Ảnh cần tải: tên file đích -> phần đuôi đường dẫn gốc (không tính biến thể kích thước). */
 const WANTED: Record<string, string> = {
-  // Ánh xạ xác định từ HTML gốc: ảnh mang class `attachment-original` là ảnh chính
-  // của sản phẩm (ảnh `show-on-hover` chỉ là bản cắt vuông dùng chung).
-  'product-bom-my.png': '2019/01/Screenshot_4.png',
-  'product-vai-nhap-khau.png': '2019/01/Screenshot_3.png',
-  'product-tao-nhap-khau.png': '2019/01/Screenshot_2.png',
-  'product-ca-chua-da-lat.png': '2019/01/Screenshot_1.png',
+  // Ảnh sản phẩm gốc (Screenshot_1..4.png) đã thay bằng bộ ảnh riêng `product-*.jpg`
+  // nên không tải nữa.
   'logo.png': '2019/07/halonalogo.png',
   'banner1.png': '2019/07/banner1.png',
   'banner2.png': '2019/07/banner2.png',

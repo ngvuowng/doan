@@ -46,15 +46,15 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
         <Link href={`/san-pham/${product.slug}`} className="block" tabIndex={-1} aria-hidden>
           <div className="relative aspect-square">
-            {/* Khung lùi vào để lộ nền product-frame và bo góc ảnh vuông. Không đặt transform/opacity
-                lên khung này: nó tạo stacking context, ảnh sẽ không hoà màu (multiply) với nền. */}
+            {/* Khung lùi vào để lộ nền product-frame và bo góc ảnh. Ảnh là ảnh chụp tràn khung (nhiều
+                tỉ lệ khác nhau) nên dùng object-cover cắt vừa ô vuông. */}
             <div className="absolute inset-3 overflow-hidden rounded-lg sm:inset-4">
               <Image
                 src={product.image}
                 alt={product.name}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className={`object-contain mix-blend-multiply transition-all duration-500 ${
+                className={`object-cover transition-all duration-500 ${
                   product.hoverImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'
                 }`}
               />
@@ -65,7 +65,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
                   aria-hidden
                   fill
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="object-contain opacity-0 mix-blend-multiply transition-opacity duration-300 group-hover:opacity-100"
+                  className="object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 />
               )}
             </div>

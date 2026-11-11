@@ -41,7 +41,7 @@ KLEVER_PATH = BASE_DIR.parent / "_reference" / "kleverfruits-products.json"
 # trái cây, Trái cây tươi hàng ngày) và 5 danh mục của site gốc Halona đều là con của nó.
 # Cha phải khai báo trước con (seed gán qua `parent`). `position` toàn cục mỗi cấp một hàng
 # số (gốc 100, con 110/120…, cháu 111, 112…) để ORDER BY position ra đúng thứ tự
-# cha-rồi-con-cháu, và 4 sản phẩm gốc vẫn lấy `trai-cay-nhap-khau` (120) làm danh mục chính.
+# cha-rồi-con-cháu, và các sản phẩm gốc vẫn lấy `trai-cay-nhap-khau` (120) làm danh mục chính.
 PRODUCT_CATEGORIES = [
     {
         "slug": "san-pham",
@@ -100,10 +100,10 @@ PRODUCT_CATEGORIES = [
         "position": 150,
         "parent": "san-pham",
     },
-    # "Oragnic" là lỗi chính tả có sẵn trên site gốc — giữ nguyên để trung thành với bản clone.
+    # Slug giữ lỗi chính tả "oragnic" của site gốc để link cũ không gãy; tên hiển thị đã sửa.
     {
         "slug": "cac-loai-rau-cu-qua-oragnic",
-        "name": "Các loại rau củ quả Oragnic",
+        "name": "Các loại rau củ quả",
         "subtitle": "Rau củ quả canh tác hữu cơ, không hoá chất",
         "position": 160,
         "parent": "san-pham",
@@ -135,23 +135,15 @@ POST_CATEGORIES = [
     {"slug": "tin-tuc", "name": "Tin tức", "position": 1},
 ]
 
-# 4 sản phẩm của site gốc. Giá tính bằng VND.
+# Sản phẩm của site gốc (đã bỏ "Bom mỹ" vì không có ảnh mới). Giá tính bằng VND.
+# `extra_categories` là danh mục gán thêm ngoài 3 danh mục chung của nhóm này.
 PRODUCTS = [
-    {
-        "slug": "bom-my",
-        "name": "Bom mỹ",
-        "price": 200000,
-        "sale_price": 180000,
-        "image": "/images/product-bom-my.png",
-        "short_description": "Bom Mỹ nhập khẩu, quả to đều, giòn ngọt và mọng nước.",
-        "description": "<p>Bom Mỹ (táo Mỹ) được nhập khẩu trực tiếp, quả to đều, vỏ đỏ bóng, thịt quả giòn ngọt và mọng nước. Sản phẩm được bảo quản lạnh trong suốt quá trình vận chuyển nên giữ được độ tươi và hương vị đặc trưng.</p><p>Bom Mỹ giàu chất xơ và vitamin C, thích hợp ăn trực tiếp, làm salad hoặc ép lấy nước.</p><ul><li>Xuất xứ: Hoa Kỳ</li><li>Quy cách: tính theo kilogram</li><li>Bảo quản: ngăn mát 2-5°C</li></ul>",
-    },
     {
         "slug": "vai-nhap-khau",
         "name": "Vải nhập khẩu",
         "price": 80000,
         "sale_price": 60000,
-        "image": "/images/product-vai-nhap-khau.png",
+        "image": "/images/product-vai-nhap-khau.jpg",
         "short_description": "Vải thiều nhập khẩu, cùi dày, hạt nhỏ, ngọt thanh.",
         "description": "<p>Vải nhập khẩu quả to, cùi dày, hạt nhỏ, vị ngọt thanh và thơm dịu. Hàng được tuyển chọn kỹ, loại bỏ quả dập nát trước khi đóng gói.</p><p>Vải chứa nhiều vitamin C và khoáng chất, thích hợp ăn tráng miệng hoặc làm chè, sinh tố.</p><ul><li>Quy cách: tính theo kilogram</li><li>Bảo quản: ngăn mát, dùng trong 3-5 ngày</li></ul>",
     },
@@ -160,7 +152,7 @@ PRODUCTS = [
         "name": "Táo nhập khẩu",
         "price": 50000,
         "sale_price": 30000,
-        "image": "/images/product-tao-nhap-khau.png",
+        "image": "/images/product-tao-nhap-khau.jpg",
         "short_description": "Táo nhập khẩu giòn ngọt, vỏ mỏng, an toàn cho cả gia đình.",
         "description": "<p>Táo nhập khẩu có vỏ mỏng, thịt quả giòn, vị ngọt xen chút chua nhẹ rất dễ ăn. Sản phẩm có nguồn gốc rõ ràng, đạt tiêu chuẩn kiểm định an toàn thực phẩm.</p><p>Đây là loại trái cây quen thuộc cho bữa phụ của trẻ nhỏ và người lớn tuổi.</p><ul><li>Quy cách: tính theo kilogram</li><li>Bảo quản: nơi khô mát hoặc ngăn mát tủ lạnh</li></ul>",
     },
@@ -169,19 +161,80 @@ PRODUCTS = [
         "name": "Cà chua Đà Lạt",
         "price": 100000,
         "sale_price": 80000,
-        "image": "/images/product-ca-chua-da-lat.png",
+        "image": "/images/product-ca-chua-da-lat.jpg",
+        "extra_categories": ["cac-loai-rau-cu-qua-oragnic"],
         "short_description": "Cà chua Đà Lạt chín cây, đỏ mọng, canh tác an toàn.",
         "description": "<p>Cà chua Đà Lạt được trồng trên vùng cao nguyên khí hậu mát mẻ, quả chín cây nên đỏ mọng, chắc thịt và nhiều nước. Canh tác theo hướng an toàn, hạn chế tối đa thuốc bảo vệ thực vật.</p><p>Thích hợp nấu canh, sốt, làm salad hoặc ép nước uống mỗi ngày.</p><ul><li>Xuất xứ: Đà Lạt, Lâm Đồng</li><li>Quy cách: tính theo kilogram</li><li>Bảo quản: ngăn mát 5-8°C</li></ul>",
     },
 ]
 
 # Sản phẩm thật nhập từ kleverfruits.com.vn cho 7 danh mục lá của menu mới (site gốc Halona
-# chỉ có 4 sản phẩm). File do `npm run fetch:kleverfruits` (frontend/scripts/fetch-kleverfruits.ts)
+# chỉ có vài sản phẩm). File do `npm run fetch:kleverfruits` (frontend/scripts/fetch-kleverfruits.ts)
 # sinh ra và commit kèm ảnh trong public/images, nên seed chạy được offline. `category` là
 # slug danh mục LÁ (không gán vào cha; trang danh mục cha tự gom sản phẩm của các con);
-# `source` là URL sản phẩm gốc, chỉ để đối chiếu. Hai danh mục `cac-loai-hat-dinh-duong` và
-# `cac-loai-rau-cu-qua-oragnic` không có tương đương trên kleverfruits nên để trống.
+# `source` là URL sản phẩm gốc, chỉ để đối chiếu. Đã bỏ tay các sản phẩm không có ảnh mới, nên
+# chạy lại script sẽ lấy lại chúng. `cac-loai-hat-dinh-duong` không có tương đương nên để trống.
 KLEVER_PRODUCTS: list[dict] = json.loads(KLEVER_PATH.read_text(encoding="utf-8"))
+
+# Rau củ hữu cơ cho danh mục `cac-loai-rau-cu-qua-oragnic` (kleverfruits không bán rau).
+# Cùng danh mục còn có "Cà chua Đà Lạt" của nhóm sản phẩm gốc.
+VEGETABLE_CATEGORY = "cac-loai-rau-cu-qua-oragnic"
+VEGETABLE_PRODUCTS = [
+    {
+        "slug": "bi-dao-huu-co",
+        "name": "Bí đao hữu cơ",
+        "price": 35000,
+        "sale_price": 29000,
+        "image": "/images/product-bi-dao-huu-co.jpg",
+        "short_description": "Bí đao hữu cơ vỏ xanh, ruột trắng, mát và thanh nhiệt.",
+        "description": "<p>Bí đao được trồng theo phương pháp hữu cơ, không dùng phân bón hoá học và thuốc trừ sâu tổng hợp. Quả chắc, vỏ xanh có lớp phấn trắng tự nhiên, ruột trắng mịn.</p><p>Bí đao giúp thanh nhiệt, ít calo, thích hợp nấu canh, hầm xương hoặc ép lấy nước uống.</p><ul><li>Xuất xứ: Việt Nam</li><li>Quy cách: tính theo kilogram</li><li>Bảo quản: nơi khô mát, sau khi cắt bọc kín để ngăn mát</li></ul>",
+    },
+    {
+        "slug": "ca-chua-bi-huu-co",
+        "name": "Cà chua bi hữu cơ",
+        "price": 60000,
+        "sale_price": 50000,
+        "image": "/images/product-ca-chua-bi-huu-co.jpg",
+        "short_description": "Cà chua bi hữu cơ chín đỏ, vị ngọt đậm, ăn sống rất ngon.",
+        "description": "<p>Cà chua bi hữu cơ quả nhỏ tròn đều, chín đỏ trên cây nên vị ngọt đậm và thơm. Canh tác hữu cơ trong nhà màng, kiểm soát sâu bệnh bằng biện pháp sinh học.</p><p>Giàu lycopene và vitamin C, thích hợp ăn trực tiếp, trộn salad hoặc làm món nướng.</p><ul><li>Xuất xứ: Đà Lạt, Lâm Đồng</li><li>Quy cách: hộp 500g</li><li>Bảo quản: ngăn mát 5-8°C</li></ul>",
+    },
+    {
+        "slug": "cai-ngot-huu-co",
+        "name": "Cải ngọt hữu cơ",
+        "price": 30000,
+        "sale_price": 25000,
+        "image": "/images/product-cai-ngot-huu-co.jpg",
+        "short_description": "Cải ngọt hữu cơ lá xanh mướt, thân giòn, vị ngọt tự nhiên.",
+        "description": "<p>Cải ngọt được trồng hữu cơ, thu hoạch khi còn non nên lá mềm, thân giòn và có vị ngọt tự nhiên. Rau được sơ chế, loại bỏ lá úa trước khi đóng gói.</p><p>Giàu chất xơ, vitamin A, C và canxi, thích hợp xào tỏi, nấu canh hoặc luộc chấm.</p><ul><li>Xuất xứ: Việt Nam</li><li>Quy cách: bó 500g</li><li>Bảo quản: ngăn mát, dùng trong 2-3 ngày</li></ul>",
+    },
+    {
+        "slug": "rau-muong-huu-co",
+        "name": "Rau muống hữu cơ",
+        "price": 25000,
+        "sale_price": 20000,
+        "image": "/images/product-rau-muong-huu-co.jpg",
+        "short_description": "Rau muống hữu cơ cọng giòn, lá non, an toàn cho bữa cơm gia đình.",
+        "description": "<p>Rau muống hữu cơ trồng trên ruộng cạn, tưới nước sạch, không dùng thuốc kích thích tăng trưởng. Cọng giòn, lá non xanh mướt.</p><p>Món rau quen thuộc của bữa cơm Việt: xào tỏi, luộc chấm tương hay nấu canh chua đều ngon.</p><ul><li>Xuất xứ: Việt Nam</li><li>Quy cách: bó 500g</li><li>Bảo quản: ngăn mát, dùng trong 1-2 ngày</li></ul>",
+    },
+    {
+        "slug": "xa-lach-huu-co",
+        "name": "Xà lách hữu cơ",
+        "price": 40000,
+        "sale_price": 35000,
+        "image": "/images/product-xa-lach-huu-co.jpg",
+        "short_description": "Xà lách hữu cơ lá giòn mát, ăn sống an toàn.",
+        "description": "<p>Xà lách hữu cơ được trồng trong nhà màng tại Đà Lạt, lá giòn, mát và không đắng. Không dùng thuốc trừ sâu hoá học nên yên tâm ăn sống.</p><p>Thích hợp làm salad, cuốn bánh tráng, kẹp bánh mì hoặc ăn kèm món nướng.</p><ul><li>Xuất xứ: Đà Lạt, Lâm Đồng</li><li>Quy cách: cây khoảng 300g</li><li>Bảo quản: bọc giấy ẩm để ngăn mát</li></ul>",
+    },
+    {
+        "slug": "ot-chuong-du-mau",
+        "name": "Ớt chuông đủ màu",
+        "price": 90000,
+        "sale_price": 75000,
+        "image": "/images/product-ot-chuong-du-mau.jpg",
+        "short_description": "Ớt chuông đỏ, vàng, xanh hữu cơ, quả dày cùi, giòn ngọt.",
+        "description": "<p>Set ớt chuông đủ ba màu đỏ, vàng, xanh được trồng hữu cơ. Quả to, dày cùi, giòn và ngọt nhẹ, không cay.</p><p>Giàu vitamin C và chất chống oxy hoá, thích hợp xào, nướng, làm salad hoặc trang trí món ăn.</p><ul><li>Xuất xứ: Đà Lạt, Lâm Đồng</li><li>Quy cách: tính theo kilogram</li><li>Bảo quản: ngăn mát 7-10°C</li></ul>",
+    },
+]
 
 # Bản gốc dùng CHUNG một ảnh cắt vuông (Screenshot_4-300x300) làm ảnh hover cho cả 4
 # sản phẩm, nên rê chuột lên "Cà chua Đà Lạt" lại hiện quả táo. Đó là lỗi cấu hình của
@@ -266,7 +319,7 @@ DEMO_ADDRESSES_HN = [
 ]
 # Tồn kho còn lại (sau các đơn mẫu) của vài sản phẩm, để bảng "Sắp hết hàng" có dữ liệu.
 DEMO_LOW_STOCK = {"viet-quat-my": 7, "cherry-do-canada": 3, "nuoc-ep-nho-kyoho-nhat-ban-720ml": 2}
-# e2e đặt mua 4 sản phẩm gốc (Bom mỹ tới 3 quả) nên đơn mẫu không kéo tồn của chúng xuống
+# e2e đặt mua các sản phẩm gốc (Vải nhập khẩu tới 3 kg) nên đơn mẫu không kéo tồn của chúng xuống
 # dưới mức này.
 E2E_STOCK_FLOOR = 20
 
@@ -524,16 +577,26 @@ def main() -> None:
         stores = [Store(**data) for data in STORES]
         db.add_all(stores)
 
-        # Bản gốc hiển thị cả 4 sản phẩm ở 3 danh mục Halona đầu tiên (nay đều là con của
-        # "Sản phẩm"); sản phẩm kleverfruits chỉ nằm trong một danh mục lá. Sản phẩm gốc đi
-        # trước để thứ tự trang chủ / trang quản trị không đổi.
+        # Bản gốc hiển thị mọi sản phẩm gốc ở 3 danh mục Halona đầu tiên (nay đều là con của
+        # "Sản phẩm"), cộng `extra_categories` nếu có; sản phẩm kleverfruits và rau củ chỉ nằm
+        # trong một danh mục lá. Sản phẩm gốc đi trước để thứ tự trang chủ / quản trị không đổi.
         original = ("trai-cay-nhap-khau", "trai-cay-noi-dia", "nuoc-ep")
-        entries = [(data, original) for data in PRODUCTS] + [
-            ({k: v for k, v in data.items() if k not in ("category", "source")}, (data["category"],))
-            for data in KLEVER_PRODUCTS
-        ]
+        entries = (
+            [
+                (
+                    {k: v for k, v in data.items() if k != "extra_categories"},
+                    original + tuple(data.get("extra_categories", ())),
+                )
+                for data in PRODUCTS
+            ]
+            + [
+                ({k: v for k, v in data.items() if k not in ("category", "source")}, (data["category"],))
+                for data in KLEVER_PRODUCTS
+            ]
+            + [(data, (VEGETABLE_CATEGORY,)) for data in VEGETABLE_PRODUCTS]
+        )
         # Gán created_at cách nhau 1 giây để thứ tự hiển thị luôn đúng như site gốc
-        # (Bom mỹ → Vải → Táo → Cà chua), không phụ thuộc tốc độ chèn.
+        # (Vải → Táo → Cà chua), không phụ thuộc tốc độ chèn.
         base_time = utcnow()
         products: list[Product] = []
         for offset, (data, slugs) in enumerate(entries):
@@ -643,7 +706,7 @@ def main() -> None:
 
     print(
         f"Đã nạp: {len(PRODUCT_CATEGORIES) + len(POST_CATEGORIES)} danh mục, "
-        f"{len(PRODUCTS) + len(KLEVER_PRODUCTS)} sản phẩm, {len(posts)} bài viết, "
+        f"{len(PRODUCTS) + len(KLEVER_PRODUCTS) + len(VEGETABLE_PRODUCTS)} sản phẩm, {len(posts)} bài viết, "
         f"{len(STORES)} cửa hàng, 5 tài khoản, {len(customers)} khách mẫu, "
         f"{len(orders)} đơn mẫu trong {DEMO_DAYS} ngày."
     )

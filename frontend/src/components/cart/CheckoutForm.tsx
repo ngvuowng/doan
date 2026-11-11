@@ -295,7 +295,7 @@ export function CheckoutForm({ defaults, stores: initialStores }: Props) {
           {items.map((line) => (
             <li key={line.productId} className="flex gap-3 py-3">
               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-line">
-                <Image src={line.image} alt={line.name} fill sizes="56px" className="object-contain p-1" />
+                <Image src={line.image} alt={line.name} fill sizes="56px" className="object-cover" />
               </div>
               <div className="flex-1 text-sm">
                 <p className="font-medium">{line.name}</p>

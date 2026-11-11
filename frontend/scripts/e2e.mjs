@@ -19,8 +19,10 @@ const KLEVER = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '_reference', 'kleverfruits-products.json'), 'utf8'),
 )
 const inCategories = (...slugs) => KLEVER.filter((p) => slugs.includes(p.category))
-// 4 sản phẩm gốc + toàn bộ sản phẩm kleverfruits: mọi danh mục lá nay đều nằm dưới "Sản phẩm".
-const SAN_PHAM_TOTAL = 4 + KLEVER.length
+// Rau củ hữu cơ khai báo trong seed.py (VEGETABLE_PRODUCTS), không nằm trong file kleverfruits.
+const VEGETABLE_TOTAL = 6
+// 3 sản phẩm gốc + sản phẩm kleverfruits + rau củ: mọi danh mục lá nay đều nằm dưới "Sản phẩm".
+const SAN_PHAM_TOTAL = 3 + KLEVER.length + VEGETABLE_TOTAL
 const GIFT = inCategories('gio-qua-tang-trai-cay-cao-cap', 'chuc-mung-cac-dip-le')
 const formatVnd = (n) => n.toLocaleString('vi-VN') + '₫'
 const CHROME =
@@ -160,8 +162,8 @@ async function main() {
       ['Trái cây nhập khẩu', 'Trái cây nội địa', 'Nước ép'].every((t) => sectionTitles.some((h) => h.startsWith(t))),
       JSON.stringify(sectionTitles),
     )
-    check('hiện đủ 4 sản phẩm', ['Bom mỹ', 'Vải nhập khẩu', 'Táo nhập khẩu', 'Cà chua Đà Lạt'].every((t) => home.includes(t)))
-    check('hiện giá khuyến mãi', home.includes('180.000₫') && home.includes('30.000₫'))
+    check('hiện đủ 3 sản phẩm gốc', ['Vải nhập khẩu', 'Táo nhập khẩu', 'Cà chua Đà Lạt'].every((t) => home.includes(t)))
+    check('hiện giá khuyến mãi', home.includes('60.000₫') && home.includes('30.000₫'))
     check('hiện khối bài viết', home.includes('Có thể bạn cần'))
     const broken = await evaluate(
       'return [...document.images].filter(i => i.complete && i.naturalWidth === 0).map(i => i.currentSrc || i.src)',
@@ -209,7 +211,7 @@ async function main() {
     check('bấm mũi tên mở mega menu, Esc đóng', toggled === 'true/false', toggled)
     check(
       'nhóm "Sản phẩm" liệt kê đủ 5 danh mục con',
-      ['Trái cây nhập khẩu', 'Trái cây nội địa', 'Nước ép trái cây', 'Các loại hạt dinh dưỡng', 'Các loại rau củ quả Oragnic'].every((t) => menu.includes(t)),
+      ['Trái cây nhập khẩu', 'Trái cây nội địa', 'Nước ép trái cây', 'Các loại hạt dinh dưỡng', 'Các loại rau củ quả'].every((t) => menu.includes(t)),
     )
     const crumbs = await evaluate("return document.querySelector('nav[aria-label=\"Breadcrumb\"]').innerText")
     check('breadcrumb danh mục con hiện danh mục cha', crumbs.includes('Sản phẩm') && crumbs.includes('Trái cây nhập khẩu'), crumbs)
@@ -225,7 +227,7 @@ async function main() {
     const parentPage = await text()
     check(
       'danh mục cha gom sản phẩm của các danh mục con, không trùng',
-      parentPage.includes('Bom mỹ') && parentPage.includes('Cà chua Đà Lạt') && parentPage.includes(`trên ${SAN_PHAM_TOTAL} sản phẩm`),
+      parentPage.includes('Vải nhập khẩu') && parentPage.includes('Cà chua Đà Lạt') && parentPage.includes(`trên ${SAN_PHAM_TOTAL} sản phẩm`),
     )
     await goto('/danh-muc-san-pham/qua-tang-trai-cay')
     const giftPage = await text()
@@ -239,9 +241,15 @@ async function main() {
       'chi tiết SP kleverfruits hiện tên + giá',
       detailKlever.includes(GIFT[0].name) && detailKlever.includes(formatVnd(GIFT[0].sale_price ?? GIFT[0].price)),
     )
-    await goto('/san-pham/bom-my')
+    await goto('/danh-muc-san-pham/cac-loai-rau-cu-qua-oragnic')
+    const vegPage = await text()
+    check(
+      'danh mục rau củ có sản phẩm gốc và rau củ hữu cơ',
+      vegPage.includes('Cà chua Đà Lạt') && vegPage.includes('Ớt chuông đủ màu'),
+    )
+    await goto('/san-pham/vai-nhap-khau')
     const detail = await text()
-    check('chi tiết SP hiện tên + giá', detail.includes('Bom mỹ') && detail.includes('180.000₫'))
+    check('chi tiết SP hiện tên + giá', detail.includes('Vải nhập khẩu') && detail.includes('60.000₫'))
     check('chi tiết SP có mô tả', detail.includes('Mô tả sản phẩm'))
     check('chi tiết SP có SP liên quan', detail.includes('Sản phẩm liên quan'))
 
@@ -295,7 +303,7 @@ async function main() {
 
     await goto('/gio-hang')
     const cart = await text()
-    check('trang giỏ hàng hiện sản phẩm', cart.includes('Bom mỹ') && cart.includes('180.000₫'))
+    check('trang giỏ hàng hiện sản phẩm', cart.includes('Vải nhập khẩu') && cart.includes('60.000₫'))
 
     // ---- 4. Thanh toán ----
     console.log('\n4. Thanh toán')
@@ -307,7 +315,7 @@ async function main() {
       return true;
     `)
     await sleep(300)
-    check('chọn cửa hàng tay thì áp phí chuẩn', (await text()).includes('210.000₫'))
+    check('chọn cửa hàng tay thì áp phí chuẩn', (await text()).includes('90.000₫'))
     await evaluate(`
       const set = (name, value) => {
         const el = document.querySelector('[name="' + name + '"]');
@@ -329,10 +337,10 @@ async function main() {
     await sleep(3500)
     const afterOrder = await url()
     check('đặt hàng chuyển tới trang cảm ơn', afterOrder.startsWith('/dat-hang-thanh-cong/'), afterOrder)
-    const guestOrder = afterOrder.replace('/dat-hang-thanh-cong/', '') // Bom mỹ × 1, dùng ở mục 8b
+    const guestOrder = afterOrder.replace('/dat-hang-thanh-cong/', '') // Vải nhập khẩu × 1, dùng ở mục 8b
     const success = await text()
     check('trang cảm ơn hiện mã đơn', /HL-[0-9A-F]{6}/.test(success))
-    check('trang cảm ơn hiện đúng tổng tiền', success.includes('180.000₫') && success.includes('210.000₫'))
+    check('trang cảm ơn hiện đúng tổng tiền', success.includes('60.000₫') && success.includes('90.000₫'))
     check(
       'trang cảm ơn hiện cửa hàng và phí giao hàng',
       success.includes('120 Yên Lãng') && success.includes('Phí giao hàng') && success.includes('30.000₫'),
@@ -503,7 +511,7 @@ async function main() {
 
     // Sửa giá sản phẩm và kiểm tra phía người dùng.
     await goto('/admin/san-pham')
-    check('quản trị sản phẩm liệt kê sản phẩm', (await text()).includes('Bom mỹ'))
+    check('quản trị sản phẩm liệt kê sản phẩm', (await text()).includes('Vải nhập khẩu'))
     const editHref = await evaluate(`
       const a = [...document.querySelectorAll('a')].find(a => a.textContent.trim() === 'Sửa');
       return a ? a.getAttribute('href') : null;
@@ -511,7 +519,7 @@ async function main() {
     await goto(editHref)
     await evaluate(`
       const el = document.querySelector('[name="salePrice"]');
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '111000');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '55000');
       el.dispatchEvent(new Event('input', { bubbles: true }));
       [...document.querySelectorAll('button')].find(b => b.textContent.includes('Cập nhật sản phẩm')).click();
       return true;
@@ -519,14 +527,14 @@ async function main() {
     await sleep(3500)
     check('lưu sản phẩm quay lại danh sách', (await url()) === '/admin/san-pham', await url())
 
-    await goto('/san-pham/bom-my')
-    check('giá mới hiện ở trang người dùng', (await text()).includes('111.000₫'))
+    await goto('/san-pham/vai-nhap-khau')
+    check('giá mới hiện ở trang người dùng', (await text()).includes('55.000₫'))
 
     // Trả lại giá gốc để dữ liệu demo không bị lệch.
     await goto(editHref)
     await evaluate(`
       const el = document.querySelector('[name="salePrice"]');
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '180000');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '60000');
       el.dispatchEvent(new Event('input', { bubbles: true }));
       [...document.querySelectorAll('button')].find(b => b.textContent.includes('Cập nhật sản phẩm')).click();
       return true;
@@ -578,17 +586,17 @@ async function main() {
     check('huỷ đơn đã trừ kho thì hoàn lại', (await readStock('tao-nhap-khau')) === stockBefore)
     await setOrderStatus(memberOrder, 'PENDING') // trả đơn về trạng thái ban đầu
 
-    // Bỏ Bom mỹ vào giỏ trước khi hết hàng để lát nữa thử đặt hàng với giỏ cũ.
-    await goto('/san-pham/bom-my')
+    // Bỏ Vải nhập khẩu vào giỏ trước khi hết hàng để lát nữa thử đặt hàng với giỏ cũ.
+    await goto('/san-pham/vai-nhap-khau')
     await evaluate(`
       [...document.querySelectorAll('button')].find(b => b.textContent.includes('Thêm vào giỏ hàng')).click();
       return true;
     `)
     await sleep(800)
 
-    // Đặt tồn kho Bom mỹ = 0 qua form sửa (cùng cách với salePrice ở trên), nhớ giá trị cũ.
+    // Đặt tồn kho Vải nhập khẩu = 0 qua form sửa (cùng cách với salePrice ở trên), nhớ giá trị cũ.
     await goto(editHref)
-    const bomStock = await evaluate('return document.querySelector(\'[name="stock"]\').value')
+    const vaiStock = await evaluate('return document.querySelector(\'[name="stock"]\').value')
     const setStock = async (value) => {
       await goto(editHref)
       await evaluate(`
@@ -602,31 +610,31 @@ async function main() {
     }
     await setStock(0)
 
-    // Hoàn thành đơn khách vãng lai (Bom mỹ × 1) khi kho = 0 → 400, banner lỗi, trạng thái giữ nguyên.
+    // Hoàn thành đơn khách vãng lai (Vải nhập khẩu × 1) khi kho = 0 → 400, banner lỗi, trạng thái giữ nguyên.
     await setOrderStatus(guestOrder, 'COMPLETED')
     const afterFail = await text()
-    check('thiếu hàng thì hiện banner lỗi', afterFail.includes('Không đủ tồn kho') && afterFail.includes('Bom mỹ'))
+    check('thiếu hàng thì hiện banner lỗi', afterFail.includes('Không đủ tồn kho') && afterFail.includes('Vải nhập khẩu'))
     check('đơn thiếu hàng giữ nguyên Chờ xác nhận', (await orderHeader(guestOrder))?.includes('Chờ xác nhận'))
 
     await goto('/cua-hang')
-    const bomCard = await evaluate(`
-      const card = [...document.querySelectorAll('article')].find(a => a.innerText.includes('Bom mỹ'));
+    const vaiCard = await evaluate(`
+      const card = [...document.querySelectorAll('article')].find(a => a.innerText.includes('Vải nhập khẩu'));
       return card ? { text: card.innerText, disabled: card.querySelector('button').disabled } : null;
     `)
     check(
       'card hết hàng hiện nhãn và khoá nút',
-      bomCard?.text.includes('Hết hàng') && bomCard.disabled === true,
-      JSON.stringify(bomCard),
+      vaiCard?.text.includes('Hết hàng') && vaiCard.disabled === true,
+      JSON.stringify(vaiCard),
     )
 
-    await goto('/san-pham/bom-my')
+    await goto('/san-pham/vai-nhap-khau')
     const soldOutBtn = await evaluate(`
       const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Hết hàng');
       return btn ? btn.disabled : null;
     `)
     check('trang chi tiết hết hàng khoá nút thêm vào giỏ', soldOutBtn === true)
 
-    // Giỏ cũ còn Bom mỹ: đặt hàng bị từ chối, giỏ tự gỡ dòng hết hàng.
+    // Giỏ cũ còn Vải nhập khẩu: đặt hàng bị từ chối, giỏ tự gỡ dòng hết hàng.
     await goto('/thanh-toan')
     await evaluate(`
       [...document.querySelectorAll('input[name="storeId"]')]
@@ -649,7 +657,7 @@ async function main() {
       await url(),
     )
 
-    await setStock(bomStock) // trả tồn kho về như cũ
+    await setStock(vaiStock) // trả tồn kho về như cũ
 
     // ---- 9. Responsive ----
     console.log('\n9. Responsive (375px)')
@@ -828,7 +836,7 @@ async function main() {
     check('vào trang không có quyền bị đưa về tổng quan', (await url()) === '/admin', await url())
     await goto('/admin/san-pham')
     const staffProducts = await text()
-    check('chỉ xem sản phẩm, không có nút thêm/sửa', staffProducts.includes('Bom mỹ') && !staffProducts.includes('Thêm sản phẩm'))
+    check('chỉ xem sản phẩm, không có nút thêm/sửa', staffProducts.includes('Vải nhập khẩu') && !staffProducts.includes('Thêm sản phẩm'))
     await goto('/admin/don-hang')
     // Seed có đơn mẫu ở mọi cửa hàng: mọi đơn hiện ra phải là của Tân Bình, và không có hai
     // đơn e2e đặt ở 120 Yên Lãng.

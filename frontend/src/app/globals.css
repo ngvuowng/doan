@@ -166,8 +166,7 @@
     transition: background-color 9999s ease-in-out 0s;
   }
 
-  /* Nền nhạt cố định phía sau ảnh sản phẩm (card + trang chi tiết). Ảnh đặt mix-blend-multiply
-     để nền trắng của ảnh PNG cũ hoà vào màu này thay vì thành ô trắng. */
+  /* Nền nhạt cố định phía sau ảnh sản phẩm (card + trang chi tiết), lộ ra ở viền quanh ảnh. */
   .product-frame {
     background: linear-gradient(160deg, var(--color-cream), var(--color-shell));
   }

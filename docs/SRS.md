@@ -1797,7 +1797,7 @@ sequenceDiagram
         API->>DB: SELECT products + categories (tối đa 80)
         DB-->>API: Danh mục sản phẩm
         API->>DB: SELECT 12 tin nhắn gần nhất làm ngữ cảnh
-        API->>GM: POST generateContent<br/>systemInstruction = persona + nhiệm vụ chung + danh mục (+ hoa quả đã mua/giỏ)<br/>thinkingBudget = 0
+        API->>GM: POST generateContent<br/>systemInstruction = persona + nhiệm vụ chung + danh mục (+ hoa quả đã mua/giỏ)<br/>tắt/giảm thinking tuỳ model; lỗi tạm thời thì thử lại rồi chuyển model dự phòng
         alt Gemini lỗi
             GM-->>API: timeout / 5xx / 401 / 429
             API-->>UI: 504 / 502 / 503 / 429 kèm câu tiếng Việt riêng

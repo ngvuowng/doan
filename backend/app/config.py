@@ -28,8 +28,21 @@ if not AUTH_SECRET:
 # website vẫn chạy bình thường, chỉ riêng /api/chat trả 503 kèm thông báo tiếng Việt.
 # Nhờ vậy tính năng này viết, chạy và kiểm thử được trước khi có khoá thật.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# gemini-2.5-flash bị Google ngừng hỗ trợ (tắt sớm nhất 01/12/2026), nên mặc định dùng
+# model Google chỉ định thay thế.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+# Model chính lỗi (quá tải, hết hạn mức, đã tắt) thì thử lần lượt các model này. Có giá
+# trị mặc định trong code để máy chạy bằng .env cũ vẫn có đường lui.
+GEMINI_FALLBACK_MODELS = [
+    m.strip()
+    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-2.5-flash-lite").split(",")
+    if m.strip()
+]
+# Tổng thời gian khách phải chờ cho một câu hỏi, tính cả các lần thử lại và model dự phòng.
 GEMINI_TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "25"))
+# Thời gian chờ tối đa của MỘT lần gọi. Bình thường Flash trả lời trong 2–6 giây; chờ quá
+# ngần này thì nhiều khả năng model đang nghẽn, chuyển sang model khác còn nhanh hơn.
+GEMINI_ATTEMPT_TIMEOUT_SECONDS = 12.0
 # Bật (=1) để thử toàn bộ luồng chat — lưu CSDL, lịch sử, giao diện — khi chưa có khoá.
 GEMINI_MOCK = os.getenv("GEMINI_MOCK", "") == "1"
 
